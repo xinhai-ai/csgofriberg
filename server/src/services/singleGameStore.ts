@@ -1,0 +1,104 @@
+import { randomUUID } from 'crypto';
+import { redis, redisKey } from '../redis';
+import { GuessFeedback } from '../types';
+
+export type SingleGameMode = 'easy' | 'normal';
+
+export interface SingleGameState {
+  id: string;
+  identityKey: string;
+  userId: number | null;
+  guestKey: string | null;
+  mode: SingleGameMode;
+  targetPlayerId: number;
+  guesses: GuessFeedback[];
+  createdAt: number;
+  lastActiveAt: number;
+}
+
+export const SINGLE_GAME_TTL_SECONDS = 1800;
+
+function gameKey(id: string): string {
+  return redisKey(`single:game:${id}`);
+}
+
+function activeKey(identityKey: string, mode: SingleGameMode): string {
+  return redisKey(`single:active:${identityKey}:${mode}`);
+}
+
+function requiredRedis() {
+  const client = redis();
+  if (!client) throw new Error('REDIS_UNAVAILABLE');
+  return client;
+}
+
+export async function createOrResumeSingleGame(input: {
+  identityKey: string;
+  userId: number | null;
+  guestKey: string | null;
+  mode: SingleGameMode;
+  targetPlayerId: number;
+}): Promise<SingleGameState> {
+  const client = requiredRedis();
+  const active = activeKey(input.identityKey, input.mode);
+  const existingId = await client.get(active);
+  if (existingId) {
+    // Restoring after a refresh must not extend the inactivity window.
+    const existing = await loadSingleGame(existingId, input.identityKey);
+    if (existing) return existing;
+    await client.del(active);
+  }
+
+  const now = Date.now();
+  const game: SingleGameState = {
+    id: randomUUID(),
+    identityKey: input.identityKey,
+    userId: input.userId,
+    guestKey: input.guestKey,
+    mode: input.mode,
+    targetPlayerId: input.targetPlayerId,
+    guesses: [],
+    createdAt: now,
+    lastActiveAt: now,
+  };
+  await saveSingleGame(game);
+  return game;
+}
+
+export async function loadSingleGame(
+  id: string,
+  identityKey: string,
+  touch = false
+): Promise<SingleGameState | null> {
+  const client = requiredRedis();
+  const raw = await client.get(gameKey(id));
+  if (!raw) return null;
+  const game = JSON.parse(raw) as SingleGameState;
+  if (game.identityKey !== identityKey) return null;
+  if (touch) {
+    game.lastActiveAt = Date.now();
+    await saveSingleGame(game);
+  }
+  return game;
+}
+
+export async function saveSingleGame(game: SingleGameState): Promise<void> {
+  const client = requiredRedis();
+  game.lastActiveAt = Date.now();
+  await client.multi()
+    .set(gameKey(game.id), JSON.stringify(game), { EX: SINGLE_GAME_TTL_SECONDS })
+    .set(activeKey(game.identityKey, game.mode), game.id, { EX: SINGLE_GAME_TTL_SECONDS })
+    .exec();
+}
+
+export async function deleteSingleGame(game: SingleGameState): Promise<void> {
+  const client = requiredRedis();
+  const active = activeKey(game.identityKey, game.mode);
+  await client.eval(
+    `if redis.call('get', KEYS[1]) == ARGV[1] then
+       return redis.call('del', KEYS[1], KEYS[2])
+     end
+     return redis.call('del', KEYS[2])`,
+    { keys: [active, gameKey(game.id)], arguments: [game.id] }
+  );
+}

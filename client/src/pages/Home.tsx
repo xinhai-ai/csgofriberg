@@ -14,9 +14,11 @@ import {
 import MenuCard from '../components/MenuCard';
 import { useAuth } from '../store/auth';
 import { getGuestName } from '../store/guest';
+import { api } from '../api/client';
+import { closeSocket } from '../api/socket';
 
 export default function Home() {
-  const { user, logout } = useAuth();
+  const { user, setUser } = useAuth();
   const navigate = useNavigate();
 
   return (
@@ -39,7 +41,10 @@ export default function Home() {
               <button
                 className="btn btn-ghost btn-sm"
                 onClick={() => {
-                  logout();
+                  void api.post('/auth/logout').finally(() => {
+                    closeSocket();
+                    setUser(null);
+                  });
                   navigate('/');
                 }}
               >

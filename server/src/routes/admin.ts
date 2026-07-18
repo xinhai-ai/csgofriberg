@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { db } from '../db/knex';
 import { requireAuth, requireAdmin } from '../middleware/auth';
 import { validateBody, asyncHandler, HttpError } from '../middleware/common';
+import { invalidatePlayerCache } from '../services/playerCache';
+import { invalidateCached } from '../services/queryCache';
 
 const router = Router();
 router.use(requireAuth, requireAdmin);
@@ -36,6 +38,7 @@ router.post(
       .insert(req.body)
       .returning('id')
       .then((rows) => rows.map((r: any) => (typeof r === 'object' ? r.id : r)));
+    await invalidatePlayerCache();
     res.json({ id });
   })
 );
@@ -46,6 +49,7 @@ router.put(
   asyncHandler(async (req, res) => {
     const count = await db('players').where({ id: Number(req.params.id) }).update(req.body);
     if (!count) throw new HttpError(404, 'PLAYER_NOT_FOUND');
+    await invalidatePlayerCache();
     res.json({ ok: true });
   })
 );
@@ -58,10 +62,12 @@ router.delete(
     if (used) {
       // 有历史对局引用时不物理删除,标记退役并保留数据
       await db('players').where({ id }).update({ is_active: false });
+      await invalidatePlayerCache();
       return res.json({ ok: true, softDeleted: true });
     }
     const count = await db('players').where({ id }).del();
     if (!count) throw new HttpError(404, 'PLAYER_NOT_FOUND');
+    await invalidatePlayerCache();
     res.json({ ok: true });
   })
 );
@@ -73,16 +79,21 @@ router.post(
   asyncHandler(async (req, res) => {
     let created = 0;
     let updated = 0;
-    for (const p of req.body.players) {
-      const exists = await db('players').where({ nickname: p.nickname }).first();
-      if (exists) {
-        await db('players').where({ id: exists.id }).update(p);
-        updated++;
-      } else {
-        await db('players').insert(p);
-        created++;
+    await db.transaction(async (trx) => {
+      const nicknames = req.body.players.map((p: { nickname: string }) => p.nickname);
+      const existing = await trx('players').whereIn('nickname', nicknames).select('nickname');
+      const existingNames = new Set(existing.map((p: any) => p.nickname));
+      updated = req.body.players.filter((p: { nickname: string }) => existingNames.has(p.nickname)).length;
+      created = req.body.players.length - updated;
+      const chunkSize = 200;
+      for (let index = 0; index < req.body.players.length; index += chunkSize) {
+        await trx('players')
+          .insert(req.body.players.slice(index, index + chunkSize))
+          .onConflict('nickname')
+          .merge();
       }
-    }
+    });
+    await invalidatePlayerCache();
     res.json({ created, updated });
   })
 );
@@ -100,6 +111,7 @@ router.post(
       .insert(req.body)
       .returning('id')
       .then((rows) => rows.map((r: any) => (typeof r === 'object' ? r.id : r)));
+    await invalidateCached('announcements');
     res.json({ id });
   })
 );
@@ -109,6 +121,7 @@ router.delete(
   asyncHandler(async (req, res) => {
     const count = await db('announcements').where({ id: Number(req.params.id) }).del();
     if (!count) throw new HttpError(404, 'NOT_FOUND');
+    await invalidateCached('announcements');
     res.json({ ok: true });
   })
 );

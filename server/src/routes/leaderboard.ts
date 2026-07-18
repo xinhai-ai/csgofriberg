@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { db } from '../db/knex';
 import { asyncHandler } from '../middleware/common';
+import { cached } from '../services/queryCache';
 
 const router = Router();
 
@@ -8,7 +9,8 @@ const router = Router();
 router.get(
   '/',
   asyncHandler(async (_req, res) => {
-    const rows = await db('games as g')
+    const board = await cached('leaderboard', 30, async () => {
+      const rows = await db('games as g')
       .join('users as u', 'u.id', 'g.user_id')
       .whereNot('g.status', 'playing')
       .groupBy('u.id', 'u.username')
@@ -19,15 +21,18 @@ router.get(
         avgGuesses: db.raw("case when g.status = 'won' then g.guess_count else null end"),
       });
 
-    const multiRows = await db('match_records').select('winner_id');
+    const multiRows = await db('match_players')
+      .where({ is_winner: true })
+      .whereNotNull('user_id')
+      .groupBy('user_id')
+      .select('user_id')
+      .count({ wins: 'id' });
     const multiWins = new Map<number, number>();
     for (const r of multiRows as any[]) {
-      if (r.winner_id != null) {
-        multiWins.set(r.winner_id, (multiWins.get(r.winner_id) ?? 0) + 1);
-      }
+      multiWins.set(Number(r.user_id), Number(r.wins));
     }
 
-    const board = (rows as any[])
+    return (rows as any[])
       .map((r) => ({
         id: r.id,
         username: r.username,
@@ -39,6 +44,7 @@ router.get(
       }))
       .sort((a, b) => b.wins - a.wins || a.winRate - b.winRate)
       .slice(0, 50);
+    });
 
     res.json(board);
   })

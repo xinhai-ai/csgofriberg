@@ -31,6 +31,9 @@ export function errorHandler(
   if (err instanceof HttpError) {
     return res.status(err.status).json({ code: err.code });
   }
+  if (err instanceof Error && err.message === 'REDIS_UNAVAILABLE') {
+    return res.status(503).json({ code: 'REDIS_UNAVAILABLE' });
+  }
   console.error(err);
   res.status(500).json({ code: 'INTERNAL_ERROR' });
 }

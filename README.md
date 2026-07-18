@@ -24,7 +24,7 @@ CS:GO / CS2 Major 选手猜测游戏 —— 工程化前后端分离版本。
 - 所有模式**无需登录**:匿名访客战绩按浏览器本地标识记账,登录后自动并入账号
 - 前后端交互仅传递**错误码**,文案统一在前端翻译(`client/src/i18n/messages.ts`)
 - 📊 **生涯记录** / 🏆 **排行榜** / 📢 **公告**
-- 🛠 **管理后台**:选手增删改、JSON 批量导入、公告管理(首个注册用户自动成为管理员)
+- 🛠 **管理后台**:选手增删改、JSON 批量导入、公告管理(管理员通过部署命令创建)
 
 ## 快速开始
 
@@ -34,7 +34,24 @@ cp server/.env.example server/.env   # 可选,有默认值
 pnpm dev                             # server: 3000, client: 5173
 ```
 
-访问 http://localhost:5173 。首个注册的账号即管理员。
+Redis 默认连接 `redis://127.0.0.1:6379`。生产环境建议设置
+`REDIS_REQUIRED=true`，避免 Redis 故障时降级为仅适合单实例的内存模式。
+
+生产环境还会强制要求 PostgreSQL、至少 32 字节的随机 `JWT_SECRET` 和
+`REDIS_REQUIRED=true`。登录会话与匿名身份均使用 HttpOnly、SameSite Cookie，
+客户端不保存 JWT 或匿名身份密钥。
+
+单人进行中的对局只保存在 Redis，300 秒无有效操作会自动过期。猜中、
+次数耗尽或查看答案后才写入数据库；主动离开或重新开始只清理临时状态，
+不会产生历史战绩。
+
+创建或重置管理员：
+
+```bash
+ADMIN_USERNAME=admin ADMIN_PASSWORD='至少12位强密码' pnpm create-admin
+```
+
+访问 http://localhost:5173 。公开注册账号默认都是普通用户。
 
 ## 常用脚本
 
@@ -46,6 +63,19 @@ pnpm dev                             # server: 3000, client: 5173
 | `pnpm test` | 运行后端单测(游戏判定逻辑) |
 | `pnpm migrate` | 初始化数据库结构 + 种子选手 |
 | `pnpm seed` | 补充种子数据中缺失的选手 |
+| `pnpm create-admin` | 显式创建或重置管理员 |
+| `pnpm loadtest` | 运行 HTTP 缓存接口与多人建房负载测试 |
+
+## Redis 用途
+
+- HTTP 与 Socket.IO 分布式限流
+- HttpOnly Cookie 会话、实时角色校验和匿名身份签名绑定
+- `/api/players/list` 版本化缓存、ETag 与跨实例失效通知
+- 排行榜、公告等热点查询缓存
+- 多人房间快照、身份索引、分布式房间锁和匹配队列
+- 回合超时、断线判负和房间清理的可恢复调度
+- Socket.IO Redis Adapter 跨实例广播
+- Redis Stream 多人战绩持久化重试
 
 ## 切换 PostgreSQL
 

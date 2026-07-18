@@ -14,12 +14,14 @@ const MESSAGES: Record<string, string> = {
   PLAYER_NOT_FOUND: '选手不存在',
   NICKNAME_TAKEN: '选手昵称已存在',
   EMPTY_PLAYER_POOL: '选手库为空,请联系管理员导入数据',
+  REDIS_UNAVAILABLE: '游戏状态服务暂时不可用,请稍后重试',
   // Socket
   IDENTITY_REQUIRED: '身份校验失败,请刷新页面',
   ALREADY_IN_ROOM: '你已在一个房间中,请先退出',
   ROOM_NOT_FOUND: '房间不存在',
   ROOM_STARTED: '对局已开始,无法加入',
   ROOM_FULL: '房间已满',
+  ROOM_CAPACITY_REACHED: '当前服务器房间数量已达上限,请稍后重试',
   NOT_IN_WAITING_ROOM: '当前不在等待中的房间',
   NOT_IN_ROOM: '你不在任何房间中',
   ROOM_NOT_READY: '房间当前不可开始',
@@ -28,6 +30,9 @@ const MESSAGES: Record<string, string> = {
   PLAYERS_NOT_READY: '有玩家尚未准备',
   NO_ACTIVE_ROUND: '当前没有进行中的小局',
   GUESS_LIMIT_REACHED: '本局猜测次数已用完',
+  STALE_ROUND: '该猜测属于已经结束的小局',
+  TOO_MANY_CONNECTIONS: '当前身份或网络连接数过多',
+  INVALID_ORIGIN: '请求来源未被允许',
   NETWORK_ERROR: '网络异常,请检查连接',
 };
 

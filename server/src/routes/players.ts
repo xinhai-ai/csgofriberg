@@ -3,8 +3,22 @@ import { db } from '../db/knex';
 import { asyncHandler } from '../middleware/common';
 import { Player } from '../types';
 import { ageOf } from '../services/gameService';
+import { getPublicPlayerList } from '../services/playerCache';
+import { rateLimit } from '../middleware/rateLimit';
 
 const router = Router();
+
+router.get(
+  '/list',
+  asyncHandler(async (req, res) => {
+    const list = await getPublicPlayerList();
+    const etag = `\"players-${list.version}\"`;
+    res.setHeader('ETag', etag);
+    res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=86400');
+    if (req.headers['if-none-match'] === etag) return res.status(304).end();
+    res.json(list);
+  })
+);
 
 /**
  * 查选手 / 自动补全。
@@ -13,6 +27,7 @@ const router = Router();
  */
 router.get(
   '/',
+  rateLimit({ name: 'player-search', limit: 120, windowSeconds: 60 }),
   asyncHandler(async (req, res) => {
     const search = String(req.query.search ?? '').trim();
     const suggest = req.query.suggest === '1';

@@ -3,65 +3,32 @@ import { z } from 'zod';
 import { db } from '../db/knex';
 import { optionalAuth } from '../middleware/auth';
 import { validateBody, asyncHandler, HttpError } from '../middleware/common';
-import { GameRow, Player, GuessFeedback } from '../types';
-import { compareGuess, MAX_GUESSES, EASY_MIN_MAJORS } from '../services/gameService';
+import { Player } from '../types';
+import { compareGuess, MAX_GUESSES } from '../services/gameService';
+import { getPlayer, pickCachedTarget } from '../services/playerCache';
+import { rateLimit } from '../middleware/rateLimit';
+import { withKeyLock } from '../services/keyLock';
+import { invalidateCached } from '../services/queryCache';
+import {
+  SingleGameMode,
+  SingleGameState,
+  createOrResumeSingleGame,
+  deleteSingleGame,
+  loadSingleGame,
+  saveSingleGame,
+} from '../services/singleGameStore';
 
 const router = Router();
 router.use(optionalAuth);
 
-async function pickTarget(mode: string): Promise<Player> {
-  let query = db<Player>('players');
-  if (mode === 'easy') {
-    query = query.where('major_appearances', '>=', EASY_MIN_MAJORS);
-  }
-  const players = await query;
-  if (!players.length) throw new HttpError(500, 'EMPTY_PLAYER_POOL');
-  return players[Math.floor(Math.random() * players.length)];
-}
-
-/** 单人模式无需登录:登录用户按 user_id 记账,匿名按 guest_key */
 function identity(req: { user?: { id: number }; guestKey?: string }) {
-  if (req.user) return { user_id: req.user.id };
-  if (req.guestKey) return { guest_key: req.guestKey };
+  if (req.user) {
+    return { identityKey: `u:${req.user.id}`, userId: req.user.id, guestKey: null };
+  }
+  if (req.guestKey) {
+    return { identityKey: `g:${req.guestKey}`, userId: null, guestKey: req.guestKey };
+  }
   return null;
-}
-
-router.post(
-  '/start',
-  validateBody(z.object({ mode: z.enum(['easy', 'normal']).default('easy') })),
-  asyncHandler(async (req, res) => {
-    const { mode } = req.body;
-    const who = identity(req);
-    if (!who) throw new HttpError(400, 'GUEST_KEY_REQUIRED');
-
-    const pending = await db<GameRow>('games')
-      .where({ ...who, status: 'playing', mode })
-      .first();
-    if (pending) {
-      return res.json({
-        gameId: pending.id,
-        mode: pending.mode,
-        maxGuesses: MAX_GUESSES,
-        guesses: JSON.parse(pending.guesses) as GuessFeedback[],
-      });
-    }
-    const target = await pickTarget(mode);
-    const [id] = await db('games')
-      .insert({ ...who, target_player_id: target.id, mode })
-      .returning('id')
-      .then((rows) => rows.map((r: any) => (typeof r === 'object' ? r.id : r)));
-    res.json({ gameId: id, mode, maxGuesses: MAX_GUESSES, guesses: [] });
-  })
-);
-
-async function loadPlayingGame(
-  gameId: number,
-  who: Record<string, unknown>
-): Promise<GameRow> {
-  const game = await db<GameRow>('games').where({ id: gameId, ...who }).first();
-  if (!game) throw new HttpError(404, 'GAME_NOT_FOUND');
-  if (game.status !== 'playing') throw new HttpError(400, 'GAME_FINISHED');
-  return game;
 }
 
 function answerView(target: Player) {
@@ -76,61 +43,129 @@ function answerView(target: Player) {
   };
 }
 
+async function loadOwnedGame(id: string, identityKey: string): Promise<SingleGameState> {
+  const game = await loadSingleGame(id, identityKey);
+  if (!game) throw new HttpError(404, 'GAME_NOT_FOUND');
+  return game;
+}
+
+async function settleGame(game: SingleGameState, status: 'won' | 'lost'): Promise<void> {
+  await db('games')
+    .insert({
+      session_id: game.id,
+      user_id: game.userId,
+      guest_key: game.guestKey,
+      target_player_id: game.targetPlayerId,
+      mode: game.mode,
+      guesses: JSON.stringify(game.guesses),
+      status,
+      guess_count: game.guesses.length,
+      created_at: new Date(game.createdAt),
+      finished_at: db.fn.now(),
+    })
+    .onConflict('session_id')
+    .ignore();
+  await deleteSingleGame(game);
+  await invalidateCached('leaderboard');
+}
+
+router.post(
+  '/start',
+  rateLimit({ name: 'game-start', limit: 30, windowSeconds: 60 }),
+  validateBody(z.object({ mode: z.enum(['easy', 'normal']).default('easy') })),
+  asyncHandler(async (req, res) => {
+    const owner = identity(req);
+    if (!owner) throw new HttpError(400, 'GUEST_KEY_REQUIRED');
+    const mode = req.body.mode as SingleGameMode;
+    const response = await withKeyLock(`single-start:${owner.identityKey}:${mode}`, async () => {
+      const target = pickCachedTarget(mode);
+      if (!target) throw new HttpError(500, 'EMPTY_PLAYER_POOL');
+      const game = await createOrResumeSingleGame({
+        ...owner,
+        mode,
+        targetPlayerId: target.id,
+      });
+      return {
+        gameId: game.id,
+        mode: game.mode,
+        maxGuesses: MAX_GUESSES,
+        guesses: game.guesses,
+      };
+    });
+    res.json(response);
+  })
+);
+
 router.post(
   '/:id/guess',
+  rateLimit({
+    name: 'game-guess',
+    limit: 30,
+    windowSeconds: 10,
+    key: (req) => req.user ? `u:${req.user.id}` : `g:${req.guestKey ?? req.ip}`,
+  }),
   validateBody(z.object({ playerId: z.number().int().positive() })),
   asyncHandler(async (req, res) => {
-    const who = identity(req);
-    if (!who) throw new HttpError(400, 'GUEST_KEY_REQUIRED');
-    const game = await loadPlayingGame(Number(req.params.id), who);
-    const guess = await db<Player>('players').where({ id: req.body.playerId }).first();
-    if (!guess) throw new HttpError(404, 'PLAYER_NOT_FOUND');
-    const target = await db<Player>('players')
-      .where({ id: game.target_player_id })
-      .first();
-    if (!target) throw new HttpError(500, 'INTERNAL_ERROR');
+    const owner = identity(req);
+    if (!owner) throw new HttpError(400, 'GUEST_KEY_REQUIRED');
+    const gameId = String(req.params.id);
+    const response = await withKeyLock(`single-game:${gameId}`, async () => {
+      const game = await loadOwnedGame(gameId, owner.identityKey);
+      const guess = getPlayer(req.body.playerId);
+      if (!guess) throw new HttpError(404, 'PLAYER_NOT_FOUND');
+      const target = getPlayer(game.targetPlayerId);
+      if (!target) throw new HttpError(500, 'INTERNAL_ERROR');
+      if (game.guesses.some((item) => item.playerId === guess.id)) {
+        throw new HttpError(400, 'ALREADY_GUESSED');
+      }
 
-    const guesses = JSON.parse(game.guesses) as GuessFeedback[];
-    if (guesses.some((g) => g.playerId === guess.id)) {
-      throw new HttpError(400, 'ALREADY_GUESSED');
-    }
-    const feedback = compareGuess(guess, target);
-    guesses.push(feedback);
+      const feedback = compareGuess(guess, target);
+      game.guesses.push(feedback);
+      const finished = feedback.correct || game.guesses.length >= MAX_GUESSES;
+      const status = feedback.correct ? 'won' : finished ? 'lost' : 'playing';
+      if (finished) await settleGame(game, feedback.correct ? 'won' : 'lost');
+      else await saveSingleGame(game);
 
-    const finished = feedback.correct || guesses.length >= MAX_GUESSES;
-    const status = feedback.correct ? 'won' : finished ? 'lost' : 'playing';
-    await db('games')
-      .where({ id: game.id })
-      .update({
-        guesses: JSON.stringify(guesses),
-        guess_count: guesses.length,
+      return {
+        feedback,
         status,
-        finished_at: finished ? db.fn.now() : null,
-      });
-
-    res.json({
-      feedback,
-      status,
-      guessCount: guesses.length,
-      maxGuesses: MAX_GUESSES,
-      answer: finished ? answerView(target) : undefined,
+        guessCount: game.guesses.length,
+        maxGuesses: MAX_GUESSES,
+        answer: finished ? answerView(target) : undefined,
+      };
     });
+    res.json(response);
   })
 );
 
 router.post(
   '/:id/giveup',
   asyncHandler(async (req, res) => {
-    const who = identity(req);
-    if (!who) throw new HttpError(400, 'GUEST_KEY_REQUIRED');
-    const game = await loadPlayingGame(Number(req.params.id), who);
-    await db('games')
-      .where({ id: game.id })
-      .update({ status: 'lost', finished_at: db.fn.now() });
-    const target = await db<Player>('players')
-      .where({ id: game.target_player_id })
-      .first();
-    res.json({ status: 'lost', answer: target ? answerView(target) : undefined });
+    const owner = identity(req);
+    if (!owner) throw new HttpError(400, 'GUEST_KEY_REQUIRED');
+    const gameId = String(req.params.id);
+    const response = await withKeyLock(`single-game:${gameId}`, async () => {
+      const game = await loadOwnedGame(gameId, owner.identityKey);
+      const target = getPlayer(game.targetPlayerId);
+      if (!target) throw new HttpError(500, 'INTERNAL_ERROR');
+      await settleGame(game, 'lost');
+      return { status: 'lost', answer: answerView(target) };
+    });
+    res.json(response);
+  })
+);
+
+router.post(
+  '/:id/exit',
+  asyncHandler(async (req, res) => {
+    const owner = identity(req);
+    if (!owner) throw new HttpError(400, 'GUEST_KEY_REQUIRED');
+    const gameId = String(req.params.id);
+    await withKeyLock(`single-game:${gameId}`, async () => {
+      const game = await loadSingleGame(gameId, owner.identityKey);
+      if (game) await deleteSingleGame(game);
+    });
+    res.json({ ok: true });
   })
 );
 

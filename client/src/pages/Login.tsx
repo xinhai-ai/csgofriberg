@@ -4,7 +4,7 @@ import { KeyRound } from 'lucide-react';
 import Page from '../components/Page';
 import { api, errMsg } from '../api/client';
 import { useAuth } from '../store/auth';
-import { getGuestKey } from '../store/guest';
+import { closeSocket } from '../api/socket';
 
 export default function Login() {
   const [mode, setMode] = useState<'login' | 'register'>('login');
@@ -13,7 +13,7 @@ export default function Login() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const login = useAuth((s) => s.login);
+  const setUser = useAuth((s) => s.setUser);
   const navigate = useNavigate();
 
   const submit = async (e: FormEvent) => {
@@ -25,10 +25,11 @@ export default function Login() {
     setLoading(true);
     try {
       const res = await api.post(`/auth/${mode}`, { username, password });
-      login(res.data.token, res.data.user);
+      setUser(res.data.user);
+      closeSocket();
       // 把匿名期间的对局并入账号(失败不阻塞登录)
       try {
-        await api.post('/auth/claim', { guestKey: getGuestKey() });
+        await api.post('/auth/claim');
       } catch {
         /* 忽略 */
       }
@@ -57,7 +58,7 @@ export default function Login() {
           <input
             className="input"
             type="password"
-            placeholder="密码(至少 6 位)"
+            placeholder="密码(至少 10 位)"
             autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
             value={password}
             onChange={(e) => setPassword(e.target.value)}

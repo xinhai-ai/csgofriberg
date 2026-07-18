@@ -1,29 +1,29 @@
 import { io, Socket } from 'socket.io-client';
-import { getGuestKey, getGuestName } from '../store/guest';
+import { getGuestName } from '../store/guest';
+import { ensurePow } from './pow';
 
 let socket: Socket | null = null;
-let lastToken: string | null = null;
 
-/** 单例 socket:登录用户带 JWT,匿名带 guestKey;曾被手动断开则自动重连 */
 export function getSocket(): Socket {
-  const token = localStorage.getItem('token');
-  if (socket && lastToken === token) {
-    // pagehide 等场景手动 disconnect 过的 socket 不会自动重连,需要显式唤醒
-    if (!socket.connected) socket.connect();
+  if (socket) {
+    if (!socket.connected) void ensurePow().then(() => socket?.connect());
     return socket;
   }
-  socket?.disconnect();
-  lastToken = token;
   socket = io('/', {
-    auth: token
-      ? { token }
-      : { guestKey: getGuestKey(), guestName: getGuestName() },
+    withCredentials: true,
+    auth: { guestName: getGuestName() },
+    autoConnect: false,
   });
+  socket.on('connect_error', (error) => {
+    if (error.message === 'POW_REQUIRED') {
+      void ensurePow(true).then(() => socket?.connect());
+    }
+  });
+  void ensurePow().then(() => socket?.connect());
   return socket;
 }
 
 export function closeSocket() {
   socket?.disconnect();
   socket = null;
-  lastToken = null;
 }

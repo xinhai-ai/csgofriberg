@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
-import { api } from '../api/client';
+import { getPlayerList, searchPlayerList } from '../api/playerList';
 
 interface Suggestion {
   id: number;
@@ -28,6 +28,13 @@ export default function GuessInputBar({
   const [active, setActive] = useState(0);
   const [open, setOpen] = useState(false);
   const timer = useRef<number>();
+  const players = useRef<Suggestion[]>([]);
+
+  useEffect(() => {
+    void getPlayerList().then((list) => {
+      players.current = list;
+    });
+  }, []);
 
   useEffect(() => {
     window.clearTimeout(timer.current);
@@ -36,18 +43,15 @@ export default function GuessInputBar({
       setOpen(false);
       return;
     }
-    timer.current = window.setTimeout(async () => {
-      try {
-        const res = await api.get<Suggestion[]>('/players', {
-          params: { search: text.trim(), suggest: 1 },
-        });
-        setItems(res.data);
+    timer.current = window.setTimeout(() => {
+      void getPlayerList().then((list) => {
+        players.current = list;
+        const next = searchPlayerList(list, text);
+        setItems(next);
         setActive(0);
-        setOpen(res.data.length > 0);
-      } catch {
-        /* 补全失败静默 */
-      }
-    }, 200);
+        setOpen(next.length > 0);
+      }).catch(() => undefined);
+    }, 80);
     return () => window.clearTimeout(timer.current);
   }, [text]);
 

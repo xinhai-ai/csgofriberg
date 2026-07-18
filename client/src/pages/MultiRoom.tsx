@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Globe,
@@ -18,8 +18,6 @@ import GuessInputBar from '../components/GuessInputBar';
 import AnswerOverlay, { AnswerInfo } from '../components/AnswerOverlay';
 import { getSocket } from '../api/socket';
 import { translate } from '../i18n/messages';
-import { useAuth } from '../store/auth';
-import { getGuestKey } from '../store/guest';
 import { RoomState, RoomPlayer } from '../types';
 
 interface RoundOver {
@@ -107,15 +105,10 @@ export default function MultiRoom() {
   const [matchOver, setMatchOver] = useState<MatchOver | null>(null);
   const [offlineNote, setOfflineNote] = useState('');
   const [error, setError] = useState('');
-  const user = useAuth((s) => s.user);
+  const [myKey, setMyKey] = useState('');
   const navigate = useNavigate();
   const roomRef = useRef<RoomState | null>(null);
   roomRef.current = room;
-
-  const myKey = useMemo(
-    () => (user ? `u:${user.id}` : `g:${getGuestKey()}`),
-    [user]
-  );
 
   useEffect(() => {
     const socket = getSocket();
@@ -144,12 +137,36 @@ export default function MultiRoom() {
       }
     };
     const onRoomError = (p: { code: string }) => setError(translate(p.code));
+    const onIdentity = (p: { key: string }) => setMyKey(p.key);
+    const onGuessApplied = (p: { roundId: number; key: string; feedback: any }) => {
+      setRoom((current) => {
+        if (!current || current.roundId !== p.roundId) return current;
+        return {
+          ...current,
+          players: current.players.map((player) =>
+            player.key === p.key
+              ? {
+                  ...player,
+                  guesses: player.guesses.some((guess) => guess.playerId === p.feedback.playerId)
+                    ? player.guesses
+                    : [...player.guesses, p.feedback],
+                  guessCount: player.guesses.some((guess) => guess.playerId === p.feedback.playerId)
+                    ? player.guessCount
+                    : player.guessCount + 1,
+                }
+              : player
+          ),
+        };
+      });
+    };
     socket.on('room:state', onState);
     socket.on('round:start', onRoundStart);
     socket.on('round:over', onRoundOver);
     socket.on('match:over', onMatchOver);
     socket.on('player:offline', onOffline);
     socket.on('room:error', onRoomError);
+    socket.on('game:guess:applied', onGuessApplied);
+    socket.on('identity:self', onIdentity);
 
     // 关闭/刷新页面时立刻断开 socket,让对手第一时间收到离线通知
     const onPageHide = () => socket.disconnect();
@@ -157,6 +174,7 @@ export default function MultiRoom() {
     const resync = () => {
       const s = getSocket(); // 内部会对手动断开的 socket 执行 connect()
       s.emit('room:sync', {}, (res: any) => {
+        if (res?.selfKey) setMyKey(res.selfKey);
         if (res?.room) setRoom(res.room);
       });
     };
@@ -172,6 +190,7 @@ export default function MultiRoom() {
 
     // 主动向服务端同步一次房间状态;确认不在任何房间才回大厅
     socket.emit('room:sync', {}, (res: any) => {
+      if (res?.selfKey) setMyKey(res.selfKey);
       if (res?.room) setRoom(res.room);
       else if (!roomRef.current) navigate('/multi');
     });
@@ -182,6 +201,8 @@ export default function MultiRoom() {
       socket.off('match:over', onMatchOver);
       socket.off('player:offline', onOffline);
       socket.off('room:error', onRoomError);
+      socket.off('game:guess:applied', onGuessApplied);
+      socket.off('identity:self', onIdentity);
       window.removeEventListener('pagehide', onPageHide);
       window.removeEventListener('pageshow', onPageShow);
       document.removeEventListener('visibilitychange', onVisible);
@@ -264,7 +285,11 @@ export default function MultiRoom() {
       dock={
         playing && me ? (
           <GuessInputBar
-            onPick={(p) => emit('game:guess', { playerId: p.id })}
+            onPick={(p) => emit('game:guess', {
+              playerId: p.id,
+              roundId: room.roundId,
+              eventId: crypto.randomUUID(),
+            })}
             disabled={me.guessCount >= room.maxGuesses}
           />
         ) : undefined

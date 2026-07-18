@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Gamepad2, Flame, RotateCcw, Lightbulb, Target, X } from 'lucide-react';
+import { Gamepad2, Flame, RotateCcw, Lightbulb, Target, X, Home } from 'lucide-react';
 import Page from '../components/Page';
 import GuessBoard from '../components/GuessBoard';
 import GuessInputBar from '../components/GuessInputBar';
@@ -8,25 +8,40 @@ import AnswerOverlay, { AnswerInfo } from '../components/AnswerOverlay';
 import { api, errMsg } from '../api/client';
 import { GuessFeedback } from '../types';
 
+function exitGame(gameId: string): Promise<unknown> {
+  return api.post(`/game/${gameId}/exit`);
+}
+
 export default function SingleGame() {
   const { mode = 'easy' } = useParams();
   const navigate = useNavigate();
-  const [gameId, setGameId] = useState<number | null>(null);
+  const [gameId, setGameId] = useState<string | null>(null);
   const [guesses, setGuesses] = useState<GuessFeedback[]>([]);
   const [maxGuesses, setMaxGuesses] = useState(8);
   const [status, setStatus] = useState<'playing' | 'won' | 'lost'>('playing');
   const [answer, setAnswer] = useState<AnswerInfo | null>(null);
   const [showOverlay, setShowOverlay] = useState(false);
   const [error, setError] = useState('');
+  const gameIdRef = useRef<string | null>(null);
 
-  const start = useCallback(async () => {
+  const setCurrentGameId = (id: string | null) => {
+    gameIdRef.current = id;
+    setGameId(id);
+  };
+
+  const start = useCallback(async (replace = true) => {
     setError('');
     setAnswer(null);
     setShowOverlay(false);
     setStatus('playing');
     try {
+      const previous = gameIdRef.current;
+      if (replace && previous) {
+        setCurrentGameId(null);
+        await exitGame(previous);
+      }
       const res = await api.post('/game/start', { mode });
-      setGameId(res.data.gameId);
+      setCurrentGameId(String(res.data.gameId));
       setGuesses(res.data.guesses);
       setMaxGuesses(res.data.maxGuesses);
     } catch (err) {
@@ -35,8 +50,15 @@ export default function SingleGame() {
   }, [mode]);
 
   useEffect(() => {
-    void start();
+    void start(false);
   }, [start]);
+
+  const leave = async () => {
+    const id = gameIdRef.current;
+    setCurrentGameId(null);
+    if (id && status === 'playing') await exitGame(id);
+    navigate('/');
+  };
 
   const guess = async (playerId: number) => {
     if (!gameId || status !== 'playing') return;
@@ -77,9 +99,13 @@ export default function SingleGame() {
       icon={isEasy ? <Gamepad2 size={17} /> : <Flame size={17} />}
       actions={
         <>
-          <button className="btn btn-ghost btn-sm" onClick={() => void start()}>
+          <button className="btn btn-ghost btn-sm" onClick={() => void start(true)}>
             <RotateCcw size={15} />
             <span className="btn-text">重新开始</span>
+          </button>
+          <button className="btn btn-ghost btn-sm" onClick={() => void leave()}>
+            <Home size={15} />
+            <span className="btn-text">主菜单</span>
           </button>
           <button
             className="btn btn-warning btn-sm"
@@ -91,6 +117,7 @@ export default function SingleGame() {
           </button>
         </>
       }
+      showHome={false}
       statusBar={
         <>
           <Target size={14} />
@@ -107,11 +134,11 @@ export default function SingleGame() {
       dock={
         finished ? (
           <div className="input-bar" style={{ justifyContent: 'center' }}>
-            <button className="btn" onClick={() => void start()}>
+            <button className="btn" onClick={() => void start(true)}>
               <RotateCcw size={15} />
               再来一把
             </button>
-            <button className="btn btn-danger" onClick={() => navigate('/')}>
+            <button className="btn btn-danger" onClick={() => void leave()}>
               <X size={15} />
               返回菜单
             </button>
@@ -145,7 +172,7 @@ export default function SingleGame() {
           }
           actions={
             <>
-              <button className="btn" onClick={() => void start()}>
+              <button className="btn" onClick={() => void start(true)}>
                 <RotateCcw size={15} />
                 再来一把
               </button>

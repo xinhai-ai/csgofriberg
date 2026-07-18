@@ -1,0 +1,151 @@
+import { randomUUID } from 'crypto';
+import { db } from '../db/knex';
+import { duplicateRedisClient, redis, redisKey } from '../redis';
+import { invalidateCached } from './queryCache';
+
+export interface MatchResultPayload {
+  roomId: string;
+  boType: number;
+  winnerKey: string | null;
+  players: {
+    key: string;
+    userId: number | null;
+    name: string;
+    score: number;
+  }[];
+}
+
+const STREAM_KEY = redisKey('stream:match-results');
+const GROUP = 'match-result-writers';
+const consumer = `server-${process.pid}-${randomUUID().slice(0, 8)}`;
+const DEAD_LETTER_KEY = redisKey('stream:match-results:dead');
+let workerClient: NonNullable<ReturnType<typeof duplicateRedisClient>> | null = null;
+
+async function persist(payload: MatchResultPayload): Promise<void> {
+  const winner = payload.players.find((player) => player.key === payload.winnerKey);
+  await db.transaction(async (trx) => {
+    const inserted = await trx('match_records')
+      .insert({
+        room_id: payload.roomId,
+        bo_type: payload.boType,
+        winner_id: winner?.userId ?? null,
+        players: JSON.stringify(
+          payload.players.map((player) => ({
+            userId: player.userId,
+            name: player.name,
+            score: player.score,
+          }))
+        ),
+      })
+      .onConflict('room_id')
+      .ignore()
+      .returning('id');
+    if (!inserted.length) return;
+    const matchId = typeof inserted[0] === 'object' ? inserted[0].id : inserted[0];
+    await trx('match_players').insert(
+      payload.players.map((player) => ({
+        match_id: matchId,
+        user_id: player.userId,
+        player_key: player.key,
+        player_name: player.name,
+        score: player.score,
+        is_winner: player.key === payload.winnerKey,
+      }))
+    );
+  });
+  await invalidateCached('leaderboard');
+}
+
+export async function enqueueMatchResult(payload: MatchResultPayload): Promise<void> {
+  const client = redis();
+  if (!client) return persist(payload);
+  await client.sendCommand([
+    'XADD', STREAM_KEY, 'MAXLEN', '~', '100000', '*', 'payload', JSON.stringify(payload),
+  ]);
+}
+
+function parseMessages(reply: unknown): { id: string; payload: MatchResultPayload }[] {
+  if (!Array.isArray(reply)) return [];
+  const messages: { id: string; payload: MatchResultPayload }[] = [];
+  for (const stream of reply as any[]) {
+    for (const message of stream?.[1] ?? []) {
+      const fields = message[1] as string[];
+      const payloadIndex = fields.indexOf('payload');
+      if (payloadIndex >= 0 && fields[payloadIndex + 1]) {
+        messages.push({ id: message[0], payload: JSON.parse(fields[payloadIndex + 1]) });
+      }
+    }
+  }
+  return messages;
+}
+
+async function handleMessages(client: NonNullable<ReturnType<typeof duplicateRedisClient>>, reply: unknown) {
+  for (const message of parseMessages(reply)) {
+    try {
+      await persist(message.payload);
+      await client.sendCommand(['XACK', STREAM_KEY, GROUP, message.id]);
+    } catch (err) {
+      console.error('[match-result] persist failed, pending for retry', err);
+      const pending = await client.sendCommand(['XPENDING', STREAM_KEY, GROUP, message.id, message.id, '1']) as any[];
+      const deliveryCount = Number(pending?.[0]?.[3] ?? 1);
+      if (deliveryCount >= 10) {
+        await client.sendCommand([
+          'XADD', DEAD_LETTER_KEY, 'MAXLEN', '~', '10000', '*',
+          'sourceId', message.id,
+          'payload', JSON.stringify(message.payload),
+          'error', err instanceof Error ? err.message.slice(0, 500) : String(err).slice(0, 500),
+        ]);
+        await client.sendCommand(['XACK', STREAM_KEY, GROUP, message.id]);
+      }
+    }
+  }
+}
+
+async function claimPending(client: NonNullable<ReturnType<typeof duplicateRedisClient>>) {
+  const pending = await client.sendCommand([
+    'XPENDING', STREAM_KEY, GROUP, '-', '+', '20',
+  ]) as any[];
+  const staleIds = (pending ?? [])
+    .filter((item) => Number(item?.[2] ?? 0) >= 5000)
+    .map((item) => String(item[0]));
+  if (!staleIds.length) return;
+  const claimed = await client.sendCommand([
+    'XCLAIM', STREAM_KEY, GROUP, consumer, '5000', ...staleIds,
+  ]);
+  await handleMessages(client, [[STREAM_KEY, claimed]]);
+}
+
+export async function initMatchResultWorker(): Promise<() => Promise<void>> {
+  const client = duplicateRedisClient();
+  if (!client) return async () => undefined;
+  workerClient = client;
+  await client.connect();
+  try {
+    await client.sendCommand(['XGROUP', 'CREATE', STREAM_KEY, GROUP, '0', 'MKSTREAM']);
+  } catch (err) {
+    if (!(err instanceof Error) || !err.message.includes('BUSYGROUP')) throw err;
+  }
+
+  void (async () => {
+    while (client.isOpen) {
+      try {
+        await claimPending(client);
+        const reply = await client.sendCommand([
+          'XREADGROUP', 'GROUP', GROUP, consumer, 'COUNT', '20', 'BLOCK', '2000',
+          'STREAMS', STREAM_KEY, '>',
+        ]);
+        await handleMessages(client, reply);
+      } catch (err) {
+        if (client.isOpen) {
+          console.error('[match-result] worker error', err);
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+      }
+    }
+  })();
+  return async () => {
+    const active = workerClient;
+    workerClient = null;
+    if (active?.isOpen) await active.disconnect();
+  };
+}

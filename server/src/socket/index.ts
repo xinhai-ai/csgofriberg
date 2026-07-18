@@ -1,91 +1,63 @@
 import { Server, Socket } from 'socket.io';
-import { db } from '../db/knex';
-import { verifyToken } from '../middleware/auth';
-import { Player, GuessFeedback } from '../types';
-import { compareGuess, MAX_GUESSES, EASY_MIN_MAJORS } from '../services/gameService';
-
-/**
- * 多人对战:支持登录用户与匿名访客(guestKey 标识),允许观战。
- * BO1/3/5/7 赛制:每小局同一目标选手,先猜中者得 1 分,先到 winsNeeded 者赢下整场;
- * 双方都用完次数或小局超时则无人得分,进入下一小局。
- * 断线立即广播,同一身份可重连;超过宽限期未归判负。
- * 所有 ack 与事件错误只传 code,文案由前端翻译。
- */
-
-interface SocketIdentity {
-  /** 全局唯一身份: 登录用户 u:<id>,访客 g:<guestKey> */
-  key: string;
-  userId: number | null;
-  name: string;
-}
-
-interface RoomPlayer extends SocketIdentity {
-  socketId: string;
-  ready: boolean;
-  score: number;
-  guesses: GuessFeedback[];
-  connected: boolean;
-  disconnectTimer?: NodeJS.Timeout;
-}
-
-interface Spectator extends SocketIdentity {
-  socketId: string;
-}
-
-type BoType = 1 | 3 | 5 | 7;
-type DbType = 'easy' | 'normal';
-
-interface Room {
-  id: string;
-  hostKey: string;
-  status: 'waiting' | 'playing' | 'round_over' | 'finished';
-  dbType: DbType;
-  boType: BoType;
-  round: number;
-  players: RoomPlayer[];
-  spectators: Spectator[];
-  target?: Player;
-  roundEndsAt: number | null;
-  roundTimer?: NodeJS.Timeout;
-  nextRoundTimer?: NodeJS.Timeout;
-}
-
-const rooms = new Map<string, Room>();
-/** 随机匹配队列,按数据库类型分组 */
-const matchQueue = new Map<DbType, { socket: Socket; identity: SocketIdentity }[]>();
+import { authenticateCookie, getGuestFromCookie } from '../middleware/auth';
+import { consumeRateLimit } from '../middleware/rateLimit';
+import { compareGuess, MAX_GUESSES } from '../services/gameService';
+import { getPlayer, pickCachedTarget } from '../services/playerCache';
+import {
+  BoType,
+  DbType,
+  StoredIdentity,
+  QueuedIdentity,
+  StoredPlayer,
+  StoredRoom,
+  cancelQueue,
+  claimDueSchedules,
+  clearIdentityRoom,
+  deleteRoom,
+  getRoom,
+  getRoomForIdentity,
+  queueOrTakeOpponent,
+  releaseRoomCapacity,
+  reserveRoomCapacity,
+  saveRoom,
+  schedule,
+  withRoomLock,
+} from '../services/roomStore';
+import { isRedisAvailable, redis, redisKey } from '../redis';
+import { enqueueMatchResult } from '../services/matchResultQueue';
+import { verifyPowCookie } from '../services/pow';
 
 const DISCONNECT_FORFEIT_MS = 30_000;
 const NEXT_ROUND_DELAY_MS = 6_000;
-/** 每小局限时 */
 const ROUND_TIME_MS = 120_000;
+const FINISHED_ROOM_TTL_MS = 5 * 60_000;
+const MAX_SPECTATORS = 100;
+const MAX_CONNECTIONS_PER_IDENTITY = 3;
+const MAX_CONNECTIONS_PER_IP = 20;
 const ROOM_ID_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const localQueue = new Map<DbType, QueuedIdentity[]>();
+const timers = new Map<string, NodeJS.Timeout>();
 
 function winsNeeded(bo: BoType): number {
   return Math.ceil(bo / 2);
 }
 
-function genRoomId(): string {
-  let id: string;
-  do {
-    id = Array.from(
-      { length: 5 },
-      () => ROOM_ID_CHARS[Math.floor(Math.random() * ROOM_ID_CHARS.length)]
-    ).join('');
-  } while (rooms.has(id));
-  return id;
+function identityChannel(key: string): string {
+  return `identity:${key}`;
 }
 
-function publicRoom(room: Room) {
+function publicRoom(room: StoredRoom) {
   return {
     id: room.id,
     hostKey: room.hostKey,
-    status: room.status,
+    status: room.status === 'starting' ? 'waiting' : room.status,
     dbType: room.dbType,
     boType: room.boType,
     round: room.round,
     winsNeeded: winsNeeded(room.boType),
     maxGuesses: MAX_GUESSES,
     roundEndsAt: room.roundEndsAt,
+    roundId: room.round,
     spectators: room.spectators.map((s) => ({ key: s.key, name: s.name })),
     players: room.players.map((p) => ({
       key: p.key,
@@ -99,425 +71,665 @@ function publicRoom(room: Room) {
   };
 }
 
-async function pickTarget(dbType: DbType): Promise<Player | null> {
-  let query = db<Player>('players');
-  if (dbType === 'easy') query = query.where('major_appearances', '>=', EASY_MIN_MAJORS);
-  const players = await query;
-  return players.length ? players[Math.floor(Math.random() * players.length)] : null;
+function answerView(targetPlayerId: number | null) {
+  const target = targetPlayerId ? getPlayer(targetPlayerId) : null;
+  return target
+    ? {
+        nickname: target.nickname,
+        realName: target.real_name,
+        team: target.team,
+        nationality: target.nationality,
+        role: target.role,
+        majorAppearances: target.major_appearances,
+      }
+    : null;
 }
 
-function answerView(target: Player) {
+async function genRoomId(): Promise<string> {
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const id = Array.from(
+      { length: 5 },
+      () => ROOM_ID_CHARS[Math.floor(Math.random() * ROOM_ID_CHARS.length)]
+    ).join('');
+    if (!(await getRoom(id))) return id;
+  }
+  throw new Error('ROOM_ID_EXHAUSTED');
+}
+
+function makePlayer(identity: StoredIdentity, socketId: string, ready: boolean): StoredPlayer {
   return {
-    nickname: target.nickname,
-    realName: target.real_name,
-    team: target.team,
-    nationality: target.nationality,
-    role: target.role,
-    majorAppearances: target.major_appearances,
+    ...identity,
+    socketId,
+    ready,
+    score: 0,
+    guesses: [],
+    connected: true,
+    disconnectDeadline: null,
   };
 }
 
-function clearTimers(room: Room) {
-  for (const p of room.players) {
-    if (p.disconnectTimer) clearTimeout(p.disconnectTimer);
-  }
-  if (room.nextRoundTimer) clearTimeout(room.nextRoundTimer);
-  if (room.roundTimer) clearTimeout(room.roundTimer);
+function setLocalTimer(key: string, delay: number, handler: () => void) {
+  const old = timers.get(key);
+  if (old) clearTimeout(old);
+  const timer = setTimeout(() => {
+    timers.delete(key);
+    handler();
+  }, Math.max(0, delay));
+  timer.unref?.();
+  timers.set(key, timer);
 }
 
-async function startRound(io: Server, room: Room) {
-  const target = await pickTarget(room.dbType);
-  if (!target) {
-    io.to(room.id).emit('room:error', { code: 'EMPTY_PLAYER_POOL' });
-    return;
-  }
-  room.target = target;
-  room.status = 'playing';
-  room.round += 1;
-  room.roundEndsAt = Date.now() + ROUND_TIME_MS;
-  for (const p of room.players) p.guesses = [];
-  if (room.roundTimer) clearTimeout(room.roundTimer);
-  room.roundTimer = setTimeout(() => {
-    if (room.status === 'playing') void finishRound(io, room, null, 'timeout');
-  }, ROUND_TIME_MS);
-  io.to(room.id).emit('round:start', { room: publicRoom(room) });
-}
-
-async function finishMatch(io: Server, room: Room, winnerKey: string | null, reason: string) {
-  if (room.status === 'finished') return;
-  room.status = 'finished';
-  room.roundEndsAt = null;
-  clearTimers(room);
-  const winner = room.players.find((p) => p.key === winnerKey);
-  await db('match_records').insert({
-    room_id: room.id,
-    bo_type: room.boType,
-    winner_id: winner?.userId ?? null,
-    players: JSON.stringify(
-      room.players.map((p) => ({ userId: p.userId, name: p.name, score: p.score }))
-    ),
+async function persistMatch(room: StoredRoom, winnerKey: string | null) {
+  await enqueueMatchResult({
+    roomId: room.id,
+    boType: room.boType,
+    winnerKey,
+    players: room.players.map((player) => ({
+      key: player.key,
+      userId: player.userId,
+      name: player.name,
+      score: player.score,
+    })),
   });
-  io.to(room.id).emit('match:over', {
+}
+
+async function finishMatch(
+  io: Server,
+  roomId: string,
+  winnerKey: string | null,
+  reason: string
+) {
+  const result = await withRoomLock(roomId, (room) => {
+    if (room.status === 'finished') return null;
+    room.status = 'finished';
+    room.roundEndsAt = null;
+    room.nextRoundAt = null;
+    room.eventResults = {};
+    return structuredClone(room);
+  });
+  if (!result) return;
+  await persistMatch(result, winnerKey);
+  io.to(roomId).emit('match:over', {
     winnerKey,
     reason,
-    answer: room.target ? answerView(room.target) : null,
-    room: publicRoom(room),
+    answer: answerView(result.targetPlayerId),
+    room: publicRoom(result),
   });
-  setTimeout(() => rooms.delete(room.id), 5 * 60 * 1000);
+  await schedule('cleanup', roomId, '0', Date.now() + FINISHED_ROOM_TTL_MS);
+  setLocalTimer(`cleanup:${roomId}`, FINISHED_ROOM_TTL_MS, () => {
+    void cleanupRoom(roomId);
+  });
 }
 
-/** 小局结束:得分并判断整场是否结束,否则定时开下一小局 */
+async function startRound(io: Server, roomId: string) {
+  const result = await withRoomLock(roomId, (room) => {
+    if (room.status !== 'waiting' && room.status !== 'round_over' && room.status !== 'starting') {
+      return null;
+    }
+    const target = pickCachedTarget(room.dbType);
+    if (!target) return { error: 'EMPTY_PLAYER_POOL' as const };
+    room.status = 'playing';
+    room.round += 1;
+    room.targetPlayerId = target.id;
+    room.roundEndsAt = Date.now() + ROUND_TIME_MS;
+    room.nextRoundAt = null;
+    for (const player of room.players) player.guesses = [];
+    return { room: structuredClone(room) };
+  });
+  if (!result) return false;
+  if ('error' in result) {
+    io.to(roomId).emit('room:error', { code: result.error });
+    return false;
+  }
+  const room = result.room;
+  io.to(roomId).emit('round:start', { room: publicRoom(room) });
+  await schedule('round', roomId, String(room.round), room.roundEndsAt!);
+  setLocalTimer(`round:${roomId}`, ROUND_TIME_MS, () => {
+    void finishRound(io, roomId, null, 'timeout', room.round);
+  });
+  return true;
+}
+
 async function finishRound(
   io: Server,
-  room: Room,
+  roomId: string,
   winnerKey: string | null,
-  reason: 'guessed' | 'exhausted' | 'timeout'
+  reason: 'guessed' | 'exhausted' | 'timeout',
+  expectedRound: number
 ) {
-  if (room.status !== 'playing') return;
-  if (room.roundTimer) clearTimeout(room.roundTimer);
-  room.roundEndsAt = null;
-  const winner = room.players.find((p) => p.key === winnerKey);
-  if (winner) winner.score += 1;
-  const answer = room.target ? answerView(room.target) : null;
-
-  if (winner && winner.score >= winsNeeded(room.boType)) {
-    io.to(room.id).emit('round:over', {
-      winnerKey,
-      reason,
-      answer,
-      matchOver: true,
-      room: publicRoom(room),
-    });
-    await finishMatch(io, room, winnerKey, 'score');
-    return;
-  }
-  room.status = 'round_over';
-  io.to(room.id).emit('round:over', {
+  const result = await withRoomLock(roomId, (room) => {
+    if (room.status !== 'playing' || room.round !== expectedRound) return null;
+    const winner = room.players.find((p) => p.key === winnerKey);
+    if (winner) winner.score += 1;
+    room.roundEndsAt = null;
+    const matchOver = Boolean(winner && winner.score >= winsNeeded(room.boType));
+    if (matchOver) room.status = 'finished';
+    else {
+      room.status = 'round_over';
+      room.nextRoundAt = Date.now() + NEXT_ROUND_DELAY_MS;
+    }
+    return { room: structuredClone(room), matchOver };
+  });
+  if (!result) return;
+  const { room, matchOver } = result;
+  io.to(roomId).emit('round:over', {
     winnerKey,
     reason,
-    answer,
-    matchOver: false,
-    nextRoundInMs: NEXT_ROUND_DELAY_MS,
+    answer: answerView(room.targetPlayerId),
+    matchOver,
+    nextRoundInMs: matchOver ? undefined : NEXT_ROUND_DELAY_MS,
     room: publicRoom(room),
   });
-  room.nextRoundTimer = setTimeout(() => {
-    if (room.status === 'round_over') void startRound(io, room);
-  }, NEXT_ROUND_DELAY_MS);
-}
-
-function removeFromQueue(socketId: string) {
-  for (const [key, list] of matchQueue) {
-    matchQueue.set(
-      key,
-      list.filter((e) => e.socket.id !== socketId)
-    );
+  if (matchOver) {
+    await persistMatch(room, winnerKey);
+    io.to(roomId).emit('match:over', {
+      winnerKey,
+      reason: 'score',
+      answer: answerView(room.targetPlayerId),
+      room: publicRoom(room),
+    });
+    await schedule('cleanup', roomId, '0', Date.now() + FINISHED_ROOM_TTL_MS);
+    return;
   }
+  await schedule('next', roomId, String(room.round), room.nextRoundAt!);
+  setLocalTimer(`next:${roomId}`, NEXT_ROUND_DELAY_MS, () => void startRound(io, roomId));
 }
 
-function removeSpectator(io: Server, socketId: string) {
-  for (const room of rooms.values()) {
-    const before = room.spectators.length;
-    room.spectators = room.spectators.filter((s) => s.socketId !== socketId);
-    if (room.spectators.length !== before) {
-      io.to(room.id).emit('room:state', publicRoom(room));
+async function cleanupRoom(roomId: string) {
+  const room = await getRoom(roomId);
+  if (room?.status === 'finished') await deleteRoom(room);
+}
+
+async function processSchedule(io: Server, item: string) {
+  const [kind, roomId, discriminator] = item.split('|');
+  const room = await getRoom(roomId);
+  if (!room) return;
+  if (kind === 'round' && room.status === 'playing' && room.round === Number(discriminator)) {
+    await finishRound(io, roomId, null, 'timeout', room.round);
+  } else if (kind === 'next' && room.status === 'round_over' && room.round === Number(discriminator)) {
+    await startRound(io, roomId);
+  } else if (kind === 'disconnect') {
+    const player = room.players.find((p) => p.key === discriminator);
+    if (player && !player.connected && player.disconnectDeadline && player.disconnectDeadline <= Date.now()) {
+      const opponent = room.players.find((p) => p.key !== discriminator);
+      await finishMatch(io, roomId, opponent?.key ?? null, 'disconnect_timeout');
     }
+  } else if (kind === 'cleanup') {
+    await cleanupRoom(roomId);
   }
+}
+
+function safeOn(
+  socket: Socket,
+  event: string,
+  handler: (payload: any, ack?: (value: any) => void) => Promise<void>
+) {
+  socket.on(event, (payload: any, ack?: (value: any) => void) => {
+    void handler(payload, ack).catch((err) => {
+      console.error(`[socket:${event}]`, err);
+      ack?.({ code: err instanceof Error && err.message === 'ROOM_BUSY' ? 'ROOM_BUSY' : 'INTERNAL_ERROR' });
+    });
+  });
+}
+
+async function socketAllowed(event: string, identity: string, limit: number, seconds: number) {
+  return consumeRateLimit(`socket:${event}`, identity, limit, seconds);
+}
+
+async function acquireConnectionSlot(ip: string, identity: string, socketId: string): Promise<boolean> {
+  const client = redis();
+  if (!client) return true;
+  const result = await client.eval(
+    `redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', ARGV[1])
+     redis.call('ZREMRANGEBYSCORE', KEYS[2], '-inf', ARGV[1])
+     local ipCount = redis.call('ZCARD', KEYS[1])
+     local identityCount = redis.call('ZCARD', KEYS[2])
+     if ipCount >= tonumber(ARGV[2]) or identityCount >= tonumber(ARGV[3]) then return 0 end
+     redis.call('ZADD', KEYS[1], ARGV[4], ARGV[5])
+     redis.call('ZADD', KEYS[2], ARGV[4], ARGV[5])
+     redis.call('expire', KEYS[1], 900); redis.call('expire', KEYS[2], 900)
+     return 1`,
+    {
+      keys: [redisKey(`connections:ip:${ip}`), redisKey(`connections:identity:${identity}`)],
+      arguments: [
+        String(Date.now() - 10 * 60_000),
+        String(MAX_CONNECTIONS_PER_IP),
+        String(MAX_CONNECTIONS_PER_IDENTITY),
+        String(Date.now()),
+        socketId,
+      ],
+    }
+  );
+  return Number(result) === 1;
+}
+
+async function releaseConnectionSlot(ip: string, identity: string, socketId: string): Promise<void> {
+  const client = redis();
+  if (!client) return;
+  await Promise.all([
+    client.zRem(redisKey(`connections:ip:${ip}`), socketId),
+    client.zRem(redisKey(`connections:identity:${identity}`), socketId),
+  ]);
+}
+
+async function refreshConnectionSlot(ip: string, identity: string, socketId: string): Promise<void> {
+  const client = redis();
+  if (!client) return;
+  const now = Date.now();
+  await Promise.all([
+    client.zAdd(redisKey(`connections:ip:${ip}`), { score: now, value: socketId }),
+    client.zAdd(redisKey(`connections:identity:${identity}`), { score: now, value: socketId }),
+  ]);
 }
 
 export function setupSocket(io: Server) {
-  io.use((socket, next) => {
+  const worker = setInterval(() => {
+    void claimDueSchedules().then((items) =>
+      Promise.all(items.map((item) => processSchedule(io, item)))
+    ).catch((err) => console.error('[schedule]', err));
+  }, 1000);
+  worker.unref?.();
+
+  io.use(async (socket, next) => {
+    if (!verifyPowCookie(
+      socket.handshake.headers.cookie,
+      socket.handshake.headers['user-agent']
+    )) return next(new Error('POW_REQUIRED'));
     const auth = socket.handshake.auth ?? {};
-    const payload = auth.token ? verifyToken(String(auth.token)) : null;
-    let identity: SocketIdentity | null = null;
-    if (payload) {
-      identity = { key: `u:${payload.id}`, userId: payload.id, name: payload.username };
-    } else if (typeof auth.guestKey === 'string' && /^[\w-]{8,64}$/.test(auth.guestKey)) {
+    const user = await authenticateCookie(socket.handshake.headers.cookie);
+    const guest = getGuestFromCookie(socket.handshake.headers.cookie);
+    let identity: StoredIdentity | null = null;
+    if (user) {
+      identity = { key: `u:${user.id}`, userId: user.id, name: user.username };
+    } else if (guest) {
       const rawName = typeof auth.guestName === 'string' ? auth.guestName.trim() : '';
-      const name = rawName.slice(0, 16) || `Guest-${auth.guestKey.slice(0, 4)}`;
-      identity = { key: `g:${auth.guestKey}`, userId: null, name };
+      identity = {
+        key: `g:${guest.key}`,
+        userId: null,
+        name: rawName.slice(0, 16) || guest.name,
+      };
     }
     if (!identity) return next(new Error('IDENTITY_REQUIRED'));
-    (socket.data as { identity: SocketIdentity }).identity = identity;
+    const ip = socket.handshake.address || 'unknown';
+    if (!(await consumeRateLimit('socket:connect', `${ip}:${identity.key}`, 30, 60))) {
+      return next(new Error('RATE_LIMITED'));
+    }
+    if (!(await acquireConnectionSlot(ip, identity.key, socket.id))) {
+      return next(new Error('TOO_MANY_CONNECTIONS'));
+    }
+    socket.data.identity = identity;
+    socket.data.ip = ip;
+    socket.data.connectionSlot = true;
     next();
   });
 
-  io.on('connection', (socket: Socket) => {
-    const me = socket.data.identity as SocketIdentity;
+  io.on('connection', (socket) => {
+    const me = socket.data.identity as StoredIdentity;
+    socket.emit('identity:self', { key: me.key });
+    const connectionHeartbeat = setInterval(() => {
+      void refreshConnectionSlot(String(socket.data.ip), me.key, socket.id);
+    }, 60_000);
+    connectionHeartbeat.unref?.();
+    socket.join(identityChannel(me.key));
+    void cancelQueue(me.key);
 
-    const findMyRoom = (): Room | undefined =>
-      [...rooms.values()].find(
-        (r) => r.status !== 'finished' && r.players.some((p) => p.key === me.key)
-      );
-
-    const findMySpectatorRoom = (): Room | undefined =>
-      [...rooms.values()].find(
-        (r) => r.status !== 'finished' && r.spectators.some((s) => s.key === me.key)
-      );
-
-    // 同一身份重连:恢复房间与对局状态(玩家或观战者)
-    const existing = findMyRoom();
-    if (existing) {
-      const mine = existing.players.find((p) => p.key === me.key)!;
-      mine.socketId = socket.id;
-      mine.connected = true;
-      if (mine.disconnectTimer) {
-        clearTimeout(mine.disconnectTimer);
-        mine.disconnectTimer = undefined;
-      }
+    const restorePromise = getRoomForIdentity(me.key).then(async (existing) => {
+      if (!existing) return;
+      await withRoomLock(existing.id, (room) => {
+        const player = room.players.find((p) => p.key === me.key);
+        const spectator = room.spectators.find((p) => p.key === me.key);
+        if (player) {
+          player.socketId = socket.id;
+          player.connected = true;
+          player.disconnectDeadline = null;
+        } else if (spectator) spectator.socketId = socket.id;
+      });
       socket.join(existing.id);
-      io.to(existing.id).emit('room:state', publicRoom(existing));
-    } else {
-      const spectating = findMySpectatorRoom();
-      if (spectating) {
-        const s = spectating.spectators.find((x) => x.key === me.key)!;
-        s.socketId = socket.id;
-        socket.join(spectating.id);
-        socket.emit('room:state', publicRoom(spectating));
-      }
-    }
+      const refreshed = await getRoom(existing.id);
+      if (refreshed) io.to(existing.id).emit('room:state', publicRoom(refreshed));
+    }).catch((err) => console.error('[socket:reconnect]', err));
 
-    /** 主动查询自己所在的房间(进入房间页/大厅时调用) */
-    socket.on('room:sync', (_payload: unknown, ack?: Function) => {
-      const room = findMyRoom();
-      if (room) {
-        socket.join(room.id);
-        return ack?.({ room: publicRoom(room), role: 'player' });
-      }
-      const spec = findMySpectatorRoom();
-      if (spec) {
-        socket.join(spec.id);
-        return ack?.({ room: publicRoom(spec), role: 'spectator' });
-      }
-      ack?.({ code: 'NOT_IN_ROOM' });
+    safeOn(socket, 'room:sync', async (_payload, ack) => {
+      await restorePromise;
+      const room = await getRoomForIdentity(me.key);
+      if (!room) return ack?.({ code: 'NOT_IN_ROOM' });
+      socket.join(room.id);
+      ack?.({
+        room: publicRoom(room),
+        role: room.players.some((p) => p.key === me.key) ? 'player' : 'spectator',
+        selfKey: me.key,
+      });
     });
 
-    function makePlayer(ready: boolean): RoomPlayer {
-      return {
-        ...me,
-        socketId: socket.id,
-        ready,
-        score: 0,
-        guesses: [],
-        connected: true,
-      };
-    }
-
-    socket.on(
-      'room:create',
-      (payload: { dbType?: DbType; boType?: number }, ack?: Function) => {
-        if (findMyRoom()) return ack?.({ code: 'ALREADY_IN_ROOM' });
-        const boType = ([1, 3, 5, 7] as BoType[]).includes(payload?.boType as BoType)
-          ? (payload!.boType as BoType)
-          : 3;
-        const room: Room = {
-          id: genRoomId(),
-          hostKey: me.key,
-          status: 'waiting',
-          dbType: payload?.dbType === 'normal' ? 'normal' : 'easy',
-          boType,
-          round: 0,
-          players: [makePlayer(true)],
-          spectators: [],
-          roundEndsAt: null,
-        };
-        rooms.set(room.id, room);
-        socket.join(room.id);
-        ack?.({ room: publicRoom(room) });
+    safeOn(socket, 'room:create', async (payload, ack) => {
+      if (!(await socketAllowed('create', me.key, 5, 60))) return ack?.({ code: 'RATE_LIMITED' });
+      if (await getRoomForIdentity(me.key)) return ack?.({ code: 'ALREADY_IN_ROOM' });
+      const boType = ([1, 3, 5, 7] as BoType[]).includes(payload?.boType) ? payload.boType : 3;
+      const now = Date.now();
+      const roomId = await genRoomId();
+      if (!(await reserveRoomCapacity(String(socket.data.ip), roomId))) {
+        return ack?.({ code: 'ROOM_CAPACITY_REACHED' });
       }
-    );
-
-    /**
-     * 加入房间:
-     * - 等待中且未满 → 作为玩家加入
-     * - 已满或已开始 → 作为观战者加入(spectate 显式请求或自动降级)
-     */
-    socket.on(
-      'room:join',
-      (payload: { roomId?: string; spectate?: boolean }, ack?: Function) => {
-        const room = rooms.get(String(payload?.roomId ?? '').toUpperCase());
-        if (!room) return ack?.({ code: 'ROOM_NOT_FOUND' });
-        if (room.status === 'finished') return ack?.({ code: 'ROOM_NOT_FOUND' });
-
-        // 已是该房玩家 → 视为重连
-        if (room.players.some((p) => p.key === me.key)) {
-          socket.join(room.id);
-          return ack?.({ room: publicRoom(room), role: 'player' });
-        }
-
-        const asSpectator =
-          payload?.spectate || room.status !== 'waiting' || room.players.length >= 2;
-
-        if (asSpectator) {
-          if (findMyRoom()) return ack?.({ code: 'ALREADY_IN_ROOM' });
-          if (!room.spectators.some((s) => s.key === me.key)) {
-            room.spectators.push({ ...me, socketId: socket.id });
-          } else {
-            const s = room.spectators.find((x) => x.key === me.key)!;
-            s.socketId = socket.id;
-          }
-          socket.join(room.id);
-          io.to(room.id).emit('room:state', publicRoom(room));
-          return ack?.({ room: publicRoom(room), role: 'spectator' });
-        }
-
-        if (findMyRoom()) return ack?.({ code: 'ALREADY_IN_ROOM' });
-        room.players.push(makePlayer(false));
-        socket.join(room.id);
-        io.to(room.id).emit('room:state', publicRoom(room));
-        ack?.({ room: publicRoom(room), role: 'player' });
-      }
-    );
-
-    socket.on('room:ready', (_payload: unknown, ack?: Function) => {
-      const room = findMyRoom();
-      if (!room || room.status !== 'waiting') return ack?.({ code: 'NOT_IN_WAITING_ROOM' });
-      const mine = room.players.find((p) => p.key === me.key)!;
-      mine.ready = !mine.ready;
-      io.to(room.id).emit('room:state', publicRoom(room));
-      ack?.({ ok: true });
-    });
-
-    socket.on('room:leave', async (_payload: unknown, ack?: Function) => {
-      // 观战者离开
-      removeSpectator(io, socket.id);
-      const room = findMyRoom();
-      if (!room) return ack?.({ ok: true });
-      if (room.status === 'playing' || room.status === 'round_over') {
-        const opponent = room.players.find((p) => p.key !== me.key);
-        await finishMatch(io, room, opponent?.key ?? null, 'opponent_left');
-      } else {
-        room.players = room.players.filter((p) => p.key !== me.key);
-        socket.leave(room.id);
-        if (!room.players.length && !room.spectators.length) {
-          rooms.delete(room.id);
-        } else if (room.players.length) {
-          if (room.hostKey === me.key) room.hostKey = room.players[0].key;
-          room.players[0].ready = true;
-          io.to(room.id).emit('room:state', publicRoom(room));
-        }
-      }
-      ack?.({ ok: true });
-    });
-
-    socket.on('game:start', async (_payload: unknown, ack?: Function) => {
-      const room = findMyRoom();
-      if (!room || room.status !== 'waiting') return ack?.({ code: 'ROOM_NOT_READY' });
-      if (room.hostKey !== me.key) return ack?.({ code: 'NOT_HOST' });
-      if (room.players.length < 2) return ack?.({ code: 'NEED_TWO_PLAYERS' });
-      if (!room.players.every((p) => p.ready)) return ack?.({ code: 'PLAYERS_NOT_READY' });
-      await startRound(io, room);
-      ack?.({ ok: true });
-    });
-
-    socket.on('game:guess', async (payload: { playerId?: number }, ack?: Function) => {
-      const room = findMyRoom();
-      if (!room || room.status !== 'playing' || !room.target) {
-        return ack?.({ code: 'NO_ACTIVE_ROUND' });
-      }
-      const mine = room.players.find((p) => p.key === me.key)!;
-      if (mine.guesses.length >= MAX_GUESSES) return ack?.({ code: 'GUESS_LIMIT_REACHED' });
-      const guess = await db<Player>('players')
-        .where({ id: Number(payload?.playerId) })
-        .first();
-      if (!guess) return ack?.({ code: 'PLAYER_NOT_FOUND' });
-      if (mine.guesses.some((g) => g.playerId === guess.id)) {
-        return ack?.({ code: 'ALREADY_GUESSED' });
-      }
-
-      const feedback = compareGuess(guess, room.target);
-      mine.guesses.push(feedback);
-      ack?.({ feedback });
-      io.to(room.id).emit('room:state', publicRoom(room));
-
-      if (feedback.correct) {
-        await finishRound(io, room, me.key, 'guessed');
-      } else if (room.players.every((p) => p.guesses.length >= MAX_GUESSES)) {
-        await finishRound(io, room, null, 'exhausted');
-      }
-    });
-
-    // ---------- 随机匹配 ----------
-    socket.on('match:start', async (payload: { dbType?: DbType }, ack?: Function) => {
-      if (findMyRoom()) return ack?.({ code: 'ALREADY_IN_ROOM' });
-      removeFromQueue(socket.id);
-      const dbType: DbType = payload?.dbType === 'normal' ? 'normal' : 'easy';
-      const queue = matchQueue.get(dbType) ?? [];
-      const opponent = queue.find(
-        (e) => e.identity.key !== me.key && e.socket.connected
-      );
-      if (!opponent) {
-        queue.push({ socket, identity: me });
-        matchQueue.set(dbType, queue);
-        return ack?.({ queued: true });
-      }
-      matchQueue.set(
-        dbType,
-        queue.filter((e) => e !== opponent)
-      );
-      // 匹配成功:直接建房并把双方拉入,BO3 固定
-      const room: Room = {
-        id: genRoomId(),
-        hostKey: opponent.identity.key,
+      const room: StoredRoom = {
+        id: roomId,
+        ownerIp: String(socket.data.ip),
+        hostKey: me.key,
         status: 'waiting',
+        dbType: payload?.dbType === 'normal' ? 'normal' : 'easy',
+        boType,
+        round: 0,
+        players: [makePlayer(me, socket.id, true)],
+        spectators: [],
+        targetPlayerId: null,
+        roundEndsAt: null,
+        nextRoundAt: null,
+        eventResults: {},
+        createdAt: now,
+        updatedAt: now,
+      };
+      try {
+        await saveRoom(room);
+      } catch (err) {
+        await releaseRoomCapacity(room.ownerIp, room.id);
+        throw err;
+      }
+      socket.join(room.id);
+      ack?.({ room: publicRoom(room) });
+    });
+
+    safeOn(socket, 'room:join', async (payload, ack) => {
+      if (!(await socketAllowed('join', me.key, 20, 60))) return ack?.({ code: 'RATE_LIMITED' });
+      const roomId = String(payload?.roomId ?? '').toUpperCase();
+      const current = await getRoomForIdentity(me.key);
+      if (current && current.id !== roomId) return ack?.({ code: 'ALREADY_IN_ROOM' });
+      const role = await withRoomLock(roomId, (room) => {
+        if (room.status === 'finished') return { code: 'ROOM_NOT_FOUND' };
+        const player = room.players.find((p) => p.key === me.key);
+        if (player) {
+          player.socketId = socket.id;
+          player.connected = true;
+          player.disconnectDeadline = null;
+          return { role: 'player' as const };
+        }
+        const asSpectator = payload?.spectate || room.status !== 'waiting' || room.players.length >= 2;
+        if (asSpectator) {
+          let spectator = room.spectators.find((p) => p.key === me.key);
+          if (!spectator && room.spectators.length >= MAX_SPECTATORS) return { code: 'ROOM_FULL' };
+          if (spectator) spectator.socketId = socket.id;
+          else room.spectators.push({ ...me, socketId: socket.id });
+          return { role: 'spectator' as const };
+        }
+        room.players.push(makePlayer(me, socket.id, false));
+        return { role: 'player' as const };
+      });
+      if (!role) return ack?.({ code: 'ROOM_NOT_FOUND' });
+      if ('code' in role) return ack?.({ code: role.code });
+      socket.join(roomId);
+      const room = await getRoom(roomId);
+      if (!room) return ack?.({ code: 'ROOM_NOT_FOUND' });
+      io.to(roomId).emit('room:state', publicRoom(room));
+      ack?.({ room: publicRoom(room), role: role.role });
+    });
+
+    safeOn(socket, 'room:ready', async (_payload, ack) => {
+      const room = await getRoomForIdentity(me.key);
+      if (!room) return ack?.({ code: 'NOT_IN_WAITING_ROOM' });
+      const changed = await withRoomLock(room.id, (locked) => {
+        if (locked.status !== 'waiting') return false;
+        const player = locked.players.find((p) => p.key === me.key);
+        if (!player) return false;
+        player.ready = !player.ready;
+        return true;
+      });
+      if (!changed) return ack?.({ code: 'NOT_IN_WAITING_ROOM' });
+      const refreshed = await getRoom(room.id);
+      if (refreshed) io.to(room.id).emit('room:state', publicRoom(refreshed));
+      ack?.({ ok: true });
+    });
+
+    safeOn(socket, 'game:start', async (_payload, ack) => {
+      const room = await getRoomForIdentity(me.key);
+      if (!room) return ack?.({ code: 'ROOM_NOT_READY' });
+      const result = await withRoomLock(room.id, (locked) => {
+        if (locked.status !== 'waiting') return 'ROOM_NOT_READY';
+        if (locked.hostKey !== me.key) return 'NOT_HOST';
+        if (locked.players.length < 2) return 'NEED_TWO_PLAYERS';
+        if (!locked.players.every((p) => p.ready)) return 'PLAYERS_NOT_READY';
+        locked.status = 'starting';
+        return 'OK';
+      });
+      if (result !== 'OK') return ack?.({ code: result ?? 'ROOM_NOT_READY' });
+      const started = await startRound(io, room.id);
+      ack?.(started ? { ok: true } : { code: 'EMPTY_PLAYER_POOL' });
+    });
+
+    safeOn(socket, 'game:guess', async (payload, ack) => {
+      if (!(await socketAllowed('guess', me.key, 12, 10))) return ack?.({ code: 'RATE_LIMITED' });
+      const room = await getRoomForIdentity(me.key);
+      if (!room) return ack?.({ code: 'NO_ACTIVE_ROUND' });
+      const guess = getPlayer(Number(payload?.playerId));
+      if (!guess) return ack?.({ code: 'PLAYER_NOT_FOUND' });
+      const roundId = Number(payload?.roundId);
+      const eventId = typeof payload?.eventId === 'string' ? payload.eventId : '';
+      if (!Number.isInteger(roundId) || !/^[\w-]{16,80}$/.test(eventId)) {
+        return ack?.({ code: 'VALIDATION_FAILED' });
+      }
+      const result = await withRoomLock(room.id, (locked) => {
+        const eventKey = `${me.key}:${eventId}`;
+        const previous = locked.eventResults[eventKey];
+        if (previous) {
+          return { duplicate: true, feedback: previous, round: locked.round, room: structuredClone(locked) };
+        }
+        if (locked.status !== 'playing' || !locked.targetPlayerId) return { code: 'NO_ACTIVE_ROUND' };
+        if (locked.round !== roundId) return { code: 'STALE_ROUND' };
+        if (locked.roundEndsAt && locked.roundEndsAt <= Date.now()) return { code: 'NO_ACTIVE_ROUND' };
+        const player = locked.players.find((p) => p.key === me.key);
+        if (!player) return { code: 'NO_ACTIVE_ROUND' };
+        if (player.guesses.length >= MAX_GUESSES) return { code: 'GUESS_LIMIT_REACHED' };
+        if (player.guesses.some((item) => item.playerId === guess.id)) return { code: 'ALREADY_GUESSED' };
+        const target = getPlayer(locked.targetPlayerId);
+        if (!target) return { code: 'INTERNAL_ERROR' };
+        const feedback = compareGuess(guess, target);
+        player.guesses.push(feedback);
+        locked.eventResults[eventKey] = feedback;
+        const shouldFinish = feedback.correct || locked.players.every(
+          (candidate) => candidate.guesses.length >= MAX_GUESSES
+        );
+        let matchOver = false;
+        if (shouldFinish) {
+          if (feedback.correct) player.score += 1;
+          matchOver = feedback.correct && player.score >= winsNeeded(locked.boType);
+          locked.roundEndsAt = null;
+          if (matchOver) locked.status = 'finished';
+          else {
+            locked.status = 'round_over';
+            locked.nextRoundAt = Date.now() + NEXT_ROUND_DELAY_MS;
+          }
+        }
+        return {
+          feedback,
+          round: locked.round,
+          correct: feedback.correct,
+          shouldFinish,
+          matchOver,
+          room: structuredClone(locked),
+        };
+      });
+      if (!result || 'code' in result) return ack?.({ code: result?.code ?? 'NO_ACTIVE_ROUND' });
+      ack?.({ feedback: result.feedback });
+      if (!('duplicate' in result)) {
+        io.to(room.id).emit('game:guess:applied', {
+          roundId: result.round,
+          key: me.key,
+          feedback: result.feedback,
+        });
+      }
+      if (result.shouldFinish) {
+        const winnerKey = result.correct ? me.key : null;
+        const reason = result.correct ? 'guessed' : 'exhausted';
+        io.to(room.id).emit('round:over', {
+          winnerKey,
+          reason,
+          answer: answerView(result.room.targetPlayerId),
+          matchOver: result.matchOver,
+          nextRoundInMs: result.matchOver ? undefined : NEXT_ROUND_DELAY_MS,
+          room: publicRoom(result.room),
+        });
+        if (result.matchOver) {
+          await persistMatch(result.room, winnerKey);
+          io.to(room.id).emit('match:over', {
+            winnerKey,
+            reason: 'score',
+            answer: answerView(result.room.targetPlayerId),
+            room: publicRoom(result.room),
+          });
+          await schedule('cleanup', room.id, '0', Date.now() + FINISHED_ROOM_TTL_MS);
+        } else {
+          await schedule('next', room.id, String(result.round), result.room.nextRoundAt!);
+          setLocalTimer(`next:${room.id}`, NEXT_ROUND_DELAY_MS, () => void startRound(io, room.id));
+        }
+      }
+    });
+
+    safeOn(socket, 'room:leave', async (_payload, ack) => {
+      const room = await getRoomForIdentity(me.key);
+      if (!room) return ack?.({ ok: true });
+      const player = room.players.find((p) => p.key === me.key);
+      if (player && (room.status === 'playing' || room.status === 'round_over' || room.status === 'starting')) {
+        const opponent = room.players.find((p) => p.key !== me.key);
+        await finishMatch(io, room.id, opponent?.key ?? null, 'opponent_left');
+      } else {
+        await withRoomLock(room.id, (locked) => {
+          locked.players = locked.players.filter((p) => p.key !== me.key);
+          locked.spectators = locked.spectators.filter((p) => p.key !== me.key);
+          if (locked.players.length && locked.hostKey === me.key) locked.hostKey = locked.players[0].key;
+          if (locked.players.length === 1) locked.players[0].ready = true;
+        });
+        await clearIdentityRoom(me.key);
+        const refreshed = await getRoom(room.id);
+        if (refreshed && !refreshed.players.length && !refreshed.spectators.length) await deleteRoom(refreshed);
+        else if (refreshed) io.to(room.id).emit('room:state', publicRoom(refreshed));
+      }
+      socket.leave(room.id);
+      ack?.({ ok: true });
+    });
+
+    safeOn(socket, 'match:start', async (payload, ack) => {
+      if (!(await socketAllowed('match', me.key, 10, 60))) return ack?.({ code: 'RATE_LIMITED' });
+      if (await getRoomForIdentity(me.key)) return ack?.({ code: 'ALREADY_IN_ROOM' });
+      await cancelQueue(me.key);
+      const dbType: DbType = payload?.dbType === 'normal' ? 'normal' : 'easy';
+      const queuedMe: QueuedIdentity = { ...me, socketId: socket.id };
+      let opponent = isRedisAvailable() ? await queueOrTakeOpponent(dbType, queuedMe) : null;
+      if (isRedisAvailable() && !opponent) return ack?.({ queued: true });
+      if (!isRedisAvailable() && !opponent) {
+        const queue = localQueue.get(dbType) ?? [];
+        opponent = queue.find((item) => item.key !== me.key) ?? null;
+        if (opponent) localQueue.set(dbType, queue.filter((item) => item.key !== opponent!.key));
+        else {
+          localQueue.set(dbType, [...queue.filter((item) => item.key !== me.key), queuedMe]);
+          return ack?.({ queued: true });
+        }
+      }
+      if (!opponent) return ack?.({ queued: true });
+      const now = Date.now();
+      const roomId = await genRoomId();
+      if (!(await reserveRoomCapacity(String(socket.data.ip), roomId))) {
+        return ack?.({ code: 'ROOM_CAPACITY_REACHED' });
+      }
+      const room: StoredRoom = {
+        id: roomId,
+        ownerIp: String(socket.data.ip),
+        hostKey: opponent.key,
+        status: 'starting',
         dbType,
         boType: 3,
         round: 0,
-        players: [
-          {
-            ...opponent.identity,
-            socketId: opponent.socket.id,
-            ready: true,
-            score: 0,
-            guesses: [],
-            connected: true,
-          },
-          makePlayer(true),
-        ],
+        players: [makePlayer(opponent, opponent.socketId, true), makePlayer(me, socket.id, true)],
         spectators: [],
+        targetPlayerId: null,
         roundEndsAt: null,
+        nextRoundAt: null,
+        eventResults: {},
+        createdAt: now,
+        updatedAt: now,
       };
-      rooms.set(room.id, room);
-      opponent.socket.join(room.id);
+      try {
+        await saveRoom(room);
+      } catch (err) {
+        await releaseRoomCapacity(room.ownerIp, room.id);
+        throw err;
+      }
+      await io.in(identityChannel(opponent.key)).socketsJoin(room.id);
       socket.join(room.id);
       ack?.({ queued: false });
-      io.to(room.id).emit('match:found', { room: publicRoom(room) });
-      await startRound(io, room);
+      io.to([identityChannel(opponent.key), identityChannel(me.key)]).emit('match:found', {
+        room: publicRoom(room),
+      });
+      await startRound(io, room.id);
     });
 
-    socket.on('match:cancel', (_payload: unknown, ack?: Function) => {
-      removeFromQueue(socket.id);
+    safeOn(socket, 'match:cancel', async (_payload, ack) => {
+      await cancelQueue(me.key);
+      for (const [key, queue] of localQueue) {
+        localQueue.set(key, queue.filter((item) => item.key !== me.key));
+      }
       ack?.({ ok: true });
     });
 
     socket.on('disconnect', () => {
-      removeFromQueue(socket.id);
-      removeSpectator(io, socket.id);
-      const room = findMyRoom();
-      if (!room) return;
-      const mine = room.players.find((p) => p.key === me.key);
-      if (!mine || mine.socketId !== socket.id) return;
-      // 立即广播离线状态,对手马上可见
-      mine.connected = false;
-      io.to(room.id).emit('room:state', publicRoom(room));
-      io.to(room.id).emit('player:offline', {
-        key: me.key,
-        name: me.name,
-        graceMs: DISCONNECT_FORFEIT_MS,
-      });
-      if (room.status === 'playing' || room.status === 'round_over') {
-        mine.disconnectTimer = setTimeout(() => {
-          const opponent = room.players.find((p) => p.key !== me.key);
-          void finishMatch(io, room, opponent?.key ?? null, 'disconnect_timeout');
-        }, DISCONNECT_FORFEIT_MS);
-      } else {
-        room.players = room.players.filter((p) => p.key !== me.key);
-        if (!room.players.length && !room.spectators.length) {
-          rooms.delete(room.id);
-        } else if (room.players.length) {
-          if (room.hostKey === me.key) room.hostKey = room.players[0].key;
-          io.to(room.id).emit('room:state', publicRoom(room));
-        }
+      clearInterval(connectionHeartbeat);
+      if (socket.data.connectionSlot) {
+        socket.data.connectionSlot = false;
+        void releaseConnectionSlot(String(socket.data.ip), me.key, socket.id);
       }
+      void cancelQueue(me.key);
+      for (const [key, queue] of localQueue) {
+        localQueue.set(key, queue.filter((item) => item.key !== me.key));
+      }
+      void getRoomForIdentity(me.key).then(async (room) => {
+        if (!room) return;
+        const result = await withRoomLock(room.id, (locked) => {
+          const spectator = locked.spectators.find((p) => p.key === me.key);
+          if (spectator?.socketId === socket.id) {
+            locked.spectators = locked.spectators.filter((p) => p.key !== me.key);
+            return { spectator: true };
+          }
+          const player = locked.players.find((p) => p.key === me.key);
+          if (!player || player.socketId !== socket.id) return null;
+          if (locked.status === 'waiting') {
+            locked.players = locked.players.filter((p) => p.key !== me.key);
+            if (locked.players.length && locked.hostKey === me.key) locked.hostKey = locked.players[0].key;
+            return { removed: true };
+          }
+          player.connected = false;
+          player.disconnectDeadline = Date.now() + DISCONNECT_FORFEIT_MS;
+          return { deadline: player.disconnectDeadline, room: structuredClone(locked) };
+        });
+        if (!result) return;
+        if ('spectator' in result || 'removed' in result) {
+          await clearIdentityRoom(me.key);
+          const refreshed = await getRoom(room.id);
+          if (refreshed && !refreshed.players.length && !refreshed.spectators.length) {
+            await deleteRoom(refreshed);
+          } else if (refreshed) {
+            io.to(room.id).emit('room:state', publicRoom(refreshed));
+          }
+          return;
+        }
+        io.to(room.id).emit('room:state', publicRoom(result.room));
+        io.to(room.id).emit('player:offline', {
+          key: me.key,
+          name: me.name,
+          graceMs: DISCONNECT_FORFEIT_MS,
+        });
+        await schedule('disconnect', room.id, me.key, result.deadline);
+        setLocalTimer(`disconnect:${room.id}:${me.key}`, DISCONNECT_FORFEIT_MS, () => {
+          void processSchedule(io, `disconnect|${room.id}|${me.key}`);
+        });
+      }).catch((err) => console.error('[socket:disconnect]', err));
     });
   });
+
+  return () => clearInterval(worker);
 }

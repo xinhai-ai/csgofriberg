@@ -3,6 +3,7 @@ export interface User {
   username: string;
   password_hash: string;
   role: 'user' | 'admin';
+  token_version: number;
   created_at: string;
 }
 
@@ -46,6 +47,7 @@ export interface GuessFeedback {
 
 export interface GameRow {
   id: number;
+  session_id: string | null;
   user_id: number | null;
   guest_key: string | null;
   target_player_id: number;

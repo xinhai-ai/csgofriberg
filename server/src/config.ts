@@ -1,15 +1,50 @@
 import dotenv from 'dotenv';
 import path from 'path';
+import crypto from 'crypto';
 
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
+const repoEnvPath = path.resolve(__dirname, '../../.env');
+const serverEnvPath = path.resolve(__dirname, '../.env');
+
+// The repository-level .env is the primary configuration used by the root scripts.
+// Keep server/.env as a fallback for existing deployments.
+dotenv.config({ path: repoEnvPath });
+dotenv.config({ path: serverEnvPath });
+
+const configuredJwtSecret = process.env.JWT_SECRET?.trim();
+const unsafeJwtSecrets = new Set(['dev-secret', 'change-me-in-production']);
 
 export const config = {
   port: Number(process.env.PORT || 3000),
-  jwtSecret: process.env.JWT_SECRET || 'dev-secret',
+  jwtSecret: configuredJwtSecret || crypto.randomBytes(48).toString('base64url'),
   dbClient: (process.env.DB_CLIENT || 'sqlite') as 'sqlite' | 'pg',
   dbUrl: process.env.DB_URL || './data/csgofriberg.sqlite3',
-  adminUsernames: (process.env.ADMIN_USERNAMES || 'admin')
+  dbPoolMin: Number(process.env.DB_POOL_MIN || 2),
+  dbPoolMax: Number(process.env.DB_POOL_MAX || 20),
+  trustProxy: process.env.TRUST_PROXY === 'true',
+  redisUrl: process.env.REDIS_URL || 'redis://127.0.0.1:6379',
+  redisPrefix: process.env.REDIS_PREFIX || 'csgofriberg:',
+  redisRequired: process.env.REDIS_REQUIRED === 'true',
+  powDifficulty: Number(process.env.POW_DIFFICULTY || 17),
+  powChallengeTtlSeconds: Number(process.env.POW_CHALLENGE_TTL_SECONDS || 120),
+  powTokenTtlSeconds: Number(process.env.POW_TOKEN_TTL_SECONDS || 600),
+  corsOrigins: (process.env.CORS_ORIGINS || 'http://localhost:5173')
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean),
 };
+
+export function validateProductionConfig(): void {
+  if (!Number.isInteger(config.powDifficulty) || config.powDifficulty < 16 || config.powDifficulty > 24) {
+    throw new Error('POW_DIFFICULTY_MUST_BE_BETWEEN_16_AND_24');
+  }
+  if (process.env.NODE_ENV !== 'production') return;
+  if (
+    !configuredJwtSecret ||
+    Buffer.byteLength(configuredJwtSecret, 'utf8') < 32 ||
+    unsafeJwtSecrets.has(configuredJwtSecret)
+  ) {
+    throw new Error('JWT_SECRET_MUST_BE_AT_LEAST_32_RANDOM_BYTES');
+  }
+  if (config.dbClient !== 'pg') throw new Error('POSTGRESQL_REQUIRED_IN_PRODUCTION');
+  if (!config.redisRequired) throw new Error('REDIS_REQUIRED_MUST_BE_TRUE_IN_PRODUCTION');
+}

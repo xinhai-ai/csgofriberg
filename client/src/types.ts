@@ -57,6 +57,7 @@ export interface RoomState {
   dbType: 'easy' | 'normal';
   boType: number;
   round: number;
+  roundId: number;
   winsNeeded: number;
   maxGuesses: number;
   roundEndsAt: number | null;
