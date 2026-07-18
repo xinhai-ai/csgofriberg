@@ -85,9 +85,11 @@ export async function loadSingleGame(
 export async function saveSingleGame(game: SingleGameState): Promise<void> {
   const client = requiredRedis();
   game.lastActiveAt = Date.now();
+  const expiresAt = game.lastActiveAt + SINGLE_GAME_TTL_SECONDS * 1000;
   await client.multi()
     .set(gameKey(game.id), JSON.stringify(game), { EX: SINGLE_GAME_TTL_SECONDS })
     .set(activeKey(game.identityKey, game.mode), game.id, { EX: SINGLE_GAME_TTL_SECONDS })
+    .zAdd(redisKey('presence:single'), { score: expiresAt, value: game.id })
     .exec();
 }
 
@@ -95,10 +97,14 @@ export async function deleteSingleGame(game: SingleGameState): Promise<void> {
   const client = requiredRedis();
   const active = activeKey(game.identityKey, game.mode);
   await client.eval(
-    `if redis.call('get', KEYS[1]) == ARGV[1] then
+    `redis.call('ZREM', KEYS[3], ARGV[1])
+     if redis.call('get', KEYS[1]) == ARGV[1] then
        return redis.call('del', KEYS[1], KEYS[2])
      end
      return redis.call('del', KEYS[2])`,
-    { keys: [active, gameKey(game.id)], arguments: [game.id] }
+    {
+      keys: [active, gameKey(game.id), redisKey('presence:single')],
+      arguments: [game.id],
+    }
   );
 }

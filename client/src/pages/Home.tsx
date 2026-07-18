@@ -43,6 +43,8 @@ export default function Home() {
       clearAuthenticated();
       markGuestSession();
       setUser(null);
+      const { getSocket } = await import('../api/socket');
+      getSocket();
       navigate('/');
     } catch (error) {
       setLogoutError(errMsg(error));

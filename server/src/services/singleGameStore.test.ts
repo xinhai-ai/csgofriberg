@@ -5,7 +5,7 @@ import {
   loadSingleGame,
   saveSingleGame,
 } from './singleGameStore';
-import { initRedis } from '../redis';
+import { initRedis, redis } from '../redis';
 
 describe('singleGameStore', () => {
   it('requires Redis instead of silently writing active games to the database', async () => {
@@ -42,6 +42,7 @@ describe('singleGameStore', () => {
     });
     created.guesses.push({ playerId: 2, nickname: 'test' } as any);
     await saveSingleGame(created);
+    expect(await redis()!.zScore('csgofriberg:presence:single', created.id)).not.toBeNull();
 
     const restored = await createOrResumeSingleGame({
       identityKey,
@@ -56,5 +57,6 @@ describe('singleGameStore', () => {
 
     await deleteSingleGame(restored);
     expect(await loadSingleGame(restored.id, identityKey)).toBeNull();
+    expect(await redis()!.zScore('csgofriberg:presence:single', restored.id)).toBeNull();
   });
 });

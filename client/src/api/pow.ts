@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const powApi = axios.create({ baseURL: '/api/pow', withCredentials: true });
-const REFRESH_MARGIN_MS = 30_000;
+const EXPIRY_STORAGE_KEY = 'csgofriberg_pow_expires_at';
 
 interface ChallengeResponse {
   valid?: boolean;
@@ -12,13 +12,33 @@ interface ChallengeResponse {
   algorithm?: string;
 }
 
-let expiresAt = 0;
+function readStoredExpiry(): number {
+  try {
+    const value = Number(localStorage.getItem(EXPIRY_STORAGE_KEY));
+    return Number.isFinite(value) && value > 0 ? value : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function persistExpiry(value: number): void {
+  expiresAt = value;
+  try {
+    if (value > 0) localStorage.setItem(EXPIRY_STORAGE_KEY, String(value));
+    else localStorage.removeItem(EXPIRY_STORAGE_KEY);
+  } catch {
+    /* Storage may be unavailable in strict privacy modes. */
+  }
+}
+
+let expiresAt = readStoredExpiry();
 let activeRequest: Promise<void> | null = null;
 let refreshTimer: number | null = null;
 
 function scheduleRefresh(): void {
   if (refreshTimer !== null) window.clearTimeout(refreshTimer);
-  const delay = Math.max(1_000, expiresAt - Date.now() - REFRESH_MARGIN_MS);
+  if (expiresAt <= Date.now()) return;
+  const delay = Math.max(1_000, expiresAt - Date.now());
   refreshTimer = window.setTimeout(() => {
     refreshTimer = null;
     void ensurePow(true).catch(() => undefined);
@@ -48,7 +68,7 @@ async function refreshPow(): Promise<void> {
   });
   const data = challengeResponse.data;
   if (data.valid && data.expiresAt) {
-    expiresAt = data.expiresAt;
+    persistExpiry(data.expiresAt);
     scheduleRefresh();
     return;
   }
@@ -64,23 +84,34 @@ async function refreshPow(): Promise<void> {
     id: data.id,
     nonce,
   });
-  expiresAt = verifyResponse.data.expiresAt;
+  persistExpiry(verifyResponse.data.expiresAt);
   scheduleRefresh();
 }
 
 export function ensurePow(force = false): Promise<void> {
   if (activeRequest) return activeRequest;
-  if (!force && expiresAt > Date.now() + REFRESH_MARGIN_MS) return Promise.resolve();
-  activeRequest = refreshPow().finally(() => {
-    activeRequest = null;
-  });
+  if (!force && expiresAt > Date.now()) {
+    scheduleRefresh();
+    return Promise.resolve();
+  }
+  if (force) persistExpiry(0);
+  activeRequest = refreshPow()
+    .catch((error) => {
+      persistExpiry(0);
+      throw error;
+    })
+    .finally(() => {
+      activeRequest = null;
+    });
   return activeRequest;
 }
 
 export function notePowExpiry(value: unknown): void {
   const parsed = Number(value);
   if (Number.isFinite(parsed) && parsed > expiresAt) {
-    expiresAt = parsed;
+    persistExpiry(parsed);
     scheduleRefresh();
   }
 }
+
+scheduleRefresh();

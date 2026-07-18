@@ -4,12 +4,14 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Server } from 'socket.io';
 import { io as clientIo, Socket as ClientSocket } from 'socket.io-client';
 import { initDb } from '../db/init';
+import { db } from '../db/knex';
 import { initRedis, redis } from '../redis';
 import { initPlayerCache } from '../services/playerCache';
 import { setupSocket } from './index';
 import { browserFingerprint, POW_COOKIE } from '../services/pow';
 import jwt from 'jsonwebtoken';
 import { config } from '../config';
+import { signToken } from '../middleware/auth';
 
 let server: http.Server;
 let io: Server;
@@ -177,6 +179,70 @@ describe('multiplayer socket integration', () => {
       expect(socket.connected).toBe(true);
       const synced = await emit(socket, 'room:sync');
       expect(synced.code).toBe('NOT_IN_ROOM');
+    } finally {
+      socket.disconnect();
+    }
+  });
+
+  it('restricts live presence stats to admins and deduplicates their sockets', async () => {
+    const stamp = Date.now();
+    const guestToken = jwt.sign(
+      { key: `presence-guest-${stamp}`, typ: 'guest' },
+      config.jwtSecret,
+      { expiresIn: '1h' }
+    );
+    const guest = await connect(withPowCookie(`csgofriberg_guest=${guestToken}`));
+    const [adminId] = await db('users')
+      .insert({
+        username: `presence-admin-${stamp}`,
+        password_hash: 'not-used',
+        role: 'admin',
+        token_version: 0,
+      })
+      .returning('id')
+      .then((rows) => rows.map((row: any) => typeof row === 'object' ? row.id : row));
+    const adminToken = signToken({ id: adminId, token_version: 0 });
+    const adminCookie = withPowCookie(`csgofriberg_session=${adminToken}`);
+    const adminA = await connect(adminCookie);
+    const adminB = await connect(adminCookie);
+    try {
+      expect((await emit(guest, 'presence:subscribe')).code).toBe('FORBIDDEN');
+      const subscribed = await emit(adminA, 'presence:subscribe');
+      expect(subscribed.ok).toBe(true);
+      expect(subscribed.stats).toMatchObject({
+        onlineUsers: expect.any(Number),
+        multiplayerRooms: expect.any(Number),
+        singleGames: expect.any(Number),
+      });
+      expect(await redis()!.zScore('csgofriberg:presence:online', `u:${adminId}`)).not.toBeNull();
+      expect(await redis()!.zCard(`csgofriberg:connections:identity:u:${adminId}`)).toBe(2);
+      expect(await redis()!.zCount(
+        'csgofriberg:presence:online',
+        '-inf',
+        '+inf'
+      )).toBeGreaterThanOrEqual(1);
+    } finally {
+      guest.disconnect();
+      adminA.disconnect();
+      adminB.disconnect();
+      await db('users').where({ id: adminId }).del();
+    }
+  });
+
+  it('tracks active multiplayer rooms until they are deleted', async () => {
+    const stamp = Date.now();
+    const guestToken = jwt.sign(
+      { key: `presence-room-${stamp}`, typ: 'guest' },
+      config.jwtSecret,
+      { expiresIn: '1h' }
+    );
+    const socket = await connect(withPowCookie(`csgofriberg_guest=${guestToken}`));
+    try {
+      const created = await emit(socket, 'room:create', { dbType: 'easy', boType: 1 });
+      createdRoomIds.push(created.room.id);
+      expect(await redis()!.zScore('csgofriberg:presence:rooms', created.room.id)).not.toBeNull();
+      await emit(socket, 'room:leave');
+      expect(await redis()!.zScore('csgofriberg:presence:rooms', created.room.id)).toBeNull();
     } finally {
       socket.disconnect();
     }

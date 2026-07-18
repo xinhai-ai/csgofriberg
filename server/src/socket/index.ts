@@ -26,6 +26,7 @@ import {
 import { isRedisAvailable, redis, redisKey } from '../redis';
 import { enqueueMatchResult } from '../services/matchResultQueue';
 import { verifyPowCookie } from '../services/pow';
+import { getPresenceStats, ONLINE_STALE_MS, PresenceStats } from '../services/presence';
 
 const DISCONNECT_FORFEIT_MS = 30_000;
 const NEXT_ROUND_DELAY_MS = 6_000;
@@ -287,16 +288,22 @@ async function acquireConnectionSlot(ip: string, identity: string, socketId: str
      if ipCount >= tonumber(ARGV[2]) or identityCount >= tonumber(ARGV[3]) then return 0 end
      redis.call('ZADD', KEYS[1], ARGV[4], ARGV[5])
      redis.call('ZADD', KEYS[2], ARGV[4], ARGV[5])
+     redis.call('ZADD', KEYS[3], ARGV[4], ARGV[6])
      redis.call('expire', KEYS[1], 900); redis.call('expire', KEYS[2], 900)
      return 1`,
     {
-      keys: [redisKey(`connections:ip:${ip}`), redisKey(`connections:identity:${identity}`)],
+      keys: [
+        redisKey(`connections:ip:${ip}`),
+        redisKey(`connections:identity:${identity}`),
+        redisKey('presence:online'),
+      ],
       arguments: [
-        String(Date.now() - 10 * 60_000),
+        String(Date.now() - ONLINE_STALE_MS),
         String(MAX_CONNECTIONS_PER_IP),
         String(MAX_CONNECTIONS_PER_IDENTITY),
         String(Date.now()),
         socketId,
+        identity,
       ],
     }
   );
@@ -306,23 +313,66 @@ async function acquireConnectionSlot(ip: string, identity: string, socketId: str
 async function releaseConnectionSlot(ip: string, identity: string, socketId: string): Promise<void> {
   const client = redis();
   if (!client) return;
-  await Promise.all([
-    client.zRem(redisKey(`connections:ip:${ip}`), socketId),
-    client.zRem(redisKey(`connections:identity:${identity}`), socketId),
-  ]);
+  await client.eval(
+    `redis.call('ZREM', KEYS[1], ARGV[1])
+     redis.call('ZREM', KEYS[2], ARGV[1])
+     redis.call('ZREMRANGEBYSCORE', KEYS[2], '-inf', ARGV[3])
+     if redis.call('ZCARD', KEYS[2]) == 0 then
+       redis.call('ZREM', KEYS[3], ARGV[2])
+     else
+       redis.call('ZADD', KEYS[3], ARGV[4], ARGV[2])
+     end
+     return 1`,
+    {
+      keys: [
+        redisKey(`connections:ip:${ip}`),
+        redisKey(`connections:identity:${identity}`),
+        redisKey('presence:online'),
+      ],
+      arguments: [
+        socketId,
+        identity,
+        String(Date.now() - ONLINE_STALE_MS),
+        String(Date.now()),
+      ],
+    }
+  );
 }
 
 async function refreshConnectionSlot(ip: string, identity: string, socketId: string): Promise<void> {
   const client = redis();
   if (!client) return;
   const now = Date.now();
-  await Promise.all([
-    client.zAdd(redisKey(`connections:ip:${ip}`), { score: now, value: socketId }),
-    client.zAdd(redisKey(`connections:identity:${identity}`), { score: now, value: socketId }),
-  ]);
+  await client.multi()
+    .zAdd(redisKey(`connections:ip:${ip}`), { score: now, value: socketId })
+    .zAdd(redisKey(`connections:identity:${identity}`), { score: now, value: socketId })
+    .zAdd(redisKey('presence:online'), { score: now, value: identity })
+    .expire(redisKey(`connections:ip:${ip}`), 900)
+    .expire(redisKey(`connections:identity:${identity}`), 900)
+    .exec();
 }
 
 export function setupSocket(io: Server) {
+  const presenceSubscribers = new Set<string>();
+  let lastPresence: Omit<PresenceStats, 'updatedAt'> | null = null;
+  const presenceWorker = setInterval(() => {
+    if (!presenceSubscribers.size) return;
+    void getPresenceStats().then((stats) => {
+      const comparable = {
+        onlineUsers: stats.onlineUsers,
+        multiplayerRooms: stats.multiplayerRooms,
+        singleGames: stats.singleGames,
+      };
+      if (lastPresence && JSON.stringify(lastPresence) === JSON.stringify(comparable)) return;
+      lastPresence = comparable;
+      for (const socketId of presenceSubscribers) io.to(socketId).emit('presence:stats', stats);
+    }).catch((err) => console.error('[presence]', err));
+  }, 1000);
+  presenceWorker.unref?.();
+  const presenceCleanupWorker = setInterval(() => {
+    void getPresenceStats().catch((err) => console.error('[presence:cleanup]', err));
+  }, 60_000);
+  presenceCleanupWorker.unref?.();
   const worker = setInterval(() => {
     void claimDueSchedules().then((items) =>
       Promise.all(items.map((item) => processSchedule(io, item)))
@@ -399,6 +449,20 @@ export function setupSocket(io: Server) {
         role: room.players.some((p) => p.key === me.key) ? 'player' : 'spectator',
         selfKey: me.key,
       });
+    });
+
+    safeOn(socket, 'presence:subscribe', async (_payload, ack) => {
+      const user = await authenticateCookie(socket.handshake.headers.cookie);
+      if (!user || user.role !== 'admin') return ack?.({ code: 'FORBIDDEN' });
+      presenceSubscribers.add(socket.id);
+      const stats = await getPresenceStats();
+      socket.emit('presence:stats', stats);
+      ack?.({ ok: true, stats });
+    });
+
+    safeOn(socket, 'presence:unsubscribe', async (_payload, ack) => {
+      presenceSubscribers.delete(socket.id);
+      ack?.({ ok: true });
     });
 
     safeOn(socket, 'room:create', async (payload, ack) => {
@@ -678,6 +742,7 @@ export function setupSocket(io: Server) {
     });
 
     socket.on('disconnect', () => {
+      presenceSubscribers.delete(socket.id);
       clearInterval(connectionHeartbeat);
       if (socket.data.connectionSlot) {
         socket.data.connectionSlot = false;
@@ -731,5 +796,10 @@ export function setupSocket(io: Server) {
     });
   });
 
-  return () => clearInterval(worker);
+  return () => {
+    clearInterval(worker);
+    clearInterval(presenceWorker);
+    clearInterval(presenceCleanupWorker);
+    presenceSubscribers.clear();
+  };
 }

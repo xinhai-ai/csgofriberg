@@ -400,6 +400,27 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
   max-width: 760px;
   margin: 0 auto;
 }
+.presence-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.presence-item {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 64px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  color: var(--text-sec);
+}
+.presence-item svg { color: var(--primary); }
+.presence-item strong { color: var(--text); font-size: 1.35rem; }
 .option-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
 .opt-label { font-size: 0.9rem; color: var(--text-sec); min-width: 84px; }
 .opt-btn {
@@ -506,6 +527,7 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
   .header-bar .btns .btn-text { display: none; } /* 窄屏只留图标 */
   .opt-label { min-width: 100%; }
   .score-bar .score { font-size: 1.6rem; }
+  .presence-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 400px) {
   .game-table-wrap { margin: 0 -6px; }

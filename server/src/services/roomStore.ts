@@ -95,6 +95,14 @@ export async function saveRoom(room: StoredRoom): Promise<void> {
   }
   const multi = client.multi();
   multi.set(roomKey(room.id), JSON.stringify(room), { EX: ROOM_TTL_SECONDS });
+  if (room.status === 'finished') {
+    multi.zRem(redisKey('presence:rooms'), room.id);
+  } else {
+    multi.zAdd(redisKey('presence:rooms'), {
+      score: room.updatedAt + ROOM_TTL_SECONDS * 1000,
+      value: room.id,
+    });
+  }
   for (const member of [...room.players, ...room.spectators]) {
     multi.set(identityKey(member.key), room.id, { EX: ROOM_TTL_SECONDS });
   }
@@ -113,6 +121,7 @@ export async function deleteRoom(room: StoredRoom): Promise<void> {
     .del([roomKey(room.id), ...identities.map(identityKey)])
     .zRem(redisKey('rooms:active'), room.id)
     .zRem(redisKey(`rooms:active:ip:${room.ownerIp}`), room.id)
+    .zRem(redisKey('presence:rooms'), room.id)
     .exec();
 }
 

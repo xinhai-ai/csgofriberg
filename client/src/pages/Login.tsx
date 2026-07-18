@@ -4,7 +4,7 @@ import { KeyRound } from 'lucide-react';
 import Page from '../components/Page';
 import { api, errMsg } from '../api/client';
 import { useAuth } from '../store/auth';
-import { closeSocket } from '../api/socket';
+import { closeSocket, getSocket } from '../api/socket';
 import { markAuthenticated } from '../api/session';
 
 export default function Login() {
@@ -29,6 +29,7 @@ export default function Login() {
       markAuthenticated();
       setUser(res.data.user);
       closeSocket();
+      getSocket();
       // 把匿名期间的对局并入账号(失败不阻塞登录)
       try {
         await api.post('/auth/claim');

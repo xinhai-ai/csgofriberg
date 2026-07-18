@@ -64,3 +64,10 @@ export interface RoomState {
   spectators: { key: string; name: string }[];
   players: RoomPlayer[];
 }
+
+export interface PresenceStats {
+  onlineUsers: number;
+  multiplayerRooms: number;
+  singleGames: number;
+  updatedAt: number;
+}
