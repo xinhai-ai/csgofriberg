@@ -19,6 +19,7 @@ import AnswerOverlay, { AnswerInfo } from '../components/AnswerOverlay';
 import { getSocket } from '../api/socket';
 import { translate } from '../i18n/messages';
 import { RoomState, RoomPlayer } from '../types';
+import { useConfirm } from '../components/ConfirmDialog';
 
 interface RoundOver {
   winnerKey: string | null;
@@ -107,6 +108,7 @@ export default function MultiRoom() {
   const [error, setError] = useState('');
   const [myKey, setMyKey] = useState('');
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const roomRef = useRef<RoomState | null>(null);
   roomRef.current = room;
 
@@ -218,6 +220,23 @@ export default function MultiRoom() {
     });
   };
 
+  const leaveRoom = async () => {
+    const currentRoom = room;
+    if (!currentRoom) return;
+    const isCurrentSpectator = !currentRoom.players.some((player) => player.key === myKey);
+    const matchOngoing =
+      !isCurrentSpectator &&
+      (currentRoom.status === 'playing' || currentRoom.status === 'round_over');
+    if (matchOngoing && !await confirm({
+      title: '离开当前比赛?',
+      message: '比赛尚未结束，现在离开会被判负。',
+      confirmLabel: '离开并判负',
+      tone: 'danger',
+    })) return;
+    emit('room:leave');
+    navigate('/multi');
+  };
+
   const me = room?.players.find((p) => p.key === myKey);
   const opponent = room?.players.find((p) => p.key !== myKey);
   const isSpectator = !!room && !me;
@@ -245,16 +264,7 @@ export default function MultiRoom() {
       actions={
         <button
           className="btn btn-danger btn-sm"
-          onClick={() => {
-            // 对局尚未结束时,玩家离开会被判负,需要二次确认
-            const matchOngoing =
-              !isSpectator && (room.status === 'playing' || room.status === 'round_over');
-            if (matchOngoing && !window.confirm('比赛尚未结束,现在离开将被判负。确定要离开吗?')) {
-              return;
-            }
-            emit('room:leave');
-            navigate('/multi');
-          }}
+          onClick={() => void leaveRoom()}
         >
           <DoorOpen size={15} />
           <span className="btn-text">{isSpectator ? '退出观战' : '离开房间'}</span>

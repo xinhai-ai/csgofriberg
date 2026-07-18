@@ -5,6 +5,7 @@ import { db } from '../db/knex';
 import {
   clearAuthCookie,
   ensureGuestCookie,
+  authenticateCookie,
   requireAuth,
   setAuthCookie,
   invalidateAuthUser,
@@ -45,9 +46,7 @@ router.post(
       .then((rows) => rows.map((r: any) => (typeof r === 'object' ? r.id : r)));
 
     const user = { id, username, role, token_version: 0 };
-    await invalidateAuthUser(id);
     setAuthCookie(res, user);
-    await invalidateAuthUser(user.id);
     res.json({ user: { id, username, role } });
   })
 );
@@ -77,10 +76,16 @@ router.get('/me', requireAuth, (req, res) => {
   res.json({ user: req.user });
 });
 
-router.post('/session', rateLimit({ name: 'session', limit: 60, windowSeconds: 60 }), (req, res) => {
-  const guest = ensureGuestCookie(req, res);
-  res.json({ guest: { name: guest.name } });
-});
+router.post(
+  '/session',
+  rateLimit({ name: 'session', limit: 60, windowSeconds: 60 }),
+  asyncHandler(async (req, res) => {
+    const user = await authenticateCookie(req.headers.cookie);
+    if (user) return res.json({ authenticated: true, user });
+    const guest = ensureGuestCookie(req, res);
+    res.json({ authenticated: false, guest: { name: guest.name } });
+  })
+);
 
 router.post(
   '/logout',
@@ -90,6 +95,7 @@ router.post(
     await db('users').where({ id: req.user!.id }).increment('token_version', 1);
     await invalidateAuthUser(req.user!.id);
     clearAuthCookie(res);
+    ensureGuestCookie(req, res);
     res.json({ ok: true });
   })
 );

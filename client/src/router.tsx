@@ -1,35 +1,54 @@
+import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from './store/auth';
 import Home from './pages/Home';
-import Login from './pages/Login';
-import Search from './pages/Search';
-import SingleGame from './pages/SingleGame';
-import MultiLobby from './pages/MultiLobby';
-import MultiRoom from './pages/MultiRoom';
-import Stats from './pages/Stats';
-import Leaderboard from './pages/Leaderboard';
-import Announcements from './pages/Announcements';
-import Admin from './pages/Admin';
+import Page from './components/Page';
+import { Wrench } from 'lucide-react';
+
+const Login = lazy(() => import('./pages/Login'));
+const Search = lazy(() => import('./pages/Search'));
+const SingleGame = lazy(() => import('./pages/SingleGame'));
+const MultiLobby = lazy(() => import('./pages/MultiLobby'));
+const MultiRoom = lazy(() => import('./pages/MultiRoom'));
+const Stats = lazy(() => import('./pages/Stats'));
+const Leaderboard = lazy(() => import('./pages/Leaderboard'));
+const Announcements = lazy(() => import('./pages/Announcements'));
+const Admin = lazy(() => import('./pages/Admin'));
+
+function route(element: React.ReactNode) {
+  return <Suspense fallback={<div className="route-loading"><div className="spinner" /></div>}>
+    {element}
+  </Suspense>;
+}
 
 /* 所有游戏与数据页面均不强制登录,仅管理后台需要管理员身份 */
 function RequireAdmin() {
-  const user = useAuth((s) => s.user);
+  const { user, initialized } = useAuth();
+  if (!initialized) {
+    return (
+      <Page title="管理后台" icon={<Wrench size={17} />}>
+        <div className="page-loading" aria-label="正在恢复登录状态">
+          <div className="spinner" />
+        </div>
+      </Page>
+    );
+  }
   return user?.role === 'admin' ? <Outlet /> : <Navigate to="/" replace />;
 }
 
 export const router = createBrowserRouter([
   { path: '/', element: <Home /> },
-  { path: '/login', element: <Login /> },
-  { path: '/search', element: <Search /> },
-  { path: '/single/:mode', element: <SingleGame /> },
-  { path: '/multi', element: <MultiLobby /> },
-  { path: '/multi/room', element: <MultiRoom /> },
-  { path: '/stats', element: <Stats /> },
-  { path: '/leaderboard', element: <Leaderboard /> },
-  { path: '/announcement', element: <Announcements /> },
+  { path: '/login', element: route(<Login />) },
+  { path: '/search', element: route(<Search />) },
+  { path: '/single/:mode', element: route(<SingleGame />) },
+  { path: '/multi', element: route(<MultiLobby />) },
+  { path: '/multi/room', element: route(<MultiRoom />) },
+  { path: '/stats', element: route(<Stats />) },
+  { path: '/leaderboard', element: route(<Leaderboard />) },
+  { path: '/announcement', element: route(<Announcements />) },
   {
     element: <RequireAdmin />,
-    children: [{ path: '/admin', element: <Admin /> }],
+    children: [{ path: '/admin', element: route(<Admin />) }],
   },
   { path: '*', element: <Navigate to="/" replace /> },
 ]);

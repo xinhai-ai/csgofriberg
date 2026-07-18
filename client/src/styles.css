@@ -71,6 +71,17 @@ body {
   text-overflow: ellipsis;
 }
 .header-bar .btns { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+.auth-pending {
+  width: 112px;
+  height: 32px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--bg) 25%, var(--border) 50%, var(--bg) 75%);
+  background-size: 200% 100%;
+  animation: loading-shimmer 1.2s linear infinite;
+}
+.page-loading { display: grid; place-items: center; min-height: 180px; }
+.route-loading { display: grid; place-items: center; width: 100%; height: 100dvh; background: var(--bg); }
+@keyframes loading-shimmer { to { background-position: -200% 0; } }
 
 /* ===== 状态栏 ===== */
 .status-bar {
@@ -272,6 +283,54 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
   flex-wrap: wrap;
   margin-top: 20px;
 }
+
+/* ===== 通用确认模态框 ===== */
+.confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(17, 24, 39, 0.58);
+}
+.confirm-dialog {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 14px;
+  width: min(440px, 100%);
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  box-shadow: 0 20px 60px rgba(17, 24, 39, 0.3);
+}
+.confirm-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+}
+.confirm-dialog.warning .confirm-icon { color: var(--warning); background: rgba(217, 119, 6, 0.12); }
+.confirm-dialog.danger .confirm-icon { color: var(--danger); background: rgba(220, 38, 38, 0.12); }
+.confirm-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.confirm-heading h2 { margin: 2px 0 0; font-size: 1.1rem; letter-spacing: 0; }
+.confirm-close {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  color: var(--text-light);
+  background: transparent;
+  cursor: pointer;
+}
+.confirm-close:hover { color: var(--text); background: var(--bg); }
+.confirm-content > p { margin: 10px 0 20px; color: var(--text-sec); line-height: 1.6; }
+.confirm-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
 
 /* ===== 选手信息表 ===== */
 .player-info-table { width: 100%; border-collapse: collapse; font-size: 1rem; }

@@ -8,8 +8,8 @@ import { redis, redisKey } from '../redis';
 
 const AUTH_COOKIE = 'csgofriberg_session';
 const GUEST_COOKIE = 'csgofriberg_guest';
-const AUTH_MAX_AGE_MS = 2 * 60 * 60 * 1000;
-const GUEST_MAX_AGE_MS = 365 * 24 * 60 * 60 * 1000;
+const AUTH_MAX_AGE_MS = 15 * 24 * 60 * 60 * 1000;
+const GUEST_MAX_AGE_MS = 3 * 365 * 24 * 60 * 60 * 1000;
 
 interface AuthTokenPayload {
   sub: string;
@@ -20,6 +20,10 @@ interface AuthTokenPayload {
 interface GuestTokenPayload {
   key: string;
   typ: 'guest';
+}
+
+interface CachedAuthUser extends AuthPayload {
+  tokenVersion: number;
 }
 
 export interface AuthPayload {
@@ -73,7 +77,7 @@ export function signToken(user: Pick<User, 'id' | 'token_version'>): string {
   return jwt.sign(
     { sub: String(user.id), ver: Number(user.token_version), typ: 'auth' } satisfies AuthTokenPayload,
     config.jwtSecret,
-    { expiresIn: '2h', algorithm: 'HS256' }
+    { expiresIn: '15d', algorithm: 'HS256' }
   );
 }
 
@@ -87,7 +91,7 @@ export function clearAuthCookie(res: Response): void {
 
 function signGuestToken(key: string): string {
   return jwt.sign({ key, typ: 'guest' } satisfies GuestTokenPayload, config.jwtSecret, {
-    expiresIn: '365d',
+    expiresIn: '1095d',
     algorithm: 'HS256',
   });
 }
@@ -125,26 +129,25 @@ export async function authenticateCookie(cookieHeader: string | undefined): Prom
     const userId = Number(payload.sub);
     const client = redis();
     const cacheKey = redisKey(`auth:user:${userId}`);
-    const versionKey = redisKey(`auth:version:${userId}`);
-    let user: User | undefined;
-    let currentVersion: number | null = null;
     if (client) {
-      const cachedVersion = await client.get(versionKey);
-      if (cachedVersion != null) currentVersion = Number(cachedVersion);
       const cached = await client.get(cacheKey);
-      if (cached) user = JSON.parse(cached) as User;
-    }
-    if (!user || currentVersion == null) {
-      user = await db<User>('users').where({ id: userId }).first();
-      currentVersion = user ? Number(user.token_version) : null;
-      if (user && client) {
-        await client.multi()
-          .set(cacheKey, JSON.stringify(user), { EX: 300 })
-          .set(versionKey, String(currentVersion))
-          .exec();
+      if (cached) {
+        const user = JSON.parse(cached) as CachedAuthUser;
+        if (user.tokenVersion !== Number(payload.ver)) return null;
+        return { id: user.id, username: user.username, role: user.role };
       }
     }
-    if (!user || currentVersion !== Number(payload.ver)) return null;
+    const user = await db<User>('users').where({ id: userId }).first();
+    if (!user || Number(user.token_version) !== Number(payload.ver)) return null;
+    if (client) {
+      const cached: CachedAuthUser = {
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        tokenVersion: Number(user.token_version),
+      };
+      await client.set(cacheKey, JSON.stringify(cached), { EX: 300 });
+    }
     return { id: user.id, username: user.username, role: user.role };
   } catch {
     return null;
@@ -154,17 +157,16 @@ export async function authenticateCookie(cookieHeader: string | undefined): Prom
 export async function invalidateAuthUser(userId: number): Promise<void> {
   const client = redis();
   if (!client) return;
-  const user = await db<User>('users').where({ id: userId }).first();
-  const multi = client.multi().del(redisKey(`auth:user:${userId}`));
-  if (user) multi.set(redisKey(`auth:version:${userId}`), String(user.token_version));
-  else multi.del(redisKey(`auth:version:${userId}`));
-  await multi.exec();
+  await client.del(redisKey(`auth:user:${userId}`));
 }
 
 async function attachIdentity(req: Request, res: Response): Promise<void> {
   const user = await authenticateCookie(req.headers.cookie);
   if (user) req.user = user;
-  const guest = ensureGuestCookie(req, res);
+  const guest = user
+    ? getGuestFromCookie(req.headers.cookie)
+    : ensureGuestCookie(req, res);
+  if (!guest) return;
   req.guestKey = guest.key;
   req.guestName = guest.name;
 }
@@ -182,9 +184,6 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
 
 export function requireAdmin(req: Request, res: Response, next: NextFunction) {
   if (!req.user) return res.status(401).json({ code: 'AUTH_REQUIRED' });
-  void db<User>('users').where({ id: req.user.id }).first().then((user) => {
-    if (!user || user.role !== 'admin') return res.status(403).json({ code: 'FORBIDDEN' });
-    req.user = { id: user.id, username: user.username, role: user.role };
-    next();
-  }, next);
+  if (req.user.role !== 'admin') return res.status(403).json({ code: 'FORBIDDEN' });
+  next();
 }

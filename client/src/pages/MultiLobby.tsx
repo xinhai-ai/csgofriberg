@@ -16,6 +16,7 @@ import Page from '../components/Page';
 import { getSocket } from '../api/socket';
 import { translate } from '../i18n/messages';
 import { RoomState } from '../types';
+import { useConfirm } from '../components/ConfirmDialog';
 
 type DbType = 'easy' | 'normal';
 const BO_OPTIONS = [1, 3, 5, 7];
@@ -61,6 +62,7 @@ export default function MultiLobby() {
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const searchingRef = useRef(false);
 
   useEffect(() => {
@@ -85,13 +87,16 @@ export default function MultiLobby() {
   }, [navigate]);
 
   /** 结束比赛/退出观战:对局中离开即判负,需二次确认 */
-  const endCurrent = () => {
+  const endCurrent = async () => {
     const matchOngoing =
       currentRole === 'player' &&
       (currentRoom?.status === 'playing' || currentRoom?.status === 'round_over');
-    if (matchOngoing && !window.confirm('比赛尚未结束,结束将被判负。确定吗?')) {
-      return;
-    }
+    if (matchOngoing && !await confirm({
+      title: '结束当前比赛?',
+      message: '比赛尚未结束，现在退出会被判负。',
+      confirmLabel: '结束并判负',
+      tone: 'danger',
+    })) return;
     getSocket().emit('room:leave', {}, () => {
       setCurrentRoom(null);
     });
@@ -176,7 +181,7 @@ export default function MultiLobby() {
               <Rocket size={15} />
               重连进入
             </button>
-            <button className="btn btn-danger" onClick={endCurrent}>
+            <button className="btn btn-danger" onClick={() => void endCurrent()}>
               <XCircle size={15} />
               {currentRole === 'spectator'
                 ? '退出观战'

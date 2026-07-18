@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -14,19 +15,50 @@ import {
 import MenuCard from '../components/MenuCard';
 import { useAuth } from '../store/auth';
 import { getGuestName } from '../store/guest';
-import { api } from '../api/client';
-import { closeSocket } from '../api/socket';
+import { api, errMsg } from '../api/client';
+import { clearAuthenticated } from '../api/session';
+import { markGuestSession } from '../api/session';
+import { useConfirm } from '../components/ConfirmDialog';
 
 export default function Home() {
-  const { user, setUser } = useAuth();
+  const { user, initialized, setUser } = useAuth();
   const navigate = useNavigate();
+  const confirm = useConfirm();
+  const [logoutError, setLogoutError] = useState('');
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const logout = async () => {
+    if (!await confirm({
+      title: '退出当前账号?',
+      message: '退出后将切换为访客身份，未完成的联机连接会被关闭。',
+      confirmLabel: '退出账号',
+      tone: 'warning',
+    })) return;
+    setLogoutError('');
+    setLoggingOut(true);
+    try {
+      await api.post('/auth/logout');
+      const { closeSocket } = await import('../api/socket');
+      closeSocket();
+      clearAuthenticated();
+      markGuestSession();
+      setUser(null);
+      navigate('/');
+    } catch (error) {
+      setLogoutError(errMsg(error));
+    } finally {
+      setLoggingOut(false);
+    }
+  };
 
   return (
     <div className="page">
       <div className="header-bar">
         <span className="title">弗一把</span>
         <span className="btns">
-          {user ? (
+          {!initialized ? (
+            <span className="auth-pending" aria-label="正在恢复登录状态" />
+          ) : user ? (
             <>
               <span className="muted">
                 {user.username}
@@ -40,13 +72,8 @@ export default function Home() {
               )}
               <button
                 className="btn btn-ghost btn-sm"
-                onClick={() => {
-                  void api.post('/auth/logout').finally(() => {
-                    closeSocket();
-                    setUser(null);
-                  });
-                  navigate('/');
-                }}
+                onClick={() => void logout()}
+                disabled={loggingOut}
               >
                 <LogOut size={15} />
                 <span className="btn-text">退出</span>
@@ -63,11 +90,12 @@ export default function Home() {
           )}
         </span>
       </div>
+      {logoutError && <div className="status-bar"><span className="error">{logoutError}</span></div>}
       <div className="page-scroll">
         <div className="home-hero">
           <h1>弗一把</h1>
           <p>CS:GO / CS2 Major 选手猜测游戏</p>
-          {!user && (
+          {initialized && !user && (
             <p className="muted" style={{ marginTop: 6 }}>
               无需登录即可游玩,战绩保存在本机;登录后自动同步到账号
             </p>

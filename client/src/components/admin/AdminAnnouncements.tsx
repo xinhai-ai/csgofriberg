@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, errMsg } from '../../api/client';
+import { useConfirm } from '../ConfirmDialog';
 
 interface Announcement {
   id: number;
@@ -10,6 +11,7 @@ interface Announcement {
 
 /** 管理后台 - 公告管理 */
 export default function AdminAnnouncements() {
+  const confirm = useConfirm();
   const [items, setItems] = useState<Announcement[]>([]);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -41,7 +43,12 @@ export default function AdminAnnouncements() {
   };
 
   const remove = async (id: number) => {
-    if (!confirm('确定删除该公告?')) return;
+    if (!await confirm({
+      title: '删除公告?',
+      message: '删除后公告将立即从所有用户页面移除，此操作无法撤销。',
+      confirmLabel: '删除公告',
+      tone: 'danger',
+    })) return;
     try {
       await api.delete(`/admin/announcements/${id}`);
       await load();

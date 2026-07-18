@@ -67,8 +67,14 @@ describe('cookie authentication', () => {
     let cookie = '';
     let result = await request('/api/auth/session', cookie, { method: 'POST', body: '{}' });
     cookie = result.cookie;
+    expect(result.response.headers.get('set-cookie')).toContain('Max-Age=94608000');
     const guestToken = cookie.split('; ').find((item) => item.startsWith('csgofriberg_guest='))!.split('=')[1];
-    const guest = jwt.verify(guestToken, config.jwtSecret) as { key: string };
+    const guest = jwt.verify(guestToken, config.jwtSecret) as {
+      key: string;
+      iat: number;
+      exp: number;
+    };
+    expect(guest.exp - guest.iat).toBe(3 * 365 * 24 * 60 * 60);
     const sessionId = `auth-test-${Date.now()}`;
     const [player] = await db('players').select('id').limit(1);
     await db('games').insert({
@@ -89,6 +95,16 @@ describe('cookie authentication', () => {
     cookie = result.cookie;
     expect(result.response.status).toBe(200);
     expect(cookie).toContain('csgofriberg_session=');
+    expect(result.response.headers.get('set-cookie')).toContain('Max-Age=1296000');
+    const authToken = cookie.split('; ').find((item) => item.startsWith('csgofriberg_session='))!.split('=')[1];
+    const authPayload = jwt.verify(authToken, config.jwtSecret) as { iat: number; exp: number };
+    expect(authPayload.exp - authPayload.iat).toBe(15 * 24 * 60 * 60);
+
+    const cookiesBeforeSession = cookie;
+    result = await request('/api/auth/session', cookie, { method: 'POST', body: '{}' });
+    cookie = result.cookie;
+    expect(result.data.authenticated).toBe(true);
+    expect(cookie).toBe(cookiesBeforeSession);
 
     result = await request('/api/auth/claim', cookie, {
       method: 'POST',

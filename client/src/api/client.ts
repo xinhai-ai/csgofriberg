@@ -4,6 +4,11 @@ import { ensurePow, notePowExpiry } from './pow';
 
 export const api = axios.create({ baseURL: '/api', withCredentials: true });
 
+api.interceptors.request.use(async (request) => {
+  await ensurePow();
+  return request;
+});
+
 api.interceptors.response.use(
   (response) => {
     notePowExpiry(response.headers['x-pow-expires-at']);

@@ -7,6 +7,7 @@ import GuessInputBar from '../components/GuessInputBar';
 import AnswerOverlay, { AnswerInfo } from '../components/AnswerOverlay';
 import { api, errMsg } from '../api/client';
 import { GuessFeedback } from '../types';
+import { useConfirm } from '../components/ConfirmDialog';
 
 function exitGame(gameId: string): Promise<unknown> {
   return api.post(`/game/${gameId}/exit`);
@@ -15,6 +16,7 @@ function exitGame(gameId: string): Promise<unknown> {
 export default function SingleGame() {
   const { mode = 'easy' } = useParams();
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const [gameId, setGameId] = useState<string | null>(null);
   const [guesses, setGuesses] = useState<GuessFeedback[]>([]);
   const [maxGuesses, setMaxGuesses] = useState(8);
@@ -54,10 +56,30 @@ export default function SingleGame() {
   }, [start]);
 
   const leave = async () => {
+    if (!await confirm({
+      title: '返回主菜单?',
+      message: status === 'playing'
+        ? '当前游戏进度会被清除，返回后无法继续本局。'
+        : '将离开当前结算页面并返回主菜单。',
+      confirmLabel: '返回主菜单',
+      tone: status === 'playing' ? 'danger' : 'warning',
+    })) return;
     const id = gameIdRef.current;
     setCurrentGameId(null);
     if (id && status === 'playing') await exitGame(id);
     navigate('/');
+  };
+
+  const restart = async () => {
+    if (!await confirm({
+      title: '重新开始?',
+      message: status === 'playing'
+        ? '当前游戏进度会被清除，并立即生成一局新游戏。'
+        : '将关闭当前结算结果并生成一局新游戏。',
+      confirmLabel: '重新开始',
+      tone: status === 'playing' ? 'danger' : 'warning',
+    })) return;
+    await start(true);
   };
 
   const guess = async (playerId: number) => {
@@ -78,6 +100,12 @@ export default function SingleGame() {
 
   const reveal = async () => {
     if (!gameId || status !== 'playing') return;
+    if (!await confirm({
+      title: '查看答案?',
+      message: '查看答案会立即结束本局，并按失败结算。',
+      confirmLabel: '查看答案',
+      tone: 'danger',
+    })) return;
     try {
       const res = await api.post(`/game/${gameId}/giveup`);
       setStatus('lost');
@@ -99,7 +127,7 @@ export default function SingleGame() {
       icon={isEasy ? <Gamepad2 size={17} /> : <Flame size={17} />}
       actions={
         <>
-          <button className="btn btn-ghost btn-sm" onClick={() => void start(true)}>
+          <button className="btn btn-ghost btn-sm" onClick={() => void restart()}>
             <RotateCcw size={15} />
             <span className="btn-text">重新开始</span>
           </button>
@@ -134,7 +162,7 @@ export default function SingleGame() {
       dock={
         finished ? (
           <div className="input-bar" style={{ justifyContent: 'center' }}>
-            <button className="btn" onClick={() => void start(true)}>
+            <button className="btn" onClick={() => void restart()}>
               <RotateCcw size={15} />
               再来一把
             </button>
@@ -172,7 +200,7 @@ export default function SingleGame() {
           }
           actions={
             <>
-              <button className="btn" onClick={() => void start(true)}>
+              <button className="btn" onClick={() => void restart()}>
                 <RotateCcw size={15} />
                 再来一把
               </button>

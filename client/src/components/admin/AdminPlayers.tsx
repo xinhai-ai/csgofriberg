@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import DataTable, { Column } from '../DataTable';
 import PlayerEditForm, { PlayerForm, emptyPlayer } from './PlayerEditForm';
 import { api, errMsg } from '../../api/client';
+import { useConfirm } from '../ConfirmDialog';
 
 interface AdminPlayer extends PlayerForm {
   id: number;
@@ -9,6 +10,7 @@ interface AdminPlayer extends PlayerForm {
 
 /** 管理后台 - 选手管理(列表/新增/编辑/删除/JSON 导入) */
 export default function AdminPlayers() {
+  const confirm = useConfirm();
   const [players, setPlayers] = useState<AdminPlayer[]>([]);
   const [editing, setEditing] = useState<PlayerForm | null>(null);
   const [importText, setImportText] = useState('');
@@ -47,7 +49,12 @@ export default function AdminPlayers() {
   };
 
   const remove = async (p: AdminPlayer) => {
-    if (!confirm(`确定删除选手 ${p.nickname}?`)) return;
+    if (!await confirm({
+      title: `删除选手 ${p.nickname}?`,
+      message: '存在历史对局时会标记为退役，否则会永久删除该选手。',
+      confirmLabel: '确认删除',
+      tone: 'danger',
+    })) return;
     setError('');
     try {
       const res = await api.delete(`/admin/players/${p.id}`);

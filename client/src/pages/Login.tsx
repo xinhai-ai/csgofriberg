@@ -5,6 +5,7 @@ import Page from '../components/Page';
 import { api, errMsg } from '../api/client';
 import { useAuth } from '../store/auth';
 import { closeSocket } from '../api/socket';
+import { markAuthenticated } from '../api/session';
 
 export default function Login() {
   const [mode, setMode] = useState<'login' | 'register'>('login');
@@ -25,6 +26,7 @@ export default function Login() {
     setLoading(true);
     try {
       const res = await api.post(`/auth/${mode}`, { username, password });
+      markAuthenticated();
       setUser(res.data.user);
       closeSocket();
       // 把匿名期间的对局并入账号(失败不阻塞登录)
