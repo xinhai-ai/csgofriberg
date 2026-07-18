@@ -38,8 +38,13 @@ export interface GuestIdentity {
 }
 
 export function guestNameFromKey(key: string): string {
-  const value = crypto.createHash('sha256').update(key).digest().readUInt32BE(0) % (36 ** 4);
-  return `访客${value.toString(36).padStart(4, '0')}`;
+  const value = crypto
+    .createHmac('sha256', config.guestIdSalt)
+    .update('csgofriberg-guest-id-v1\0', 'ascii')
+    .update(key, 'utf8')
+    .digest()
+    .readUInt32BE(0) % (36 ** 5);
+  return `访客#${value.toString(36).padStart(5, '0').toUpperCase()}`;
 }
 
 declare global {

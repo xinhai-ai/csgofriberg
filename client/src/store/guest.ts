@@ -6,12 +6,12 @@ export function getGuestName(): string {
 }
 
 export function hasGuestName(): boolean {
-  return /^访客[0-9a-z]{4}$/.test(localStorage.getItem(GUEST_NAME) ?? '');
+  return /^访客#[0-9A-Z]{5}$/.test(localStorage.getItem(GUEST_NAME) ?? '');
 }
 
 export function setGuestName(name: string): void {
   const normalized = name.trim().slice(0, 16);
-  if (!/^访客[0-9a-z]{4}$/.test(normalized)) return;
+  if (!/^访客#[0-9A-Z]{5}$/.test(normalized)) return;
   localStorage.setItem(GUEST_NAME, normalized);
   window.dispatchEvent(new Event(GUEST_NAME_CHANGED));
 }

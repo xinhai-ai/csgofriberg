@@ -38,8 +38,9 @@ Redis 默认连接 `redis://127.0.0.1:6379`。生产环境建议设置
 `REDIS_REQUIRED=true`，避免 Redis 故障时降级为仅适合单实例的内存模式。
 
 生产环境还会强制要求 PostgreSQL、至少 32 字节的随机 `JWT_SECRET` 和
-`REDIS_REQUIRED=true`。登录会话与匿名身份均使用 HttpOnly、SameSite Cookie，
-客户端不保存 JWT 或匿名身份密钥。
+`REDIS_REQUIRED=true`。访客显示 ID 使用 HMAC-SHA256 派生，可通过
+`GUEST_ID_SALT` 配置独立盐，未配置时复用 `JWT_SECRET`。登录会话与匿名身份均使用
+HttpOnly、SameSite Cookie，客户端不保存 JWT 或匿名身份密钥。
 
 单人进行中的对局只保存在 Redis，300 秒无有效操作会自动过期。猜中、
 次数耗尽或查看答案后才写入数据库；主动离开或重新开始只清理临时状态，

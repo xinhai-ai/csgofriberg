@@ -11,11 +11,14 @@ dotenv.config({ path: repoEnvPath });
 dotenv.config({ path: serverEnvPath });
 
 const configuredJwtSecret = process.env.JWT_SECRET?.trim();
+const configuredGuestIdSalt = process.env.GUEST_ID_SALT?.trim();
 const unsafeJwtSecrets = new Set(['dev-secret', 'change-me-in-production']);
+const jwtSecret = configuredJwtSecret || crypto.randomBytes(48).toString('base64url');
 
 export const config = {
   port: Number(process.env.PORT || 3000),
-  jwtSecret: configuredJwtSecret || crypto.randomBytes(48).toString('base64url'),
+  jwtSecret,
+  guestIdSalt: configuredGuestIdSalt || jwtSecret,
   dbClient: (process.env.DB_CLIENT || 'sqlite') as 'sqlite' | 'pg',
   dbUrl: process.env.DB_URL || './data/csgofriberg.sqlite3',
   dbPoolMin: Number(process.env.DB_POOL_MIN || 2),
@@ -44,6 +47,9 @@ export function validateProductionConfig(): void {
     unsafeJwtSecrets.has(configuredJwtSecret)
   ) {
     throw new Error('JWT_SECRET_MUST_BE_AT_LEAST_32_RANDOM_BYTES');
+  }
+  if (configuredGuestIdSalt && Buffer.byteLength(configuredGuestIdSalt, 'utf8') < 32) {
+    throw new Error('GUEST_ID_SALT_MUST_BE_AT_LEAST_32_RANDOM_BYTES');
   }
   if (config.dbClient !== 'pg') throw new Error('POSTGRESQL_REQUIRED_IN_PRODUCTION');
   if (!config.redisRequired) throw new Error('REDIS_REQUIRED_MUST_BE_TRUE_IN_PRODUCTION');
