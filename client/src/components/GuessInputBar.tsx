@@ -1,0 +1,108 @@
+import { FormEvent, useEffect, useRef, useState } from 'react';
+import { api } from '../api/client';
+
+interface Suggestion {
+  id: number;
+  nickname: string;
+}
+
+interface Props {
+  onPick: (player: Suggestion) => void;
+  disabled?: boolean;
+  placeholder?: string;
+  buttonText?: string;
+}
+
+/**
+ * 底部输入栏:选手昵称输入 + 提交按钮,自动补全列表从输入框上方弹出(原版布局)。
+ * 回车提交当前高亮项,方向键切换。
+ */
+export default function GuessInputBar({
+  onPick,
+  disabled,
+  placeholder = '输入选手昵称...',
+  buttonText = '提交猜测',
+}: Props) {
+  const [text, setText] = useState('');
+  const [items, setItems] = useState<Suggestion[]>([]);
+  const [active, setActive] = useState(0);
+  const [open, setOpen] = useState(false);
+  const timer = useRef<number>();
+
+  useEffect(() => {
+    window.clearTimeout(timer.current);
+    if (!text.trim()) {
+      setItems([]);
+      setOpen(false);
+      return;
+    }
+    timer.current = window.setTimeout(async () => {
+      try {
+        const res = await api.get<Suggestion[]>('/players', {
+          params: { search: text.trim(), suggest: 1 },
+        });
+        setItems(res.data);
+        setActive(0);
+        setOpen(res.data.length > 0);
+      } catch {
+        /* 补全失败静默 */
+      }
+    }, 200);
+    return () => window.clearTimeout(timer.current);
+  }, [text]);
+
+  const pick = (item: Suggestion) => {
+    onPick(item);
+    setText('');
+    setItems([]);
+    setOpen(false);
+  };
+
+  const submit = (e?: FormEvent) => {
+    e?.preventDefault();
+    if (items.length) pick(items[active]);
+  };
+
+  return (
+    <>
+      {open && (
+        <ul className="autocomplete-list">
+          {items.map((item, i) => (
+            <li
+              key={item.id}
+              className={i === active ? 'active' : ''}
+              onMouseDown={() => pick(item)}
+            >
+              {item.nickname}
+            </li>
+          ))}
+        </ul>
+      )}
+      <form className="input-bar" onSubmit={submit}>
+        <input
+          className="input"
+          value={text}
+          disabled={disabled}
+          placeholder={placeholder}
+          autoComplete="off"
+          onChange={(e) => setText(e.target.value)}
+          onFocus={() => items.length && setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          onKeyDown={(e) => {
+            if (!items.length) return;
+            if (e.key === 'ArrowDown') {
+              e.preventDefault();
+              setActive((a) => (a + 1) % items.length);
+            } else if (e.key === 'ArrowUp') {
+              e.preventDefault();
+              setActive((a) => (a - 1 + items.length) % items.length);
+            }
+          }}
+        />
+        <button className="btn" disabled={disabled || !items.length}>
+          {buttonText}
+        </button>
+      </form>
+    </>
+  );
+}

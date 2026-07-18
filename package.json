@@ -1,0 +1,17 @@
+{
+  "name": "csgofriberg",
+  "version": "1.0.0",
+  "private": true,
+  "description": "弗一把 - CS:GO/CS2 Major 选手猜测游戏(前后端分离工程化版本)",
+  "scripts": {
+    "dev": "concurrently -n server,client -c blue,green \"pnpm --filter server dev\" \"pnpm --filter client dev\"",
+    "build": "pnpm --filter client build && pnpm --filter server build",
+    "start": "pnpm --filter server start",
+    "test": "pnpm --filter server test",
+    "migrate": "pnpm --filter server migrate",
+    "seed": "pnpm --filter server seed"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
