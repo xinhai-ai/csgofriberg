@@ -345,9 +345,13 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
 .player-info-table tr:last-child td { border-bottom: none; }
 
 /* ===== 首页 ===== */
+.home-page .header-bar .title { font-size: 1.25rem; }
+.home-page .header-bar .muted { font-size: 1.05rem; }
+.home-page .btn { font-size: 1.05rem; }
+.home-page .btn-sm { font-size: 0.95rem; }
 .home-hero { text-align: center; padding: clamp(28px, 6vh, 64px) 16px 16px; }
-.home-hero h1 { margin: 0 0 8px; font-size: clamp(1.9rem, 4vw, 2.6rem); letter-spacing: 2px; }
-.home-hero p { margin: 0; color: var(--text-sec); font-size: 1.05rem; }
+.home-hero h1 { margin: 0 0 8px; font-size: clamp(2.1rem, 4vw, 2.8rem); letter-spacing: 2px; }
+.home-hero p { margin: 0; color: var(--text-sec); font-size: 1.15rem; }
 .menu-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -382,7 +386,7 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
   color: #fff;
   background: var(--menu-color, var(--primary));
 }
-.menu-card .menu-label { font-weight: 600; font-size: 1.05rem; }
+.menu-card .menu-label { font-weight: 600; font-size: 1.15rem; }
 .bottom-bar {
   display: flex;
   flex-wrap: wrap;
@@ -390,6 +394,8 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
   justify-content: center;
   padding: 8px 16px 36px;
 }
+.btn-bilibili { background: #00aeec; }
+.btn-bilibili:hover { background: #0096cc; }
 
 /* ===== 大厅 ===== */
 /* 大厅三个功能区上下排布,房间内对局棋盘才左右分栏 */
@@ -521,8 +527,39 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
 }
 @media (max-width: 640px) {
   html { font-size: 15px; }
-  .game-table { border-spacing: 3px; font-size: 0.84rem; }
-  .game-table td { min-width: 46px; padding: 9px 5px; }
+  .game-table-wrap {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+  }
+  .game-table {
+    width: 100%;
+    min-width: 0;
+    table-layout: fixed;
+    border-spacing: 2px;
+    font-size: 0.76rem;
+  }
+  .game-table th,
+  .game-table td {
+    min-width: 0;
+    padding: 7px 2px;
+    line-height: 1.2;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  .game-table th { padding-block: 5px; font-size: 0.72rem; }
+  .game-table th:nth-child(1), .game-table td:nth-child(1) { width: 18%; }
+  .game-table th:nth-child(2), .game-table td:nth-child(2) { width: 16%; }
+  .game-table th:nth-child(3), .game-table td:nth-child(3) { width: 17%; }
+  .game-table th:nth-child(4), .game-table td:nth-child(4) { width: 10%; }
+  .game-table th:nth-child(5), .game-table td:nth-child(5) { width: 14%; }
+  .game-table th:nth-child(6), .game-table td:nth-child(6) { width: 15%; }
+  .game-table th:nth-child(7), .game-table td:nth-child(7) { width: 10%; }
+  .game-table td .dir { margin-left: 1px; }
+  .game-table td .dir svg { width: 11px; height: 11px; }
+  .boards .card { padding: 14px 8px; }
   .menu-grid { gap: 12px; }
   .header-bar .btns .btn-text { display: none; } /* 窄屏只留图标 */
   .opt-label { min-width: 100%; }
@@ -530,5 +567,6 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
   .presence-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 400px) {
-  .game-table-wrap { margin: 0 -6px; }
+  .game-table { font-size: 0.72rem; }
+  .game-table th { font-size: 0.68rem; }
 }

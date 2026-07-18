@@ -385,18 +385,16 @@ export function setupSocket(io: Server) {
       socket.handshake.headers.cookie,
       socket.handshake.headers['user-agent']
     )) return next(new Error('POW_REQUIRED'));
-    const auth = socket.handshake.auth ?? {};
     const user = await authenticateCookie(socket.handshake.headers.cookie);
     const guest = getGuestFromCookie(socket.handshake.headers.cookie);
     let identity: StoredIdentity | null = null;
     if (user) {
       identity = { key: `u:${user.id}`, userId: user.id, name: user.username };
     } else if (guest) {
-      const rawName = typeof auth.guestName === 'string' ? auth.guestName.trim() : '';
       identity = {
         key: `g:${guest.key}`,
         userId: null,
-        name: rawName.slice(0, 16) || guest.name,
+        name: guest.name,
       };
     }
     if (!identity) return next(new Error('IDENTITY_REQUIRED'));

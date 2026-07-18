@@ -37,6 +37,11 @@ export interface GuestIdentity {
   name: string;
 }
 
+export function guestNameFromKey(key: string): string {
+  const value = crypto.createHash('sha256').update(key).digest().readUInt32BE(0) % (36 ** 4);
+  return `访客${value.toString(36).padStart(4, '0')}`;
+}
+
 declare global {
   namespace Express {
     interface Request {
@@ -101,7 +106,7 @@ function verifyGuestToken(token: string | undefined): GuestIdentity | null {
   try {
     const payload = jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] }) as GuestTokenPayload;
     if (payload.typ !== 'guest' || !/^[\w-]{8,64}$/.test(payload.key)) return null;
-    return { key: payload.key, name: `访客${payload.key.slice(0, 4)}` };
+    return { key: payload.key, name: guestNameFromKey(payload.key) };
   } catch {
     return null;
   }
@@ -115,7 +120,7 @@ export function ensureGuestCookie(req: Request, res: Response): GuestIdentity {
   const existing = getGuestFromCookie(req.headers.cookie);
   if (existing) return existing;
   const guest = { key: crypto.randomUUID(), name: '' };
-  guest.name = `访客${guest.key.slice(0, 4)}`;
+  guest.name = guestNameFromKey(guest.key);
   res.cookie(GUEST_COOKIE, signGuestToken(guest.key), cookieOptions(GUEST_MAX_AGE_MS));
   return guest;
 }

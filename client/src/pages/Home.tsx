@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useSyncExternalStore, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -14,11 +14,31 @@ import {
 } from 'lucide-react';
 import MenuCard from '../components/MenuCard';
 import { useAuth } from '../store/auth';
-import { getGuestName } from '../store/guest';
+import { getGuestName, subscribeGuestName } from '../store/guest';
 import { api, errMsg } from '../api/client';
 import { clearAuthenticated } from '../api/session';
 import { markGuestSession } from '../api/session';
 import { useConfirm } from '../components/ConfirmDialog';
+
+function BilibiliIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="m8 3 2.5 3M16 3l-2.5 3" />
+      <rect x="3" y="6" width="18" height="14" rx="3" />
+      <path d="M8 12v2M16 12v2" />
+    </svg>
+  );
+}
 
 export default function Home() {
   const { user, initialized, setUser } = useAuth();
@@ -26,6 +46,7 @@ export default function Home() {
   const confirm = useConfirm();
   const [logoutError, setLogoutError] = useState('');
   const [loggingOut, setLoggingOut] = useState(false);
+  const guestName = useSyncExternalStore(subscribeGuestName, getGuestName, () => '访客');
 
   const logout = async () => {
     if (!await confirm({
@@ -54,7 +75,7 @@ export default function Home() {
   };
 
   return (
-    <div className="page">
+    <div className="page home-page">
       <div className="header-bar">
         <span className="title">弗一把</span>
         <span className="btns">
@@ -83,7 +104,7 @@ export default function Home() {
             </>
           ) : (
             <>
-              <span className="muted">{getGuestName()}</span>
+              <span className="muted">{guestName}</span>
               <Link className="btn btn-sm" to="/login">
                 <LogIn size={15} />
                 登录 / 注册
@@ -104,9 +125,9 @@ export default function Home() {
           )}
         </div>
         <div className="menu-grid">
-          <MenuCard to="/search" icon={<Search size={22} />} label="查选手" color="#2563eb" />
           <MenuCard to="/single/easy" icon={<Gamepad2 size={22} />} label="简单版" color="#16a34a" />
           <MenuCard to="/single/normal" icon={<Flame size={22} />} label="完整版" color="#dc2626" />
+          <MenuCard to="/search" icon={<Search size={22} />} label="查选手" color="#2563eb" />
           <MenuCard to="/multi" icon={<Globe size={22} />} label="多人联机" color="#d97706" />
         </div>
         <div className="bottom-bar">
@@ -122,6 +143,15 @@ export default function Home() {
             <Megaphone size={15} />
             更新公告
           </Link>
+          <a
+            href="https://space.bilibili.com/290893104"
+            className="btn btn-bilibili"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <BilibiliIcon />
+            B站:怂皇的一天
+          </a>
         </div>
       </div>
     </div>

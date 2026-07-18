@@ -3,6 +3,7 @@ import { ensurePow } from './pow';
 import { useAuth } from '../store/auth';
 import { UserInfo } from '../types';
 import axios from 'axios';
+import { hasGuestName, setGuestName } from '../store/guest';
 
 const AUTH_HINT = 'csgofriberg_auth_hint';
 const GUEST_HINT = 'csgofriberg_guest_hint';
@@ -12,6 +13,7 @@ let guestRequest: Promise<void> | null = null;
 interface SessionResponse {
   authenticated: boolean;
   user?: UserInfo;
+  guest?: { name: string };
 }
 
 export function markAuthenticated(): void {
@@ -36,7 +38,9 @@ function hasGuestHint(): boolean {
 }
 
 export function ensureGuestSession(force = false): Promise<void> {
-  if (!force && localStorage.getItem(GUEST_HINT) === '1') return Promise.resolve();
+  if (!force && localStorage.getItem(GUEST_HINT) === '1' && hasGuestName()) {
+    return Promise.resolve();
+  }
   if (guestRequest) return guestRequest;
   guestRequest = api.post<SessionResponse>('/auth/session').then((response) => {
     if (response.data.authenticated && response.data.user) {
@@ -44,6 +48,7 @@ export function ensureGuestSession(force = false): Promise<void> {
       useAuth.getState().setUser(response.data.user);
     } else {
       markGuestSession();
+      if (response.data.guest?.name) setGuestName(response.data.guest.name);
     }
   }).finally(() => {
     guestRequest = null;
@@ -55,7 +60,7 @@ export async function initializeIdentity(): Promise<void> {
   const auth = useAuth.getState();
   if (!hasAuthHint()) {
     auth.setInitialized();
-    if (!hasGuestHint()) void ensureGuestSession().catch(() => undefined);
+    if (!hasGuestHint() || !hasGuestName()) void ensureGuestSession().catch(() => undefined);
     return;
   }
   try {

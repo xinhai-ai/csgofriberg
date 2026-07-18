@@ -11,7 +11,7 @@ import { setupSocket } from './index';
 import { browserFingerprint, POW_COOKIE } from '../services/pow';
 import jwt from 'jsonwebtoken';
 import { config } from '../config';
-import { signToken } from '../middleware/auth';
+import { guestNameFromKey, signToken } from '../middleware/auth';
 
 let server: http.Server;
 let io: Server;
@@ -91,6 +91,7 @@ describe('multiplayer socket integration', () => {
     try {
       const created = await emit(a, 'room:create', { dbType: 'normal', boType: 1 });
       createdRoomIds.push(created.room.id);
+      expect(created.room.players[0].name).toBe(guestNameFromKey(`socket-a-${stamp}`));
       await emit(b, 'room:join', { roomId: created.room.id });
       await emit(b, 'room:ready');
       const starts = await Promise.all([emit(a, 'game:start'), emit(a, 'game:start')]);

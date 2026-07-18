@@ -74,6 +74,7 @@ describe('cookie authentication', () => {
       iat: number;
       exp: number;
     };
+    expect(result.data.guest.name).toMatch(/^访客[0-9a-z]{4}$/);
     expect(guest.exp - guest.iat).toBe(3 * 365 * 24 * 60 * 60);
     const sessionId = `auth-test-${Date.now()}`;
     const [player] = await db('players').select('id').limit(1);

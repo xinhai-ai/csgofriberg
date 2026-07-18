@@ -1,5 +1,4 @@
 import { io, Socket } from 'socket.io-client';
-import { getGuestName } from '../store/guest';
 import { ensurePow } from './pow';
 import { ensureGuestSession, hasAuthHint } from './session';
 
@@ -19,7 +18,6 @@ export function getSocket(): Socket {
   }
   socket = io('/', {
     withCredentials: true,
-    auth: { guestName: getGuestName() },
     autoConnect: false,
   });
   socket.on('connect_error', (error) => {
