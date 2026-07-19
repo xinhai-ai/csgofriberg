@@ -808,7 +808,11 @@ export function setupSocket(io: Server) {
       if (await getRoomForIdentity(me.key)) return ack?.({ code: 'ALREADY_IN_ROOM' });
       await cancelQueue(me.key);
       const dbType: DbType = payload?.dbType === 'normal' ? 'normal' : 'easy';
-      const queuedMe: QueuedIdentity = { ...me, socketId: socket.id };
+      const queuedMe: QueuedIdentity = {
+        ...me,
+        socketId: socket.id,
+        anonymous: payload?.anonymous === true,
+      };
       let opponent = isRedisAvailable() ? await queueOrTakeOpponent(dbType, queuedMe) : null;
       if (isRedisAvailable() && !opponent) return ack?.({ queued: true });
       if (!isRedisAvailable() && !opponent) {
@@ -834,7 +838,7 @@ export function setupSocket(io: Server) {
         dbType,
         boType: 3,
         allowSpectators: false,
-        anonymous: false,
+        anonymous: Boolean(queuedMe.anonymous || opponent.anonymous),
         round: 0,
         players: [makePlayer(opponent, opponent.socketId, true), makePlayer(me, socket.id, true)],
         spectators: [],

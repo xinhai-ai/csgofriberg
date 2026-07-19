@@ -56,6 +56,7 @@ export default function MultiLobby() {
   const [allowSpectators, setAllowSpectators] = useState(false);
   const [anonymous, setAnonymous] = useState(false);
   const [mmDbType, setMmDbType] = useState<DbType>('normal');
+  const [mmAnonymous, setMmAnonymous] = useState(true);
   const [joinCode, setJoinCode] = useState('');
   const [createdRoom, setCreatedRoom] = useState<RoomState | null>(null);
   const [currentRoom, setCurrentRoom] = useState<RoomState | null>(null);
@@ -123,7 +124,7 @@ export default function MultiLobby() {
 
   const startMatch = () => {
     setError('');
-    getSocket().emit('match:start', { dbType: mmDbType }, (res: any) => {
+    getSocket().emit('match:start', { dbType: mmDbType, anonymous: mmAnonymous }, (res: any) => {
       if (res?.code) {
         setSearching(false);
         searchingRef.current = false;
@@ -275,6 +276,15 @@ export default function MultiLobby() {
               onChange={setMmDbType}
               format={(v) => (v === 'normal' ? '完整版' : '简单版')}
             />
+            <label className="spectator-option">
+              <input
+                type="checkbox"
+                checked={mmAnonymous}
+                disabled={searching}
+                onChange={(event) => setMmAnonymous(event.target.checked)}
+              />
+              <span>匿名匹配</span>
+            </label>
             {searching ? (
               <div style={{ textAlign: 'center', marginTop: 14 }}>
                 <div className="spinner" />

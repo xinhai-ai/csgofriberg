@@ -14,6 +14,7 @@ export interface StoredIdentity {
 
 export interface QueuedIdentity extends StoredIdentity {
   socketId: string;
+  anonymous?: boolean;
 }
 
 export interface StoredPlayer extends StoredIdentity {

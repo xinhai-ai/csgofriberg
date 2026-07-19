@@ -277,6 +277,36 @@ describe('multiplayer socket integration', () => {
     }
   });
 
+  it('makes a matched room anonymous when either player requests it', async () => {
+    const stamp = Date.now();
+    const keyA = `match-anonymous-a-${stamp}`;
+    const keyB = `match-anonymous-b-${stamp}`;
+    const tokenA = jwt.sign({ key: keyA, typ: 'guest' }, config.jwtSecret, { expiresIn: '1h' });
+    const tokenB = jwt.sign({ key: keyB, typ: 'guest' }, config.jwtSecret, { expiresIn: '1h' });
+    const a = await connect(withPowCookie(`csgofriberg_guest=${tokenA}`));
+    const b = await connect(withPowCookie(`csgofriberg_guest=${tokenB}`));
+    try {
+      expect(await emit(a, 'match:start', { dbType: 'easy', anonymous: true }))
+        .toEqual({ queued: true });
+      const foundA = onceEvent(a, 'match:found');
+      const foundB = onceEvent(b, 'match:found');
+      expect(await emit(b, 'match:start', { dbType: 'easy', anonymous: false }))
+        .toEqual({ queued: false });
+      const [matchedA, matchedB] = await Promise.all([foundA, foundB]);
+      createdRoomIds.push(matchedA.room.id);
+      expect(matchedA.room.anonymous).toBe(true);
+      expect(matchedB.room.anonymous).toBe(true);
+      expect(matchedA.room.players.map((player: any) => player.name))
+        .toEqual(['玩家 1', '玩家 2']);
+      expect(matchedB.room.players.map((player: any) => player.name))
+        .toEqual(['玩家 1', '玩家 2']);
+      await emit(a, 'room:leave');
+    } finally {
+      a.disconnect();
+      b.disconnect();
+    }
+  });
+
   it('limits concurrent sockets for one identity', async () => {
     const jwt = await import('jsonwebtoken');
     const { config } = await import('../config');
