@@ -7,7 +7,7 @@ import fs from 'fs';
 import { Server } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { config, validateProductionConfig } from './config';
-import { initDb } from './db/init';
+import { assertDatabaseReady } from './db/ready';
 import { db } from './db/knex';
 import { errorHandler } from './middleware/common';
 import authRoutes from './routes/auth';
@@ -17,7 +17,7 @@ import statsRoutes from './routes/stats';
 import leaderboardRoutes from './routes/leaderboard';
 import announcementRoutes from './routes/announcements';
 import adminRoutes from './routes/admin';
-import { beginMaintenanceWindow, setRecoveryWindow, setupSocket } from './socket';
+import { setupSocket } from './socket';
 import { closeRedis, duplicateRedisClient, initRedis, isRedisAvailable } from './redis';
 import { initPlayerCache } from './services/playerCache';
 import { rateLimit } from './middleware/rateLimit';
@@ -58,11 +58,10 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, onTimeout: () =>
 async function main() {
   validateProductionConfig();
   const stopRuntimeMonitor = startRuntimeMonitor();
-  console.log('[server] 正在检查数据库结构');
-  await initDb();
-  console.log('[server] 数据库结构已就绪');
+  console.log('[server] 正在验证数据库结构');
+  await assertDatabaseReady();
+  console.log('[server] 数据库结构验证通过');
   const redisReady = await initRedis();
-  if (redisReady) await setRecoveryWindow(10_000);
   await initPlayerCache();
   const stopMatchWorker = redisReady ? await initMatchResultWorker() : async () => undefined;
 
@@ -164,8 +163,6 @@ async function main() {
       shuttingDown = true;
       console.log(`[server] 收到 ${signal},开始优雅退出`);
       stopRuntimeMonitor();
-      await beginMaintenanceWindow().catch((err) => console.error('[shutdown:maintenance]', err));
-
       const serverClosed = new Promise<void>((resolve) => {
         server.close(() => resolve());
         server.closeIdleConnections?.();

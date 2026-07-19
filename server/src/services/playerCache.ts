@@ -18,6 +18,7 @@ let publicList: { version: string; players: PublicPlayer[] } = { version: '1', p
 let refreshPromise: Promise<void> | null = null;
 let refreshTimer: NodeJS.Timeout | null = null;
 let refreshGeneration = 0;
+let pendingVersion: string | null = null;
 
 function normalizeSearch(value: string): string {
   return value.trim().toLocaleLowerCase();
@@ -42,9 +43,10 @@ export async function refreshPlayerCache(): Promise<void> {
         search: normalizeSearch(`${player.nickname}\0${player.team}`),
       }));
       publicList = {
-        version: storedVersion || String(Date.now()),
+        version: pendingVersion || storedVersion || String(Date.now()),
         players: enabled.map((player) => ({ id: player.id, nickname: player.nickname })),
       };
+      pendingVersion = null;
       appliedGeneration = requestedGeneration;
     }
   })().finally(() => {
@@ -100,19 +102,45 @@ export function searchCachedPlayers(search: string, limit: number): Player[] {
 }
 
 export async function getPublicPlayerList(): Promise<typeof publicList> {
+  const storedVersion = await redis()?.get(VERSION_KEY);
+  if (storedVersion && storedVersion !== publicList.version) {
+    pendingVersion = storedVersion;
+    refreshGeneration += 1;
+    if (refreshTimer) {
+      clearTimeout(refreshTimer);
+      refreshTimer = null;
+    }
+    await refreshPlayerCache();
+  }
   return publicList;
 }
 
 export async function invalidatePlayerCache(): Promise<void> {
-  schedulePlayerCacheRefresh();
   const client = redis();
-  if (!client) return;
-  try {
-    const nextVersion = await client.incr(VERSION_KEY);
-    await redisPublisher()?.publish(INVALIDATE_CHANNEL, String(nextVersion));
-  } catch (err) {
-    console.warn('[players] cache invalidation notification failed', err instanceof Error
-      ? err.message
-      : err);
+  let nextVersion = String(Date.now());
+  if (client) {
+    try {
+      nextVersion = String(await client.incr(VERSION_KEY));
+    } catch (err) {
+      console.warn('[players] cache revision update failed', err instanceof Error
+        ? err.message
+        : err);
+    }
+  }
+  pendingVersion = nextVersion;
+  refreshGeneration += 1;
+  if (refreshTimer) {
+    clearTimeout(refreshTimer);
+    refreshTimer = null;
+  }
+  await refreshPlayerCache();
+  if (client) {
+    try {
+      await redisPublisher()?.publish(INVALIDATE_CHANNEL, nextVersion);
+    } catch (err) {
+      console.warn('[players] cache invalidation notification failed', err instanceof Error
+        ? err.message
+        : err);
+    }
   }
 }

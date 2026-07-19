@@ -2,14 +2,14 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { RouterProvider } from 'react-router-dom';
 import { router } from './router';
-import './styles.css';
-import './theme-blast.css';
 import { initializeIdentity } from './api/session';
 import { ConfirmProvider } from './components/ConfirmDialog';
 import { ensurePow } from './api/pow';
+import { initializeTheme } from './store/theme';
 
 localStorage.removeItem('token');
 localStorage.removeItem('user');
+initializeTheme();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

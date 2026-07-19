@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Home } from 'lucide-react';
+import ThemeToggle from './ThemeToggle';
 
 interface Props {
   title: string;
@@ -37,6 +38,7 @@ export default function Page({
         </span>
         <span className="btns">
           {actions}
+          <ThemeToggle />
           {showHome && (
             <Link to="/" className="btn btn-ghost btn-sm" aria-label="主菜单">
               <Home size={15} />

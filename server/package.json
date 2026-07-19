@@ -10,6 +10,7 @@
     "migrate": "tsx src/db/migrate.ts",
     "seed": "tsx src/db/runSeed.ts",
     "create-admin": "tsx src/db/createAdmin.ts",
+    "maintenance": "tsx src/maintenance.ts",
     "loadtest": "node scripts/loadtest.cjs"
   },
   "dependencies": {

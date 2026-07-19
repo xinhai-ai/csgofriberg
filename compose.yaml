@@ -16,7 +16,7 @@ x-app-environment: &app-environment
   REDIS_PREFIX: ${REDIS_PREFIX:-csgofriberg:}
   REDIS_REQUIRED: "true"
   REDIS_COMMAND_TIMEOUT_MS: ${REDIS_COMMAND_TIMEOUT_MS:-1500}
-  PASSWORD_WORKERS: ${PASSWORD_WORKERS:-2}
+  PASSWORD_WORKERS: ${PASSWORD_WORKERS:-1}
   PASSWORD_QUEUE_LIMIT: ${PASSWORD_QUEUE_LIMIT:-64}
   BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-8}
   DISCONNECT_FORFEIT_MS: ${DISCONNECT_FORFEIT_MS:-30000}
@@ -25,6 +25,34 @@ x-app-environment: &app-environment
   POW_CHALLENGE_TTL_SECONDS: ${POW_CHALLENGE_TTL_SECONDS:-120}
   POW_TOKEN_TTL_SECONDS: ${POW_TOKEN_TTL_SECONDS:-600}
   SHOW_LEADERBOARD: ${SHOW_LEADERBOARD:-true}
+
+x-app-service: &app-service
+  image: ${IMAGE:-ghcr.io/xinhai-ai/csgofriberg:latest}
+  restart: unless-stopped
+  init: true
+  stop_grace_period: 15s
+  depends_on:
+    migrate:
+      condition: service_completed_successfully
+    redis:
+      condition: service_healthy
+  environment: *app-environment
+  read_only: true
+  tmpfs:
+    - /tmp:size=16m,mode=1777
+  mem_limit: 256m
+  security_opt:
+    - no-new-privileges:true
+  healthcheck:
+    test:
+      - CMD
+      - /nodejs/bin/node
+      - -e
+      - fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+    interval: 15s
+    timeout: 5s
+    retries: 5
+    start_period: 30s
 
 services:
   migrate:
@@ -43,35 +71,15 @@ services:
     security_opt:
       - no-new-privileges:true
 
-  app:
-    image: ${IMAGE:-ghcr.io/xinhai-ai/csgofriberg:latest}
-    restart: unless-stopped
-    init: true
-    stop_grace_period: 15s
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
-      redis:
-        condition: service_healthy
-    environment: *app-environment
+  app-1:
+    <<: *app-service
     ports:
-      - 127.0.0.1:${APP_PORT:-3000}:3000
-    read_only: true
-    tmpfs:
-      - /tmp:size=16m,mode=1777
-    mem_limit: 256m
-    security_opt:
-      - no-new-privileges:true
-    healthcheck:
-      test:
-        - CMD
-        - /nodejs/bin/node
-        - -e
-        - fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
+      - 127.0.0.1:${APP_PORT_1:-3000}:3000
+
+  app-2:
+    <<: *app-service
+    ports:
+      - 127.0.0.1:${APP_PORT_2:-3001}:3000
 
   postgres:
     image: postgres:17-alpine
@@ -91,7 +99,7 @@ services:
       - -c
       - maintenance_work_mem=32MB
       - -c
-      - max_connections=30
+      - max_connections=40
     volumes:
       - type: bind
         source: ${PGDATA_PATH:-./data/pgdata}

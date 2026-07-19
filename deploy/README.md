@@ -11,9 +11,13 @@ Node dependencies, compiled server JavaScript, compiled frontend assets and the
 player seed files emitted into `server/dist`. It does not contain pnpm, Rust,
 TypeScript, Vite, source files, tests, build tools or the SQLite driver.
 
-The included Compose stack runs the application, PostgreSQL and Redis with
-settings suitable for a small 1 GB server. Reverse proxy and TLS remain outside
-this stack. The application port binds to `127.0.0.1` by default.
+The included Compose stack runs two application instances, PostgreSQL and
+Redis. Reverse proxy and TLS remain outside this stack. Both application ports
+bind to `127.0.0.1` by default.
+
+Use at least 2 GB of memory for this dual-instance layout. The configured
+container limits can exceed 1 GB in aggregate, and the host, Docker daemon and
+filesystem cache also need headroom.
 
 ## 1. Install Docker
 
@@ -80,7 +84,7 @@ For a public GHCR package:
 docker compose pull
 docker compose up -d
 docker compose ps
-docker compose logs -f app
+docker compose logs -f app-1 app-2
 ```
 
 If the package is private, authenticate first using a GitHub token with
@@ -92,9 +96,20 @@ echo "$GHCR_TOKEN" | docker login ghcr.io -u GITHUB_USERNAME --password-stdin
 
 Compose first runs the one-shot `migrate` service. It creates or updates tables
 and indexes and imports the bundled player seed only when the player table is
-empty. The `app` service is not started unless migration exits successfully.
-The application also calls the same idempotent initialization before listening
-as a second guard against an incomplete schema.
+empty. Neither application instance starts unless migration exits successfully.
+Application startup performs a read-only schema readiness check; schema changes
+are owned exclusively by the migration service so two instances never run DDL
+concurrently.
+
+`app-1` listens on `APP_PORT_1` (default `3000`) and `app-2` listens on
+`APP_PORT_2` (default `3001`). Both use the same Redis namespace and PostgreSQL
+database. Socket.IO broadcasts use the Redis adapter, while multiplayer rooms,
+matchmaking, rate limits and active single-player games are shared in Redis.
+
+Each application keeps its own PostgreSQL pool. With the default
+`DB_POOL_MAX=10`, the two instances may hold up to 20 application connections.
+PostgreSQL allows 40 total connections so migration and maintenance operations
+retain headroom.
 
 The Node process handles `SIGTERM`/`SIGINT` gracefully: it stops accepting new
 HTTP and Socket.IO connections, closes active sockets, stops background workers,
@@ -105,13 +120,14 @@ Check migration output separately when startup fails:
 
 ```bash
 docker compose logs migrate
-docker compose ps -a migrate app
+docker compose ps -a migrate app-1 app-2
 ```
 
 Health check:
 
 ```bash
 curl http://127.0.0.1:3000/api/health
+curl http://127.0.0.1:3001/api/health
 ```
 
 ## 4. Reverse proxy
@@ -128,6 +144,44 @@ proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 
 HTTP and Socket.IO rate limits both use the nearest trusted proxy hop.
 
+Example upstream configuration:
+
+```nginx
+upstream csgofriberg_backend {
+    least_conn;
+    server 127.0.0.1:3000 max_fails=3 fail_timeout=10s;
+    server 127.0.0.1:3001 max_fails=3 fail_timeout=10s;
+    keepalive 64;
+}
+
+location / {
+    proxy_pass http://csgofriberg_backend;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_next_upstream error timeout http_502 http_503 http_504;
+}
+
+location /socket.io/ {
+    proxy_pass http://csgofriberg_backend;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_read_timeout 90s;
+    proxy_send_timeout 90s;
+    proxy_buffering off;
+}
+```
+
+The current client uses WebSocket-only Socket.IO transport, so sticky sessions
+are not required. Configure affinity before enabling HTTP long-polling.
+
 ## 5. Create or reset the administrator
 
 Run the compiled administration command inside a one-off application
@@ -137,7 +191,7 @@ container. This uses the same image and network as production:
 docker compose run --rm \
   -e ADMIN_USERNAME=admin \
   -e ADMIN_PASSWORD='replace-with-at-least-12-characters' \
-  app server/dist/db/createAdmin.js
+  app-1 server/dist/db/createAdmin.js
 ```
 
 The password is visible to the local process environment while this command is
@@ -146,13 +200,34 @@ pass it with `docker compose run --env-file`.
 
 ## 6. Update and rollback
 
-Update to the current tag in `.env`:
+Run migrations once, then replace one application instance at a time. Nginx
+keeps the other instance available while Socket.IO clients reconnect through
+the shared Redis state:
 
 ```bash
-docker compose pull app
-docker compose up -d app
+docker compose pull migrate app-1 app-2
+docker compose up migrate
+docker compose up -d --no-deps app-1
+docker compose ps app-1
+curl http://127.0.0.1:3000/api/health
+docker compose up -d --no-deps app-2
+docker compose ps app-2
+curl http://127.0.0.1:3001/api/health
 docker image prune -f
 ```
+
+An individual instance shutdown no longer sets a global maintenance flag,
+because doing so would alter disconnect handling on the healthy peer. When both
+instances must be stopped together, explicitly pause disconnect forfeits for up
+to 10 minutes before stopping them:
+
+```bash
+docker compose run --rm app-1 server/dist/maintenance.js 120
+docker compose stop app-1 app-2
+```
+
+The argument is the maintenance window in seconds. Normal rolling updates do
+not need this command.
 
 For deterministic production releases, set `IMAGE` to a published version or
 commit tag, for example:
@@ -164,8 +239,10 @@ IMAGE=ghcr.io/xinhai-ai/csgofriberg:sha-0123456
 Rollback by changing `IMAGE` to the previous tag and running:
 
 ```bash
-docker compose pull app
-docker compose up -d app
+docker compose pull migrate app-1 app-2
+docker compose up migrate
+docker compose up -d --no-deps app-1
+docker compose up -d --no-deps app-2
 ```
 
 PostgreSQL data lives in the configured `PGDATA_PATH` bind mount, and Redis
@@ -191,10 +268,10 @@ holding HTTP requests open.
 
 Password hashing runs in a bounded worker-thread pool so login and registration
 cannot block the main HTTP and Socket.IO event loop. `PASSWORD_WORKERS` defaults
-to 2 and `PASSWORD_QUEUE_LIMIT` defaults to 64; keep the worker count low on a
-1 GB server. `BCRYPT_ROUNDS` defaults to 8 to minimize authentication CPU cost;
-existing hashes with a different cost are rehashed after the next successful
-login.
+to 1 per instance (2 workers across the stack) and `PASSWORD_QUEUE_LIMIT`
+defaults to 64 per instance. `BCRYPT_ROUNDS` defaults to 8 to minimize
+authentication CPU cost; existing hashes with a different cost are rehashed
+after the next successful login.
 
 An unfinished single-player game is kept in Redis for up to 1800 seconds (30
 minutes) after its last activity. A completed game or an explicit exit removes

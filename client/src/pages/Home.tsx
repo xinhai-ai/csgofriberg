@@ -19,6 +19,7 @@ import { api, errMsg } from '../api/client';
 import { clearAuthenticated } from '../api/session';
 import { markGuestSession } from '../api/session';
 import { useConfirm } from '../components/ConfirmDialog';
+import ThemeToggle from '../components/ThemeToggle';
 
 function BilibiliIcon() {
   return (
@@ -91,6 +92,7 @@ export default function Home() {
       <div className="header-bar">
         <span className="title">弗一把</span>
         <span className="btns">
+          <ThemeToggle />
           {!initialized ? (
             <span className="auth-pending" aria-label="正在恢复登录状态" />
           ) : user ? (
