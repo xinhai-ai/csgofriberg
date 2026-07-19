@@ -3,7 +3,8 @@ import { redis, redisKey, redisPublisher, redisSubscriber } from '../redis';
 import { Player } from '../types';
 
 const INVALIDATE_CHANNEL = redisKey('players:invalidate');
-const VERSION_KEY = redisKey('players:version');
+// v1 stored a SHA string and cannot be incremented safely during rolling upgrades.
+const VERSION_KEY = redisKey('players:revision:v2');
 const REFRESH_DEBOUNCE_MS = 100;
 
 type PublicPlayer = { id: number; nickname: string };
@@ -103,10 +104,15 @@ export async function getPublicPlayerList(): Promise<typeof publicList> {
 }
 
 export async function invalidatePlayerCache(): Promise<void> {
+  schedulePlayerCacheRefresh();
   const client = redis();
-  if (client) {
+  if (!client) return;
+  try {
     const nextVersion = await client.incr(VERSION_KEY);
     await redisPublisher()?.publish(INVALIDATE_CHANNEL, String(nextVersion));
+  } catch (err) {
+    console.warn('[players] cache invalidation notification failed', err instanceof Error
+      ? err.message
+      : err);
   }
-  schedulePlayerCacheRefresh();
 }

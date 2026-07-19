@@ -28,6 +28,13 @@ export function errorHandler(
   res: Response,
   _next: NextFunction
 ) {
+  if (
+    err instanceof Error &&
+    'type' in err &&
+    ['stream.not.readable', 'request.aborted'].includes(String(err.type))
+  ) {
+    return res.status(400).json({ code: 'INVALID_REQUEST_BODY' });
+  }
   if (err instanceof HttpError) {
     return res.status(err.status).json({ code: err.code });
   }
@@ -39,6 +46,9 @@ export function errorHandler(
   }
   if (err instanceof Error && 'type' in err && err.type === 'entity.too.large') {
     return res.status(413).json({ code: 'PAYLOAD_TOO_LARGE' });
+  }
+  if (err instanceof SyntaxError && 'status' in err && err.status === 400) {
+    return res.status(400).json({ code: 'INVALID_REQUEST_BODY' });
   }
   if (err instanceof Error && err.message.includes('Timeout acquiring a connection')) {
     return res.status(503).json({ code: 'DATABASE_BUSY' });

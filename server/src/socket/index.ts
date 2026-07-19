@@ -569,17 +569,26 @@ function safeOn(
   handler: (payload: any, ack?: (value: any) => void) => Promise<void>
 ) {
   socket.on(event, (payload: any, ack?: (value: any) => void) => {
-    void handler(payload, ack).catch((err) => {
+    void handler(payload, ack).catch(async (err) => {
+      if (err instanceof Error && err.message === 'ROOM_IDENTITY_CONFLICT') {
+        const identity = socket.data.identity as StoredIdentity | undefined;
+        const room = identity ? await getRoomForIdentity(identity.key).catch(() => null) : null;
+        ack?.({
+          code: 'ALREADY_IN_ROOM',
+          room: room && identity ? publicRoom(room, identity.key) : undefined,
+          role: room && identity
+            ? room.players.some((player) => player.key === identity.key) ? 'player' : 'spectator'
+            : undefined,
+        });
+        return;
+      }
       console.error(`[socket:${event}]`, err);
       const code = err instanceof Error && [
         'ROOM_BUSY',
         'REDIS_UNAVAILABLE',
         'STALE_ROOM_WRITE',
-        'ROOM_IDENTITY_CONFLICT',
       ].includes(err.message)
-        ? err.message === 'ROOM_IDENTITY_CONFLICT'
-          ? 'ALREADY_IN_ROOM'
-          : err.message === 'STALE_ROOM_WRITE' ? 'ROOM_BUSY' : err.message
+        ? err.message === 'STALE_ROOM_WRITE' ? 'ROOM_BUSY' : err.message
         : 'INTERNAL_ERROR';
       ack?.({ code });
     });
@@ -938,6 +947,16 @@ export function setupSocket(io: Server) {
         await saveRoom(room);
       } catch (err) {
         await releaseRoomCapacity(room.ownerIp, room.id);
+        if (err instanceof Error && err.message === 'ROOM_IDENTITY_CONFLICT') {
+          const current = await getRoomForIdentity(me.key);
+          return ack?.({
+            code: 'ALREADY_IN_ROOM',
+            room: current ? publicRoom(current, me.key) : undefined,
+            role: current
+              ? current.players.some((player) => player.key === me.key) ? 'player' : 'spectator'
+              : undefined,
+          });
+        }
         throw err;
       }
       socket.join(room.id);
@@ -1311,10 +1330,22 @@ export function setupSocket(io: Server) {
       try {
         await saveRoom(room);
       } catch (err) {
-        await Promise.allSettled([
-          releaseRoomCapacity(room.ownerIp, room.id),
-          requeueCandidate(dbType, opponent),
-        ]);
+        await releaseRoomCapacity(room.ownerIp, room.id);
+        if (err instanceof Error && err.message === 'ROOM_IDENTITY_CONFLICT') {
+          const [myRoom, opponentRoom] = await Promise.all([
+            getRoomForIdentity(me.key),
+            getRoomForIdentity(opponent.key),
+          ]);
+          await Promise.allSettled([
+            myRoom ? Promise.resolve() : requeueCandidate(dbType, queuedMe),
+            opponentRoom ? Promise.resolve() : requeueCandidate(dbType, opponent),
+          ]);
+          if (myRoom) {
+            return ack?.({ queued: false, room: publicRoom(myRoom, me.key) });
+          }
+          return ack?.({ queued: true });
+        }
+        await requeueCandidate(dbType, opponent).catch(() => undefined);
         throw err;
       }
       const [opponentAlive, currentAlive] = await Promise.all([
