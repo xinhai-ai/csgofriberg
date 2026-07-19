@@ -1,72 +1,48 @@
-# systemd production deployment
+# Docker production deployment
 
-This deployment runs one Node process with PostgreSQL and Redis. Reverse proxy,
-TLS and domain routing are intentionally outside the scope of this systemd
-setup. The unit runs the compiled database migration before every application
-start; if migration fails, the service is not started.
+The production image is PostgreSQL-only and published by GitHub Actions to:
 
-## 1. Install prerequisites
-
-Example for Debian/Ubuntu:
-
-```bash
-sudo apt update
-sudo apt install -y postgresql redis-server build-essential pkg-config libssl-dev
-sudo corepack enable
+```text
+ghcr.io/xinhai-ai/csgofriberg
 ```
 
-Install a current Node.js LTS release before building. `node` must be available
-at `/usr/bin/node`; adjust the systemd unit if the path differs. Rust is
-optional when the tracked precompiled PoW WASM matches the current source. To
-rebuild that module, install Rust and run:
+The runtime image is based on distroless Node.js. It contains only production
+Node dependencies, compiled server JavaScript, compiled frontend assets and the
+player seed files emitted into `server/dist`. It does not contain pnpm, Rust,
+TypeScript, Vite, source files, tests, build tools or the SQLite driver.
+
+The included Compose stack runs the application, PostgreSQL and Redis with
+settings suitable for a small 1 GB server. Reverse proxy and TLS remain outside
+this stack. The application port binds to `127.0.0.1` by default.
+
+## 1. Install Docker
+
+Install Docker Engine with the Compose plugin. Verify:
 
 ```bash
-rustup target add wasm32-unknown-unknown
+docker version
+docker compose version
 ```
 
-## 2. Create PostgreSQL database
+## 2. Create the deployment directory
 
-```bash
-sudo -u postgres psql <<'SQL'
-CREATE USER csgofriberg WITH PASSWORD 'replace-password';
-CREATE DATABASE csgofriberg OWNER csgofriberg;
-\connect csgofriberg
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
-SQL
+Only three repository files are required on the server:
+
+```text
+compose.yaml
+deploy/.env.example
+deploy/README.md
 ```
 
-The application migration also requests `pg_trgm`, but installing it as the
-database administrator avoids requiring extension privileges for the runtime
-account.
-
-## 3. Build and install
+For example:
 
 ```bash
-sudo useradd --system --home /var/lib/csgofriberg --create-home --shell /usr/sbin/nologin csgofriberg
-sudo mkdir -p /opt/csgofriberg /etc/csgofriberg
-sudo chown -R "$USER":csgofriberg /opt/csgofriberg
-
-git clone <repository-url> /opt/csgofriberg
+sudo mkdir -p /opt/csgofriberg
+sudo cp compose.yaml /opt/csgofriberg/compose.yaml
+sudo cp deploy/.env.example /opt/csgofriberg/.env
 cd /opt/csgofriberg
-corepack pnpm install --frozen-lockfile
-corepack pnpm build
-```
-
-Do not run `pnpm install --prod` before building: TypeScript and Vite are
-build-time requirements. The compiled service itself starts with plain Node and
-does not require `tsx`. Keep the repository owned by the deployment user; the
-restricted `csgofriberg` service account only needs read access to the built
-files. When Rust is unavailable, `pnpm build` uses the tracked precompiled
-`client/public/pow/csgofriberg_pow.wasm`; the build only falls back when its
-recorded source hash matches the current Rust source. This prevents an outdated
-PoW module from being silently reused after source changes.
-
-## 4. Configure environment
-
-```bash
-sudo cp deploy/csgofriberg.env.example /etc/csgofriberg/csgofriberg.env
-sudo chmod 600 /etc/csgofriberg/csgofriberg.env
-sudo editor /etc/csgofriberg/csgofriberg.env
+sudo chmod 600 .env
+sudo editor .env
 ```
 
 Generate independent secrets:
@@ -74,14 +50,50 @@ Generate independent secrets:
 ```bash
 openssl rand -base64 48
 openssl rand -base64 48
+openssl rand -hex 24
 ```
 
-Set `CORS_ORIGINS` to the exact public origin, for example
-`https://game.example.com`, without a trailing slash. Keep `TRUST_PROXY=true`
-when the service is reached through your existing trusted ingress; set it to
-`false` only when clients connect directly to the Node process. The Node port
-must not be publicly reachable when this is enabled. Your ingress must replace
-or append the standard real-IP headers, for example in Nginx:
+Use the first two values for `JWT_SECRET` and `GUEST_ID_SALT`. Use the
+hexadecimal value for `POSTGRES_PASSWORD`. Compose constructs `DB_URL` from the
+PostgreSQL variables, so the password is configured only once.
+
+Set `CORS_ORIGINS` to the exact public origin, such as
+`https://game.example.com`, without a trailing slash.
+
+## 3. Start
+
+For a public GHCR package:
+
+```bash
+docker compose pull
+docker compose up -d
+docker compose ps
+docker compose logs -f app
+```
+
+If the package is private, authenticate first using a GitHub token with
+`read:packages`:
+
+```bash
+echo "$GHCR_TOKEN" | docker login ghcr.io -u GITHUB_USERNAME --password-stdin
+```
+
+The application calls `initDb()` before it starts listening. This creates or
+updates tables and indexes and imports the bundled player seed only when the
+player table is empty. A migration failure causes the application container to
+exit instead of serving against a partial schema.
+
+Health check:
+
+```bash
+curl http://127.0.0.1:3000/api/health
+```
+
+## 4. Reverse proxy
+
+Keep `TRUST_PROXY=true` when one trusted reverse proxy sits directly in front
+of the application. Do not expose the Node port publicly in that mode. Nginx
+must forward HTTP and Socket.IO WebSocket traffic and set:
 
 ```nginx
 proxy_set_header Host $host;
@@ -89,61 +101,75 @@ proxy_set_header X-Real-IP $remote_addr;
 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 ```
 
-HTTP and Socket.IO rate limits both use the nearest trusted proxy hop from
-these headers. The current setting is intentionally limited to one trusted
-proxy layer.
+HTTP and Socket.IO rate limits both use the nearest trusted proxy hop.
 
-## 5. Enable systemd
+## 5. Create or reset the administrator
 
-```bash
-sudo cp deploy/systemd/csgofriberg.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now redis-server postgresql csgofriberg
-```
-
-Configure your existing ingress separately to forward HTTP and Socket.IO
-WebSocket traffic to the application port defined by `PORT`.
-
-## 6. Create the administrator
-
-Run this once after the database migration has completed. Put the bootstrap
-credentials in a temporary root-only environment file so shell parsing and
-history do not expose them:
+Run the compiled administration command inside a one-off application
+container. This uses the same image and network as production:
 
 ```bash
-sudo install -m 600 /dev/null /etc/csgofriberg/admin-bootstrap.env
-sudo editor /etc/csgofriberg/admin-bootstrap.env
-# Add ADMIN_USERNAME=... and ADMIN_PASSWORD=... to that file.
-
-sudo systemd-run --wait --pipe --collect \
-  --property=User=csgofriberg \
-  --property=Group=csgofriberg \
-  --property=WorkingDirectory=/opt/csgofriberg \
-  --property=EnvironmentFile=/etc/csgofriberg/csgofriberg.env \
-  --property=EnvironmentFile=/etc/csgofriberg/admin-bootstrap.env \
-  /usr/bin/node /opt/csgofriberg/server/dist/db/createAdmin.js
-
-sudo rm /etc/csgofriberg/admin-bootstrap.env
+docker compose run --rm \
+  -e ADMIN_USERNAME=admin \
+  -e ADMIN_PASSWORD='replace-with-at-least-12-characters' \
+  app server/dist/db/createAdmin.js
 ```
 
-## Updating
+The password is visible to the local process environment while this command is
+running. On a shared server, use a temporary root-only environment file and
+pass it with `docker compose run --env-file`.
+
+## 6. Update and rollback
+
+Update to the current tag in `.env`:
 
 ```bash
-cd /opt/csgofriberg
-sudo systemctl stop csgofriberg
-git pull --ff-only
-corepack pnpm install --frozen-lockfile
-corepack pnpm build
-sudo systemctl start csgofriberg
-sudo systemctl status csgofriberg --no-pager
+docker compose pull app
+docker compose up -d app
+docker image prune -f
 ```
 
-On `systemctl start`, `ExecStartPre` runs
-`server/dist/db/migrate.js`. This creates or updates tables and indexes, imports
-the bundled player seed only when the player table is empty, and exits before
-Node starts listening. Logs are available through:
+For deterministic production releases, set `IMAGE` to a published version or
+commit tag, for example:
+
+```text
+IMAGE=ghcr.io/xinhai-ai/csgofriberg:sha-0123456
+```
+
+Rollback by changing `IMAGE` to the previous tag and running:
 
 ```bash
-journalctl -u csgofriberg -f
-curl http://127.0.0.1:3000/api/health
+docker compose pull app
+docker compose up -d app
 ```
+
+PostgreSQL and Redis data live in named volumes and are not replaced when the
+application image changes.
+
+## 7. Backups
+
+PostgreSQL:
+
+```bash
+docker compose exec -T postgres \
+  pg_dump -U csgofriberg -d csgofriberg -Fc > csgofriberg.dump
+```
+
+Redis stores active games, rooms, queues and caches. PostgreSQL is the durable
+history store. Redis AOF is enabled in Compose so active state can survive a
+container restart.
+
+## GitHub Actions publishing
+
+`.github/workflows/docker.yml` runs tests and the complete production build on
+pull requests. Pushes to `main`, version tags such as `v1.2.3`, and manual runs
+also build `linux/amd64` and `linux/arm64` images and publish them to GHCR.
+
+Published tags include:
+
+- `latest` for the default branch
+- the branch name
+- semantic-version tags for `v*` releases
+- `sha-<short commit>` for deterministic deployment
+
+The workflow uses BuildKit cache, generates provenance and attaches an SBOM.

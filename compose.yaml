@@ -1,0 +1,106 @@
+name: csgofriberg
+
+services:
+  app:
+    image: ${IMAGE:-ghcr.io/xinhai-ai/csgofriberg:latest}
+    restart: unless-stopped
+    init: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      NODE_OPTIONS: --max-old-space-size=192
+      PORT: 3000
+      TRUST_PROXY: ${TRUST_PROXY:-true}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      GUEST_ID_SALT: ${GUEST_ID_SALT:?set GUEST_ID_SALT in .env}
+      DB_CLIENT: pg
+      DB_URL: postgres://${POSTGRES_USER:-csgofriberg}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-csgofriberg}
+      DB_POOL_MIN: ${DB_POOL_MIN:-0}
+      DB_POOL_MAX: ${DB_POOL_MAX:-5}
+      REDIS_URL: redis://redis:6379
+      REDIS_PREFIX: ${REDIS_PREFIX:-csgofriberg:}
+      REDIS_REQUIRED: "true"
+      CORS_ORIGINS: ${CORS_ORIGINS:?set CORS_ORIGINS in .env}
+      POW_DIFFICULTY: ${POW_DIFFICULTY:-17}
+      POW_CHALLENGE_TTL_SECONDS: ${POW_CHALLENGE_TTL_SECONDS:-120}
+      POW_TOKEN_TTL_SECONDS: ${POW_TOKEN_TTL_SECONDS:-600}
+    ports:
+      - 127.0.0.1:${APP_PORT:-3000}:3000
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    mem_limit: 256m
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test:
+        - CMD
+        - /nodejs/bin/node
+        - -e
+        - fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-csgofriberg}
+      POSTGRES_USER: ${POSTGRES_USER:-csgofriberg}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    command:
+      - postgres
+      - -c
+      - shared_buffers=64MB
+      - -c
+      - effective_cache_size=256MB
+      - -c
+      - work_mem=1MB
+      - -c
+      - maintenance_work_mem=32MB
+      - -c
+      - max_connections=30
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    mem_limit: 384m
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - everysec
+      - --maxmemory
+      - 80mb
+      - --maxmemory-policy
+      - noeviction
+    volumes:
+      - redis-data:/data
+    mem_limit: 128m
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres-data:
+  redis-data:

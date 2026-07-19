@@ -10,7 +10,7 @@ CS:GO / CS2 Major 选手猜测游戏 —— 工程化前后端分离版本。
 | --- | --- |
 | 前端 | React 18 + Vite + TypeScript + React Router + Zustand |
 | 后端 | Node.js + Express + TypeScript |
-| 数据库 | SQLite (better-sqlite3),经 Knex 抽象,可切 PostgreSQL |
+| 数据库 | 本地开发支持 SQLite；生产 Docker 镜像固定使用 PostgreSQL |
 | 实时对战 | Socket.IO |
 | 认证 | JWT + bcrypt |
 | 校验/测试 | Zod / Vitest |
@@ -67,11 +67,15 @@ ADMIN_USERNAME=admin ADMIN_PASSWORD='至少12位强密码' pnpm create-admin
 | `pnpm create-admin` | 显式创建或重置管理员 |
 | `pnpm loadtest` | 运行 HTTP 缓存接口与多人建房负载测试 |
 
-## systemd 生产部署
+## Docker 生产部署
 
-Linux + PostgreSQL + Redis 的完整 systemd 部署模板位于
-[`deploy/README.md`](deploy/README.md)。systemd 会在每次启动应用前自动执行
-编译后的数据库迁移；迁移失败时应用不会启动。
+生产环境使用 PostgreSQL 专用的精简 Docker 镜像。GitHub Actions 自动执行
+测试、前后端编译、多架构镜像构建，并发布到
+`ghcr.io/xinhai-ai/csgofriberg`。运行镜像不包含 Rust、pnpm、TypeScript、Vite、
+源码、测试、构建工具或 SQLite 驱动。
+
+Docker Compose 部署、自动数据库迁移、管理员创建、更新和回滚方法位于
+[`deploy/README.md`](deploy/README.md)。
 
 ## Redis 用途
 
