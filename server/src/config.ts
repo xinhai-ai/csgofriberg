@@ -16,6 +16,7 @@ const unsafeJwtSecrets = new Set(['dev-secret', 'change-me-in-production']);
 const jwtSecret = configuredJwtSecret || crypto.randomBytes(48).toString('base64url');
 const configuredPasswordWorkers = Number(process.env.PASSWORD_WORKERS || 2);
 const configuredPasswordQueueLimit = Number(process.env.PASSWORD_QUEUE_LIMIT || 64);
+const configuredBcryptRounds = Number(process.env.BCRYPT_ROUNDS || 8);
 
 export const config = {
   port: Number(process.env.PORT || 3000),
@@ -36,6 +37,9 @@ export const config = {
   passwordQueueLimit: Number.isInteger(configuredPasswordQueueLimit)
     ? Math.max(8, configuredPasswordQueueLimit)
     : 64,
+  bcryptRounds: Number.isInteger(configuredBcryptRounds)
+    ? Math.max(8, Math.min(12, configuredBcryptRounds))
+    : 8,
   powDifficulty: Number(process.env.POW_DIFFICULTY || 17),
   powChallengeTtlSeconds: Number(process.env.POW_CHALLENGE_TTL_SECONDS || 120),
   powTokenTtlSeconds: Number(process.env.POW_TOKEN_TTL_SECONDS || 600),

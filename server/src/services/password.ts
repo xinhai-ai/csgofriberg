@@ -109,12 +109,17 @@ function submit(
   });
 }
 
-export async function hashPassword(password: string, rounds = 10): Promise<string> {
+export async function hashPassword(password: string, rounds = config.bcryptRounds): Promise<string> {
   return submit('hash', password, { rounds }) as Promise<string>;
 }
 
 export async function verifyPassword(password: string, hash: string): Promise<boolean> {
   return submit('compare', password, { hash }) as Promise<boolean>;
+}
+
+export function passwordNeedsRehash(hash: string): boolean {
+  const match = /^\$2[aby]\$(\d{2})\$/.exec(hash);
+  return !match || Number(match[1]) !== config.bcryptRounds;
 }
 
 export async function closePasswordWorkers(): Promise<void> {

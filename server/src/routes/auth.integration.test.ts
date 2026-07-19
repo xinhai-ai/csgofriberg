@@ -110,6 +110,8 @@ describe('cookie authentication', () => {
     const authToken = cookie.split('; ').find((item) => item.startsWith('csgofriberg_session='))!.split('=')[1];
     const authPayload = jwt.verify(authToken, config.jwtSecret) as { iat: number; exp: number };
     expect(authPayload.exp - authPayload.iat).toBe(15 * 24 * 60 * 60);
+    const registeredUser = await db('users').where({ username }).first();
+    expect(registeredUser.password_hash).toMatch(/^\$2[aby]\$08\$/);
 
     const cookiesBeforeSession = cookie;
     result = await request('/api/auth/session', cookie, { method: 'POST', body: '{}' });

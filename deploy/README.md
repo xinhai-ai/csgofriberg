@@ -192,7 +192,9 @@ holding HTTP requests open.
 Password hashing runs in a bounded worker-thread pool so login and registration
 cannot block the main HTTP and Socket.IO event loop. `PASSWORD_WORKERS` defaults
 to 2 and `PASSWORD_QUEUE_LIMIT` defaults to 64; keep the worker count low on a
-1 GB server.
+1 GB server. `BCRYPT_ROUNDS` defaults to 8 to minimize authentication CPU cost;
+existing hashes with a different cost are rehashed after the next successful
+login.
 
 An unfinished single-player game is kept in Redis for up to 1800 seconds (30
 minutes) after its last activity. A completed game or an explicit exit removes

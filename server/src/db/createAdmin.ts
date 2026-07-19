@@ -12,7 +12,7 @@ async function main() {
   }
   await initDb();
   await initRedis();
-  const passwordHash = await hashPassword(password, 12);
+  const passwordHash = await hashPassword(password);
   const existing = await db('users').where({ username }).first();
   if (existing) {
     await db('users').where({ id: existing.id }).update({

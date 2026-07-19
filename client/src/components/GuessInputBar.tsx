@@ -116,7 +116,10 @@ export default function GuessInputBar({
             <li
               key={item.id}
               className={i === active ? 'active' : ''}
-              onMouseDown={() => void pick(item)}
+              onMouseDown={(event) => {
+                event.preventDefault();
+                void pick(item);
+              }}
             >
               {item.nickname}
             </li>

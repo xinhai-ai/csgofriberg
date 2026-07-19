@@ -13,7 +13,7 @@ import { validateBody, asyncHandler, HttpError } from '../middleware/common';
 import { User } from '../types';
 import { rateLimit, requestIdentity } from '../middleware/rateLimit';
 import { invalidateCached } from '../services/queryCache';
-import { hashPassword, verifyPassword } from '../services/password';
+import { hashPassword, passwordNeedsRehash, verifyPassword } from '../services/password';
 
 const router = Router();
 
@@ -40,7 +40,7 @@ router.post(
     const [id] = await db('users')
       .insert({
         username,
-        password_hash: await hashPassword(password, 10),
+        password_hash: await hashPassword(password),
         role,
       })
       .returning('id')
@@ -68,6 +68,13 @@ router.post(
     const user = await db<User>('users').where({ username }).first();
     if (!user || !(await verifyPassword(password, user.password_hash))) {
       throw new HttpError(401, 'INVALID_CREDENTIALS');
+    }
+    if (passwordNeedsRehash(user.password_hash)) {
+      const previousHash = user.password_hash;
+      const passwordHash = await hashPassword(password);
+      await db('users')
+        .where({ id: user.id, password_hash: previousHash })
+        .update({ password_hash: passwordHash });
     }
     setAuthCookie(res, user);
     res.json({ user: { id: user.id, username: user.username, role: user.role } });
