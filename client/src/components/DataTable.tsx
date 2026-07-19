@@ -17,25 +17,27 @@ interface Props<T> {
 export default function DataTable<T>({ columns, rows, rowKey, empty }: Props<T>) {
   if (!rows.length) return <p className="muted">{empty ?? '暂无数据'}</p>;
   return (
-    <table className="table">
-      <thead>
-        <tr>
-          {columns.map((c) => (
-            <th key={c.key}>{c.title}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row) => (
-          <tr key={rowKey(row)}>
+    <div className="table-scroll">
+      <table className="table">
+        <thead>
+          <tr>
             {columns.map((c) => (
-              <td key={c.key}>
-                {c.render ? c.render(row) : String((row as any)[c.key] ?? '')}
-              </td>
+              <th key={c.key}>{c.title}</th>
             ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={rowKey(row)}>
+              {columns.map((c) => (
+                <td key={c.key}>
+                  {c.render ? c.render(row) : String((row as any)[c.key] ?? '')}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

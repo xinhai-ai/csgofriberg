@@ -100,13 +100,14 @@ export default function Home() {
                 {user.role === 'admin' && ' · 管理员'}
               </span>
               {user.role === 'admin' && (
-                <Link className="btn btn-ghost btn-sm" to="/admin">
+                <Link className="btn btn-ghost btn-sm" to="/admin" aria-label="管理后台">
                   <Wrench size={15} />
                   <span className="btn-text">管理</span>
                 </Link>
               )}
               <button
                 className="btn btn-ghost btn-sm"
+                aria-label="退出登录"
                 onClick={() => void logout()}
                 disabled={loggingOut}
               >
@@ -117,16 +118,16 @@ export default function Home() {
           ) : (
             <>
               <span className="muted">{guestName}</span>
-              <Link className="btn btn-sm" to="/login">
+              <Link className="btn btn-sm" to="/login" aria-label="登录或注册">
                 <LogIn size={15} />
-                登录 / 注册
+                <span className="btn-text">登录 / 注册</span>
               </Link>
             </>
           )}
         </span>
       </div>
       {logoutError && <div className="status-bar"><span className="error">{logoutError}</span></div>}
-      <div className="page-scroll">
+      <main className="page-scroll" id="main-content">
         <div className="home-hero">
           <h1>弗一把</h1>
           <p>CS:GO / CS2 Major 选手猜测游戏</p>
@@ -167,7 +168,7 @@ export default function Home() {
             B站:怂皇的一天
           </a>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

@@ -125,16 +125,17 @@ export default function SingleGame() {
       icon={isEasy ? <Gamepad2 size={17} /> : <Flame size={17} />}
       actions={
         <>
-          <button className="btn btn-ghost btn-sm" onClick={() => void restart()}>
+          <button className="btn btn-ghost btn-sm" aria-label="重新开始" onClick={() => void restart()}>
             <RotateCcw size={15} />
             <span className="btn-text">重新开始</span>
           </button>
-          <button className="btn btn-ghost btn-sm" onClick={() => void leave()}>
+          <button className="btn btn-ghost btn-sm" aria-label="返回主菜单" onClick={() => void leave()}>
             <Home size={15} />
             <span className="btn-text">主菜单</span>
           </button>
           <button
             className="btn btn-warning btn-sm"
+            aria-label="查看答案"
             onClick={() => void reveal()}
             disabled={finished}
           >
