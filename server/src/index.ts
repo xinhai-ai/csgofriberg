@@ -89,8 +89,6 @@ async function main() {
     next();
   });
   app.use(express.json({ limit: '2mb' }));
-  app.use('/api', rateLimit({ name: 'api', limit: 600, windowSeconds: 60 }));
-
   app.get('/api/health', (_req, res) =>
     res.json({
       ok: true,
@@ -98,6 +96,7 @@ async function main() {
       features: { leaderboard: config.showLeaderboard },
     })
   );
+  app.use('/api', rateLimit({ name: 'api', limit: 600, windowSeconds: 60 }));
   app.use('/api/pow', powRoutes);
   app.use('/api', requirePow);
 

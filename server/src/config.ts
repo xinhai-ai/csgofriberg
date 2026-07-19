@@ -27,6 +27,7 @@ export const config = {
   redisUrl: process.env.REDIS_URL || 'redis://127.0.0.1:6379',
   redisPrefix: process.env.REDIS_PREFIX || 'csgofriberg:',
   redisRequired: process.env.REDIS_REQUIRED === 'true',
+  redisCommandTimeoutMs: Number(process.env.REDIS_COMMAND_TIMEOUT_MS || 1500),
   powDifficulty: Number(process.env.POW_DIFFICULTY || 17),
   powChallengeTtlSeconds: Number(process.env.POW_CHALLENGE_TTL_SECONDS || 120),
   powTokenTtlSeconds: Number(process.env.POW_TOKEN_TTL_SECONDS || 600),

@@ -185,6 +185,10 @@ Redis stores active games, rooms, queues and caches. PostgreSQL is the durable
 history store. Redis AOF is enabled in Compose so active state can survive a
 container restart.
 
+`REDIS_COMMAND_TIMEOUT_MS` defaults to 1500 ms for request-path operations such
+as rate limiting. This prevents a congested Redis instance from indefinitely
+holding HTTP requests open.
+
 An unfinished single-player game is kept in Redis for up to 1800 seconds (30
 minutes) after its last activity. A completed game or an explicit exit removes
 it immediately.

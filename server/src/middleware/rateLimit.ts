@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { redis, redisKey } from '../redis';
+import { config } from '../config';
 
 interface RateLimitOptions {
   name: string;
@@ -21,8 +22,12 @@ export async function consumeRateLimit(
   const key = redisKey(`rl:${name}:${identity}:${bucket}`);
   const client = redis();
   if (client) {
-    const count = await client.incr(key);
-    if (count === 1) await client.expire(key, windowSeconds + 1);
+    const bounded = client.withCommandOptions({ timeout: config.redisCommandTimeoutMs });
+    const result = await bounded.multi()
+      .incr(key)
+      .expire(key, windowSeconds + 1)
+      .exec();
+    const count = Number(result?.[0] ?? 0);
     return count <= limit;
   }
   const now = Date.now();

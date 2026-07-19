@@ -49,15 +49,27 @@ const ROUND_OVER_REASON: Record<string, string> = {
 };
 
 /** 每局倒计时,从服务端下发的截止时间戳换算 */
-function Countdown({ endsAt }: { endsAt: number | null }) {
+function Countdown({ endsAt, onExpire }: { endsAt: number | null; onExpire?: () => void }) {
   const [left, setLeft] = useState(0);
+  const expired = useRef(false);
   useEffect(() => {
-    if (!endsAt) return;
-    const tick = () => setLeft(Math.max(0, Math.ceil((endsAt - Date.now()) / 1000)));
+    expired.current = false;
+    if (!endsAt) {
+      setLeft(0);
+      return;
+    }
+    const tick = () => {
+      const next = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
+      setLeft(next);
+      if (next === 0 && !expired.current) {
+        expired.current = true;
+        onExpire?.();
+      }
+    };
     tick();
     const t = setInterval(tick, 500);
     return () => clearInterval(t);
-  }, [endsAt]);
+  }, [endsAt, onExpire]);
   if (!endsAt) return null;
   const m = Math.floor(left / 60);
   const s = left % 60;
@@ -109,6 +121,7 @@ export default function MultiRoom() {
   const [error, setError] = useState('');
   const [showRoomCode, setShowRoomCode] = useState(false);
   const [myKey, setMyKey] = useState('');
+  const [roundExpired, setRoundExpired] = useState(false);
   const navigate = useNavigate();
   const confirm = useConfirm();
   const roomRef = useRef<RoomState | null>(null);
@@ -124,13 +137,19 @@ export default function MultiRoom() {
     const onRoundStart = (p: { room: RoomState }) => {
       setRoundOver(null);
       setOfflineNote('');
+      setError('');
+      setRoundExpired(false);
       setRoom(p.room);
     };
     const onRoundOver = (p: RoundOver & { room: RoomState }) => {
+      setRoundExpired(true);
+      setError('');
       setRoundOver(p);
       setRoom(p.room);
     };
     const onMatchOver = (p: MatchOver & { room: RoomState }) => {
+      setRoundExpired(true);
+      setError('');
       setRoundOver(null);
       setMatchOver(p);
       setRoom(p.room);
@@ -228,6 +247,34 @@ export default function MultiRoom() {
     });
   };
 
+  const submitGuess = (playerId: number): Promise<void> => new Promise((resolve) => {
+    const current = roomRef.current;
+    if (!current || current.status !== 'playing' || roundExpired) return resolve();
+    const socket = getSocket();
+    const timer = window.setTimeout(() => {
+      setError(translate('NETWORK_ERROR'));
+      resolve();
+    }, 5_000);
+    socket.emit('game:guess', {
+      playerId,
+      roundId: current.roundId,
+      eventId: crypto.randomUUID(),
+    }, (res: any) => {
+      window.clearTimeout(timer);
+      if (res?.room) setRoom(res.room);
+      if (res?.code === 'NO_ACTIVE_ROUND' || res?.code === 'STALE_ROUND') {
+        setError('');
+        socket.emit('room:sync', {}, (sync: any) => {
+          if (sync?.room) setRoom(sync.room);
+          resolve();
+        });
+        return;
+      }
+      if (res?.code) setError(translate(res.code));
+      resolve();
+    });
+  });
+
   const leaveRoom = async () => {
     const currentRoom = room;
     if (!currentRoom) return;
@@ -297,7 +344,7 @@ export default function MultiRoom() {
           {room.status === 'waiting'
             ? `等待开始 · ${room.dbType === 'normal' ? '完整版' : '简单版'}数据库 · ${room.winsNeeded} 胜制`
             : `第 ${room.round} 局 · 先胜 ${room.winsNeeded} 局`}
-          {playing && <Countdown endsAt={room.roundEndsAt} />}
+          {playing && <Countdown endsAt={room.roundEndsAt} onExpire={() => setRoundExpired(true)} />}
           {isSpectator && (
             <span className="badge">
               <Eye size={12} />
@@ -316,12 +363,8 @@ export default function MultiRoom() {
       dock={
         playing && me ? (
           <GuessInputBar
-            onPick={(p) => emit('game:guess', {
-              playerId: p.id,
-              roundId: room.roundId,
-              eventId: crypto.randomUUID(),
-            })}
-            disabled={me.guessCount >= room.maxGuesses}
+            onPick={(p) => submitGuess(p.id)}
+            disabled={roundExpired || me.guessCount >= room.maxGuesses}
           />
         ) : undefined
       }

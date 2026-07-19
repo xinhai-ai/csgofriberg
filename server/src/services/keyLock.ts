@@ -9,7 +9,7 @@ export async function withKeyLock<T>(key: string, handler: () => Promise<T>): Pr
     const lockKey = redisKey(`lock:${key}`);
     const token = randomUUID();
     for (let attempt = 0; attempt < 50; attempt++) {
-      if (await client.set(lockKey, token, { NX: true, PX: 5000 })) {
+      if (await client.set(lockKey, token, { NX: true, PX: 15_000 })) {
         try {
           return await handler();
         } finally {

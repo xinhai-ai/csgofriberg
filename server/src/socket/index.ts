@@ -437,9 +437,13 @@ async function refreshConnectionSlot(ip: string, identity: string, socketId: str
 export function setupSocket(io: Server) {
   const presenceSubscribers = new Set<string>();
   let lastPresence: Omit<PresenceStats, 'updatedAt'> | null = null;
+  let presenceRequest: Promise<PresenceStats> | null = null;
   const presenceWorker = setInterval(() => {
     if (!presenceSubscribers.size) return;
-    void getPresenceStats().then((stats) => {
+    presenceRequest ??= getPresenceStats().finally(() => {
+      presenceRequest = null;
+    });
+    void presenceRequest.then((stats) => {
       const comparable = {
         onlineUsers: stats.onlineUsers,
         multiplayerRooms: stats.multiplayerRooms,
@@ -449,7 +453,7 @@ export function setupSocket(io: Server) {
       lastPresence = comparable;
       for (const socketId of presenceSubscribers) io.to(socketId).emit('presence:stats', stats);
     }).catch((err) => console.error('[presence]', err));
-  }, 1000);
+  }, 2000);
   presenceWorker.unref?.();
   const presenceCleanupWorker = setInterval(() => {
     void getPresenceStats().catch((err) => console.error('[presence:cleanup]', err));
@@ -660,7 +664,7 @@ export function setupSocket(io: Server) {
     safeOn(socket, 'game:guess', async (payload, ack) => {
       if (!(await socketAllowed('guess', me.key, 12, 10))) return ack?.({ code: 'RATE_LIMITED' });
       const room = await getRoomForIdentity(me.key);
-      if (!room) return ack?.({ code: 'NO_ACTIVE_ROUND' });
+      if (!room) return ack?.({ code: 'NO_ACTIVE_ROUND', reason: 'identity_room_missing' });
       const guess = getPlayer(Number(payload?.playerId));
       if (!guess) return ack?.({ code: 'PLAYER_NOT_FOUND' });
       const roundId = Number(payload?.roundId);
@@ -674,11 +678,19 @@ export function setupSocket(io: Server) {
         if (previous) {
           return { duplicate: true, feedback: previous, round: locked.round, room: structuredClone(locked) };
         }
-        if (locked.status !== 'playing' || !locked.targetPlayerId) return { code: 'NO_ACTIVE_ROUND' };
-        if (locked.round !== roundId) return { code: 'STALE_ROUND' };
-        if (locked.roundEndsAt && locked.roundEndsAt <= Date.now()) return { code: 'NO_ACTIVE_ROUND' };
+        if (locked.status !== 'playing' || !locked.targetPlayerId) {
+          return { code: 'NO_ACTIVE_ROUND', reason: 'round_not_playing', room: structuredClone(locked) };
+        }
+        if (locked.round !== roundId) {
+          return { code: 'STALE_ROUND', reason: 'round_id_mismatch', room: structuredClone(locked) };
+        }
+        if (locked.roundEndsAt && locked.roundEndsAt <= Date.now()) {
+          return { code: 'NO_ACTIVE_ROUND', reason: 'deadline_passed', room: structuredClone(locked) };
+        }
         const player = locked.players.find((p) => p.key === me.key);
-        if (!player) return { code: 'NO_ACTIVE_ROUND' };
+        if (!player) {
+          return { code: 'NO_ACTIVE_ROUND', reason: 'player_missing', room: structuredClone(locked) };
+        }
         if (player.guesses.length >= MAX_GUESSES) return { code: 'GUESS_LIMIT_REACHED' };
         if (player.guesses.some((item) => item.playerId === guess.id)) return { code: 'ALREADY_GUESSED' };
         const target = getPlayer(locked.targetPlayerId);
@@ -709,7 +721,26 @@ export function setupSocket(io: Server) {
           room: structuredClone(locked),
         };
       });
-      if (!result || 'code' in result) return ack?.({ code: result?.code ?? 'NO_ACTIVE_ROUND' });
+      if (!result) return ack?.({ code: 'NO_ACTIVE_ROUND', reason: 'room_missing' });
+      if ('code' in result) {
+        if ('reason' in result && result.reason === 'deadline_passed') {
+          await finishRound(io, room.id, null, 'timeout', roundId);
+          const latest = await getRoom(room.id);
+          return ack?.({
+            code: result.code,
+            reason: result.reason,
+            room: latest ? publicRoom(latest, me.key) : undefined,
+          });
+        }
+        if ('room' in result && result.room) {
+          return ack?.({
+            code: result.code,
+            reason: 'reason' in result ? result.reason : undefined,
+            room: publicRoom(result.room, me.key),
+          });
+        }
+        return ack?.({ code: result.code });
+      }
       ack?.({ feedback: result.feedback });
       if (!('duplicate' in result)) {
         emitRoomViews(io, result.room, 'game:guess:applied', (viewerKey) => ({

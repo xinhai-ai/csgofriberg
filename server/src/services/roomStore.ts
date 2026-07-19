@@ -183,7 +183,7 @@ async function acquireRedisLock(id: string): Promise<(() => Promise<void>) | nul
   const token = randomUUID();
   const key = redisKey(`lock:room:${id}`);
   for (let attempt = 0; attempt < 25; attempt++) {
-    if (await client.set(key, token, { NX: true, PX: 5000 })) {
+    if (await client.set(key, token, { NX: true, PX: 15_000 })) {
       return async () => {
         await client.eval(
           'if redis.call("get", KEYS[1]) == ARGV[1] then return redis.call("del", KEYS[1]) else return 0 end',
