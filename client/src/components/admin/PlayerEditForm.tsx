@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useId, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { PLAYER_ROLE_OPTIONS } from '../../utils/playerRoles';
+import ModalPortal from '../ModalPortal';
 
 export interface PlayerForm {
   id?: number;
@@ -78,24 +79,25 @@ export default function PlayerEditForm({ initial, onSubmit, onCancel }: Props) {
   };
 
   return (
-    <div
-      className="admin-player-backdrop"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget && !saving) onCancel();
-      }}
-    >
-      <div className="admin-player-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId}>
-        <div className="admin-player-dialog-heading">
-          <div>
-            <h2 id={titleId}>{form.id ? `修改选手: ${form.nickname}` : '新增选手'}</h2>
-            <p>完整填写选手属性，带星号的字段为必填项。</p>
+    <ModalPortal>
+      <div
+        className="admin-player-backdrop"
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget && !saving) onCancel();
+        }}
+      >
+        <div className="admin-player-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+          <div className="admin-player-dialog-heading">
+            <div>
+              <h2 id={titleId}>{form.id ? `修改选手: ${form.nickname}` : '新增选手'}</h2>
+              <p>完整填写选手属性，带星号的字段为必填项。</p>
+            </div>
+            <button className="confirm-close" type="button" aria-label="关闭" onClick={onCancel} disabled={saving}>
+              <X size={18} />
+            </button>
           </div>
-          <button className="confirm-close" type="button" aria-label="关闭" onClick={onCancel} disabled={saving}>
-            <X size={18} />
-          </button>
-        </div>
 
-        <form onSubmit={submit}>
+          <form onSubmit={submit}>
           <div className="admin-player-form-grid">
             <label className="admin-player-field">
               <span>选手昵称 *</span>
@@ -145,8 +147,9 @@ export default function PlayerEditForm({ initial, onSubmit, onCancel }: Props) {
             <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={saving}>取消</button>
             <button className="btn btn-green" disabled={saving}>{saving ? '保存中...' : form.id ? '保存修改' : '新增选手'}</button>
           </div>
-        </form>
+          </form>
+        </div>
       </div>
-    </div>
+    </ModalPortal>
   );
 }

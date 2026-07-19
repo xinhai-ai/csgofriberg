@@ -264,6 +264,9 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
 .replay-backdrop {
   position: fixed;
   inset: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
   z-index: 220;
   display: grid;
   place-items: center;
@@ -340,6 +343,9 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
 .admin-player-backdrop {
   position: fixed;
   inset: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
   z-index: 210;
   display: grid;
   place-items: center;
@@ -520,6 +526,9 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
 .overlay {
   position: fixed;
   inset: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
   background: rgba(17, 32, 56, 0.58);
   backdrop-filter: blur(5px);
   display: flex;
@@ -564,6 +573,9 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
 .confirm-backdrop {
   position: fixed;
   inset: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
   z-index: 200;
   display: grid;
   place-items: center;

@@ -7,6 +7,7 @@ import GuessBoard from '../components/GuessBoard';
 import { PlayerInfoTable } from '../components/AnswerOverlay';
 import { api, errMsg } from '../api/client';
 import { GuessFeedback, PlayerInfo } from '../types';
+import ModalPortal from '../components/ModalPortal';
 
 interface RecentGame {
   id: number;
@@ -85,13 +86,14 @@ function ReplayDialog({ replay, onClose }: { replay: ReplayGame; onClose: () => 
   }, [onClose]);
 
   return (
-    <div
-      className="replay-backdrop"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
-      <div className="replay-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+    <ModalPortal>
+      <div
+        className="replay-backdrop"
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget) onClose();
+        }}
+      >
+        <div className="replay-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <div className="replay-heading">
           <div>
             <h2 id={titleId}>对局回放</h2>
@@ -125,8 +127,9 @@ function ReplayDialog({ replay, onClose }: { replay: ReplayGame; onClose: () => 
             ? <GuessBoard guesses={replay.guesses} />
             : <p className="muted">本局未进行猜测。</p>}
         </section>
+        </div>
       </div>
-    </div>
+    </ModalPortal>
   );
 }
 

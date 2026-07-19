@@ -9,6 +9,7 @@ import {
   useState,
 } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
+import ModalPortal from './ModalPortal';
 
 export interface ConfirmOptions {
   title: string;
@@ -77,55 +78,57 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     <ConfirmContext.Provider value={confirm}>
       {children}
       {pending && (
-        <div
-          className="confirm-backdrop"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) settle(false);
-          }}
-        >
+        <ModalPortal>
           <div
-            className={`confirm-dialog ${pending.tone === 'danger' ? 'danger' : 'warning'}`}
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby={titleId}
-            aria-describedby={messageId}
+            className="confirm-backdrop"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) settle(false);
+            }}
           >
-            <div className="confirm-icon" aria-hidden="true">
-              <AlertTriangle size={22} />
-            </div>
-            <div className="confirm-content">
-              <div className="confirm-heading">
-                <h2 id={titleId}>{pending.title}</h2>
-                <button
-                  className="confirm-close"
-                  type="button"
-                  aria-label="关闭"
-                  onClick={() => settle(false)}
-                >
-                  <X size={18} />
-                </button>
+            <div
+              className={`confirm-dialog ${pending.tone === 'danger' ? 'danger' : 'warning'}`}
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby={titleId}
+              aria-describedby={messageId}
+            >
+              <div className="confirm-icon" aria-hidden="true">
+                <AlertTriangle size={22} />
               </div>
-              <p id={messageId}>{pending.message}</p>
-              <div className="confirm-actions">
-                <button
-                  ref={cancelButtonRef}
-                  className="btn btn-ghost"
-                  type="button"
-                  onClick={() => settle(false)}
-                >
-                  {pending.cancelLabel ?? '取消'}
-                </button>
-                <button
-                  className={`btn ${pending.tone === 'danger' ? 'btn-danger' : 'btn-warning'}`}
-                  type="button"
-                  onClick={() => settle(true)}
-                >
-                  {pending.confirmLabel ?? '确认'}
-                </button>
+              <div className="confirm-content">
+                <div className="confirm-heading">
+                  <h2 id={titleId}>{pending.title}</h2>
+                  <button
+                    className="confirm-close"
+                    type="button"
+                    aria-label="关闭"
+                    onClick={() => settle(false)}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+                <p id={messageId}>{pending.message}</p>
+                <div className="confirm-actions">
+                  <button
+                    ref={cancelButtonRef}
+                    className="btn btn-ghost"
+                    type="button"
+                    onClick={() => settle(false)}
+                  >
+                    {pending.cancelLabel ?? '取消'}
+                  </button>
+                  <button
+                    className={`btn ${pending.tone === 'danger' ? 'btn-danger' : 'btn-warning'}`}
+                    type="button"
+                    onClick={() => settle(true)}
+                  >
+                    {pending.confirmLabel ?? '确认'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </ConfirmContext.Provider>
   );

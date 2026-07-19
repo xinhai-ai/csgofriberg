@@ -1,6 +1,7 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { Globe, Crosshair, Calendar, Shield, Trophy } from 'lucide-react';
 import { playerRoleLabel } from '../utils/playerRoles';
+import ModalPortal from './ModalPortal';
 
 export interface AnswerInfo {
   nickname: string;
@@ -46,19 +47,29 @@ interface Props {
 
 /** 结算/答案遮罩卡片 */
 export default function AnswerOverlay({ title, answer, extra, actions }: Props) {
+  useEffect(() => {
+    const oldOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = oldOverflow;
+    };
+  }, []);
+
   return (
-    <div className="overlay">
-      <div className="overlay-card">
-        <h2>{title}</h2>
-        {extra}
-        {answer && (
-          <>
-            <p className="answer-name">{answer.nickname}</p>
-            <PlayerInfoTable answer={answer} />
-          </>
-        )}
-        <div className="btns">{actions}</div>
+    <ModalPortal>
+      <div className="overlay">
+        <div className="overlay-card">
+          <h2>{title}</h2>
+          {extra}
+          {answer && (
+            <>
+              <p className="answer-name">{answer.nickname}</p>
+              <PlayerInfoTable answer={answer} />
+            </>
+          )}
+          <div className="btns">{actions}</div>
+        </div>
       </div>
-    </div>
+    </ModalPortal>
   );
 }
