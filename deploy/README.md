@@ -78,10 +78,18 @@ If the package is private, authenticate first using a GitHub token with
 echo "$GHCR_TOKEN" | docker login ghcr.io -u GITHUB_USERNAME --password-stdin
 ```
 
-The application calls `initDb()` before it starts listening. This creates or
-updates tables and indexes and imports the bundled player seed only when the
-player table is empty. A migration failure causes the application container to
-exit instead of serving against a partial schema.
+Compose first runs the one-shot `migrate` service. It creates or updates tables
+and indexes and imports the bundled player seed only when the player table is
+empty. The `app` service is not started unless migration exits successfully.
+The application also calls the same idempotent initialization before listening
+as a second guard against an incomplete schema.
+
+Check migration output separately when startup fails:
+
+```bash
+docker compose logs migrate
+docker compose ps -a migrate app
+```
 
 Health check:
 

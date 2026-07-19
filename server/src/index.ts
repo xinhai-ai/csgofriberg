@@ -27,7 +27,9 @@ import { requirePow } from './middleware/pow';
 
 async function main() {
   validateProductionConfig();
+  console.log('[server] 正在检查数据库结构');
   await initDb();
+  console.log('[server] 数据库结构已就绪');
   const redisReady = await initRedis();
   await initPlayerCache();
   const stopMatchWorker = redisReady ? await initMatchResultWorker() : async () => undefined;
