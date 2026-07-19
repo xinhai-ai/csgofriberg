@@ -1,8 +1,8 @@
-import bcrypt from 'bcryptjs';
 import { db } from './knex';
 import { initDb } from './init';
 import { closeRedis, initRedis } from '../redis';
 import { invalidateAuthUser } from '../middleware/auth';
+import { closePasswordWorkers, hashPassword } from '../services/password';
 
 async function main() {
   const username = process.env.ADMIN_USERNAME?.trim();
@@ -12,7 +12,7 @@ async function main() {
   }
   await initDb();
   await initRedis();
-  const passwordHash = await bcrypt.hash(password, 12);
+  const passwordHash = await hashPassword(password);
   const existing = await db('users').where({ username }).first();
   if (existing) {
     await db('users').where({ id: existing.id }).update({
@@ -34,6 +34,7 @@ main()
     process.exitCode = 1;
   })
   .finally(async () => {
+    await closePasswordWorkers();
     await closeRedis();
     await db.destroy();
   });

@@ -5,6 +5,7 @@ import PlayerEditForm, { PlayerForm, emptyPlayer } from './PlayerEditForm';
 import { api, errMsg } from '../../api/client';
 import { useConfirm } from '../ConfirmDialog';
 import { playerRoleLabel } from '../../utils/playerRoles';
+import { clearPlayerListCache } from '../../api/playerList';
 
 interface AdminPlayer extends PlayerForm {
   id: number;
@@ -78,6 +79,7 @@ export default function AdminPlayers() {
       } else {
         await api.post('/admin/players', body);
       }
+      clearPlayerListCache();
       setEditing(null);
       setMessage(id ? '修改已保存' : '新增成功');
       if (!id && page !== 1) setPage(1);
@@ -99,6 +101,7 @@ export default function AdminPlayers() {
     setError('');
     try {
       const res = await api.delete(`/admin/players/${p.id}`);
+      clearPlayerListCache();
       setMessage(res.data.softDeleted ? '该选手有历史对局,已标记为退役' : '已删除');
       await load();
     } catch (err) {
@@ -113,6 +116,7 @@ export default function AdminPlayers() {
       const parsed = JSON.parse(importText);
       const list = Array.isArray(parsed) ? parsed : parsed.players;
       const res = await api.post('/admin/players/import', { players: list });
+      clearPlayerListCache();
       setMessage(`导入完成:新增 ${res.data.created},更新 ${res.data.updated}`);
       setImportText('');
       if (page !== 1) setPage(1);

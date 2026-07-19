@@ -14,6 +14,7 @@ export interface StoredIdentity {
 
 export interface QueuedIdentity extends StoredIdentity {
   socketId: string;
+  anonymous?: boolean;
 }
 
 export interface StoredPlayer extends StoredIdentity {
@@ -37,6 +38,7 @@ export interface StoredRoom {
   dbType: DbType;
   boType: BoType;
   allowSpectators: boolean;
+  anonymous: boolean;
   round: number;
   players: StoredPlayer[];
   spectators: StoredSpectator[];
@@ -68,20 +70,19 @@ export async function getRoom(id: string): Promise<StoredRoom | null> {
   if (!client) {
     const room = localRooms.get(id);
     if (room && typeof room.allowSpectators !== 'boolean') room.allowSpectators = false;
+    if (room && typeof room.anonymous !== 'boolean') room.anonymous = false;
     return room ?? null;
   }
   const raw = await client.get(roomKey(id));
   if (!raw) return null;
   const room = JSON.parse(raw) as StoredRoom;
   if (typeof room.allowSpectators !== 'boolean') room.allowSpectators = false;
+  if (typeof room.anonymous !== 'boolean') room.anonymous = false;
   return room;
 }
 
 export async function getRoomForIdentity(identity: string): Promise<StoredRoom | null> {
-  const client = redis();
-  const id = client
-    ? await client.get(identityKey(identity))
-    : localIdentityRooms.get(identity);
+  const id = await getRoomIdForIdentity(identity);
   if (!id) return null;
   const room = await getRoom(id);
   if (!room || room.status === 'finished') {
@@ -89,6 +90,13 @@ export async function getRoomForIdentity(identity: string): Promise<StoredRoom |
     return null;
   }
   return room;
+}
+
+export async function getRoomIdForIdentity(identity: string): Promise<string | null> {
+  const client = redis();
+  return client
+    ? await client.get(identityKey(identity))
+    : localIdentityRooms.get(identity) ?? null;
 }
 
 export async function saveRoom(room: StoredRoom): Promise<void> {
@@ -180,7 +188,7 @@ async function acquireRedisLock(id: string): Promise<(() => Promise<void>) | nul
   const token = randomUUID();
   const key = redisKey(`lock:room:${id}`);
   for (let attempt = 0; attempt < 25; attempt++) {
-    if (await client.set(key, token, { NX: true, PX: 5000 })) {
+    if (await client.set(key, token, { NX: true, PX: 15_000 })) {
       return async () => {
         await client.eval(
           'if redis.call("get", KEYS[1]) == ARGV[1] then return redis.call("del", KEYS[1]) else return 0 end',
@@ -195,7 +203,8 @@ async function acquireRedisLock(id: string): Promise<(() => Promise<void>) | nul
 
 export async function withRoomLock<T>(
   id: string,
-  handler: (room: StoredRoom) => Promise<T> | T
+  handler: (room: StoredRoom) => Promise<T> | T,
+  shouldSave: (result: T) => boolean = () => true
 ): Promise<T | null> {
   const releaseRedis = await acquireRedisLock(id);
   if (releaseRedis) {
@@ -203,7 +212,7 @@ export async function withRoomLock<T>(
       const room = await getRoom(id);
       if (!room) return null;
       const result = await handler(room);
-      await saveRoom(room);
+      if (shouldSave(result)) await saveRoom(room);
       return result;
     } finally {
       await releaseRedis();
@@ -220,7 +229,7 @@ export async function withRoomLock<T>(
     const room = await getRoom(id);
     if (!room) return null;
     const result = await handler(room);
-    await saveRoom(room);
+    if (shouldSave(result)) await saveRoom(room);
     return result;
   } finally {
     release();

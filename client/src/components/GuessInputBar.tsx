@@ -7,7 +7,7 @@ interface Suggestion {
 }
 
 interface Props {
-  onPick: (player: Suggestion) => void;
+  onPick: (player: Suggestion) => void | Promise<void>;
   disabled?: boolean;
   placeholder?: string;
   buttonText?: string;
@@ -27,7 +27,10 @@ export default function GuessInputBar({
   const [items, setItems] = useState<Suggestion[]>([]);
   const [active, setActive] = useState(0);
   const [open, setOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const timer = useRef<number>();
+  const input = useRef<HTMLInputElement>(null);
+  const refocusAfterSubmit = useRef(false);
   const players = useRef<Suggestion[]>([]);
 
   useEffect(() => {
@@ -55,16 +58,54 @@ export default function GuessInputBar({
     return () => window.clearTimeout(timer.current);
   }, [text]);
 
-  const pick = (item: Suggestion) => {
-    onPick(item);
-    setText('');
-    setItems([]);
-    setOpen(false);
+  useEffect(() => {
+    if (submitting || disabled || !refocusAfterSubmit.current) return;
+    refocusAfterSubmit.current = false;
+    input.current?.focus();
+  }, [disabled, submitting]);
+
+  useEffect(() => {
+    const focusInputOnEnter = (event: KeyboardEvent) => {
+      if (
+        event.key !== 'Enter' ||
+        event.defaultPrevented ||
+        event.isComposing ||
+        submitting ||
+        disabled ||
+        document.querySelector('[aria-modal="true"]')
+      ) return;
+
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        target.closest('input, textarea, select, button, a, [contenteditable="true"], [role="button"]')
+      ) return;
+
+      event.preventDefault();
+      input.current?.focus();
+    };
+
+    window.addEventListener('keydown', focusInputOnEnter);
+    return () => window.removeEventListener('keydown', focusInputOnEnter);
+  }, [disabled, submitting]);
+
+  const pick = async (item: Suggestion) => {
+    if (disabled || submitting) return;
+    refocusAfterSubmit.current = true;
+    setSubmitting(true);
+    try {
+      await onPick(item);
+      setText('');
+      setItems([]);
+      setOpen(false);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const submit = (e?: FormEvent) => {
     e?.preventDefault();
-    if (items.length) pick(items[active]);
+    if (items.length) void pick(items[active]);
   };
 
   return (
@@ -75,7 +116,10 @@ export default function GuessInputBar({
             <li
               key={item.id}
               className={i === active ? 'active' : ''}
-              onMouseDown={() => pick(item)}
+              onMouseDown={(event) => {
+                event.preventDefault();
+                void pick(item);
+              }}
             >
               {item.nickname}
             </li>
@@ -84,9 +128,10 @@ export default function GuessInputBar({
       )}
       <form className="input-bar" onSubmit={submit}>
         <input
+          ref={input}
           className="input"
           value={text}
-          disabled={disabled}
+          disabled={disabled || submitting}
           placeholder={placeholder}
           autoComplete="off"
           onChange={(e) => setText(e.target.value)}
@@ -103,8 +148,8 @@ export default function GuessInputBar({
             }
           }}
         />
-        <button className="btn" disabled={disabled || !items.length}>
-          {buttonText}
+        <button className="btn" disabled={disabled || submitting || !items.length}>
+          {submitting ? '提交中...' : buttonText}
         </button>
       </form>
     </>

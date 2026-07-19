@@ -24,6 +24,8 @@ import { rateLimit } from './middleware/rateLimit';
 import { initMatchResultWorker } from './services/matchResultQueue';
 import powRoutes from './routes/pow';
 import { requirePow } from './middleware/pow';
+import { closePasswordWorkers } from './services/password';
+import { getRuntimeSnapshot, startRuntimeMonitor } from './services/runtimeMonitor';
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 
@@ -53,6 +55,7 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, onTimeout: () =>
 
 async function main() {
   validateProductionConfig();
+  const stopRuntimeMonitor = startRuntimeMonitor();
   console.log('[server] 正在检查数据库结构');
   await initDb();
   console.log('[server] 数据库结构已就绪');
@@ -88,16 +91,16 @@ async function main() {
     }
     next();
   });
-  app.use(express.json({ limit: '2mb' }));
-  app.use('/api', rateLimit({ name: 'api', limit: 600, windowSeconds: 60 }));
-
   app.get('/api/health', (_req, res) =>
     res.json({
       ok: true,
       redis: isRedisAvailable() ? 'up' : 'degraded',
       features: { leaderboard: config.showLeaderboard },
+      runtime: getRuntimeSnapshot(),
     })
   );
+  app.use('/api', rateLimit({ name: 'api', limit: 600, windowSeconds: 60 }));
+  app.use('/api', express.json({ limit: '2mb' }));
   app.use('/api/pow', powRoutes);
   app.use('/api', requirePow);
 
@@ -151,6 +154,7 @@ async function main() {
       shuttingDown = true;
       console.log(`[server] 收到 ${signal},开始优雅退出`);
       stopSocket();
+      stopRuntimeMonitor();
 
       const serverClosed = new Promise<void>((resolve) => {
         server.close(() => resolve());
@@ -175,6 +179,7 @@ async function main() {
           () => undefined
         ),
         withTimeout(closeRedis(), SHUTDOWN_TIMEOUT_MS, () => undefined),
+        withTimeout(closePasswordWorkers(), SHUTDOWN_TIMEOUT_MS, () => undefined),
         withTimeout(db.destroy(), SHUTDOWN_TIMEOUT_MS, () => undefined),
       ]);
       console.log('[server] 优雅退出完成');

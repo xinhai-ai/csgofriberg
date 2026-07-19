@@ -172,6 +172,7 @@ describe('multiplayer socket integration', () => {
         dbType: 'normal',
         boType: 3,
         allowSpectators: true,
+        anonymous: true,
       });
       createdRoomIds.push(created.room.id);
       await emit(b, 'room:join', { roomId: created.room.id });
@@ -208,6 +209,8 @@ describe('multiplayer socket integration', () => {
       expect(spectatorUpdate.feedback.attributes.team).toHaveProperty('value');
 
       const syncedB = await emit(b, 'room:sync');
+      expect(syncedB.room.anonymous).toBe(true);
+      expect(syncedB.room.players.map((player: any) => player.name)).toEqual(['玩家 1', '玩家 2']);
       const opponentView = syncedB.room.players.find((player: any) => player.key === `g:${keyA}`);
       expect(opponentView.guesses[0]).toMatchObject({ hidden: true, correct: false });
       expect(opponentView.guesses[0]).not.toHaveProperty('playerId');
@@ -215,6 +218,10 @@ describe('multiplayer socket integration', () => {
       expect(opponentView.guesses[0].attributes.nationality).not.toHaveProperty('value');
 
       const spectatorSync = await emit(spectator, 'room:sync');
+      expect(spectatorSync.room.players.map((player: any) => player.name)).toEqual([
+        '玩家 1',
+        '玩家 2',
+      ]);
       const spectatorView = spectatorSync.room.players.find(
         (player: any) => player.key === `g:${keyA}`
       );
@@ -252,6 +259,7 @@ describe('multiplayer socket integration', () => {
       const created = await emit(a, 'room:create', { dbType: 'normal', boType: 3 });
       createdRoomIds.push(created.room.id);
       expect(created.room.allowSpectators).toBe(false);
+      expect(created.room.anonymous).toBe(false);
       await emit(b, 'room:join', { roomId: created.room.id });
 
       const rejected = await emit(spectator, 'room:join', {

@@ -17,6 +17,7 @@ const MESSAGES: Record<string, string> = {
   REDIS_UNAVAILABLE: '游戏状态服务暂时不可用,请稍后重试',
   RATE_LIMITED: '操作过于频繁,请稍后再试',
   RATE_LIMIT_UNAVAILABLE: '服务繁忙,请稍后重试',
+  AUTH_BUSY: '登录服务繁忙,请稍后重试',
   // Socket
   IDENTITY_REQUIRED: '身份校验失败,请刷新页面',
   ALREADY_IN_ROOM: '你已在一个房间中,请先退出',

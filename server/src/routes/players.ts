@@ -14,7 +14,8 @@ router.get(
     const list = await getPublicPlayerList();
     const etag = `\"players-${list.version}\"`;
     res.setHeader('ETag', etag);
-    res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=86400');
+    res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+    res.setHeader('X-Player-List-Version', list.version);
     if (req.headers['if-none-match'] === etag) return res.status(304).end();
     res.json(list);
   })

@@ -17,6 +17,7 @@ import {
   deleteRoom,
   getRoom,
   getRoomForIdentity,
+  getRoomIdForIdentity,
   queueOrTakeOpponent,
   releaseRoomCapacity,
   reserveRoomCapacity,
@@ -106,20 +107,21 @@ function publicRoom(room: StoredRoom, viewerKey: string) {
     dbType: room.dbType,
     boType: room.boType,
     allowSpectators: room.allowSpectators,
+    anonymous: room.anonymous,
     round: room.round,
     winsNeeded: winsNeeded(room.boType),
     maxGuesses: MAX_GUESSES,
     roundEndsAt: room.roundEndsAt,
     roundId: room.round,
     spectators: room.spectators.map((s) => ({ key: s.key, name: s.name })),
-    players: room.players.map((p) => {
+    players: room.players.map((p, playerIndex) => {
       const guesses = p.guesses.map((feedback) => {
         const guess = getPlayer(feedback.playerId);
         return completeGuessFeedback(feedback, guess, target);
       });
       return {
         key: p.key,
-        name: p.name,
+        name: room.anonymous ? `玩家 ${playerIndex + 1}` : p.name,
         ready: p.ready,
         connected: p.connected,
         score: p.score,
@@ -253,6 +255,7 @@ async function startRound(io: Server, roomId: string) {
     room.targetPlayerId = target.id;
     room.roundEndsAt = Date.now() + ROUND_TIME_MS;
     room.nextRoundAt = null;
+    room.eventResults = {};
     for (const player of room.players) player.guesses = [];
     return { room: structuredClone(room) };
   });
@@ -436,9 +439,13 @@ async function refreshConnectionSlot(ip: string, identity: string, socketId: str
 export function setupSocket(io: Server) {
   const presenceSubscribers = new Set<string>();
   let lastPresence: Omit<PresenceStats, 'updatedAt'> | null = null;
+  let presenceRequest: Promise<PresenceStats> | null = null;
   const presenceWorker = setInterval(() => {
     if (!presenceSubscribers.size) return;
-    void getPresenceStats().then((stats) => {
+    presenceRequest ??= getPresenceStats().finally(() => {
+      presenceRequest = null;
+    });
+    void presenceRequest.then((stats) => {
       const comparable = {
         onlineUsers: stats.onlineUsers,
         multiplayerRooms: stats.multiplayerRooms,
@@ -448,16 +455,22 @@ export function setupSocket(io: Server) {
       lastPresence = comparable;
       for (const socketId of presenceSubscribers) io.to(socketId).emit('presence:stats', stats);
     }).catch((err) => console.error('[presence]', err));
-  }, 1000);
+  }, 2000);
   presenceWorker.unref?.();
   const presenceCleanupWorker = setInterval(() => {
     void getPresenceStats().catch((err) => console.error('[presence:cleanup]', err));
   }, 60_000);
   presenceCleanupWorker.unref?.();
+  let scheduleRequest: Promise<void> | null = null;
   const worker = setInterval(() => {
-    void claimDueSchedules().then((items) =>
-      Promise.all(items.map((item) => processSchedule(io, item)))
-    ).catch((err) => console.error('[schedule]', err));
+    if (scheduleRequest) return;
+    scheduleRequest = claimDueSchedules()
+      .then((items) => Promise.all(items.map((item) => processSchedule(io, item))))
+      .then(() => undefined)
+      .catch((err) => console.error('[schedule]', err))
+      .finally(() => {
+        scheduleRequest = null;
+      });
   }, 1000);
   worker.unref?.();
 
@@ -500,10 +513,19 @@ export function setupSocket(io: Server) {
   io.on('connection', (socket) => {
     const me = socket.data.identity as StoredIdentity;
     socket.emit('identity:self', { key: me.key });
-    const connectionHeartbeat = setInterval(() => {
-      void refreshConnectionSlot(String(socket.data.ip), me.key, socket.id);
-    }, 60_000);
-    connectionHeartbeat.unref?.();
+    let connectionHeartbeat: NodeJS.Timeout | null = null;
+    let connectionHeartbeatActive = true;
+    const scheduleConnectionHeartbeat = () => {
+      if (!connectionHeartbeatActive) return;
+      const delay = 45_000 + Math.floor(Math.random() * 30_000);
+      connectionHeartbeat = setTimeout(() => {
+        void refreshConnectionSlot(String(socket.data.ip), me.key, socket.id)
+          .catch((err) => console.error('[presence:heartbeat]', err))
+          .finally(scheduleConnectionHeartbeat);
+      }, delay);
+      connectionHeartbeat.unref?.();
+    };
+    scheduleConnectionHeartbeat();
     socket.join(identityChannel(me.key));
     void cancelQueue(me.key);
 
@@ -566,6 +588,7 @@ export function setupSocket(io: Server) {
         dbType: payload?.dbType === 'normal' ? 'normal' : 'easy',
         boType,
         allowSpectators: payload?.allowSpectators === true,
+        anonymous: payload?.anonymous === true,
         round: 0,
         players: [makePlayer(me, socket.id, true)],
         spectators: [],
@@ -657,8 +680,8 @@ export function setupSocket(io: Server) {
 
     safeOn(socket, 'game:guess', async (payload, ack) => {
       if (!(await socketAllowed('guess', me.key, 12, 10))) return ack?.({ code: 'RATE_LIMITED' });
-      const room = await getRoomForIdentity(me.key);
-      if (!room) return ack?.({ code: 'NO_ACTIVE_ROUND' });
+      const roomId = await getRoomIdForIdentity(me.key);
+      if (!roomId) return ack?.({ code: 'NO_ACTIVE_ROUND', reason: 'identity_room_missing' });
       const guess = getPlayer(Number(payload?.playerId));
       if (!guess) return ack?.({ code: 'PLAYER_NOT_FOUND' });
       const roundId = Number(payload?.roundId);
@@ -666,17 +689,25 @@ export function setupSocket(io: Server) {
       if (!Number.isInteger(roundId) || !/^[\w-]{16,80}$/.test(eventId)) {
         return ack?.({ code: 'VALIDATION_FAILED' });
       }
-      const result = await withRoomLock(room.id, (locked) => {
+      const result = await withRoomLock(roomId, (locked) => {
         const eventKey = `${me.key}:${eventId}`;
         const previous = locked.eventResults[eventKey];
         if (previous) {
           return { duplicate: true, feedback: previous, round: locked.round, room: structuredClone(locked) };
         }
-        if (locked.status !== 'playing' || !locked.targetPlayerId) return { code: 'NO_ACTIVE_ROUND' };
-        if (locked.round !== roundId) return { code: 'STALE_ROUND' };
-        if (locked.roundEndsAt && locked.roundEndsAt <= Date.now()) return { code: 'NO_ACTIVE_ROUND' };
+        if (locked.status !== 'playing' || !locked.targetPlayerId) {
+          return { code: 'NO_ACTIVE_ROUND', reason: 'round_not_playing', room: structuredClone(locked) };
+        }
+        if (locked.round !== roundId) {
+          return { code: 'STALE_ROUND', reason: 'round_id_mismatch', room: structuredClone(locked) };
+        }
+        if (locked.roundEndsAt && locked.roundEndsAt <= Date.now()) {
+          return { code: 'NO_ACTIVE_ROUND', reason: 'deadline_passed', room: structuredClone(locked) };
+        }
         const player = locked.players.find((p) => p.key === me.key);
-        if (!player) return { code: 'NO_ACTIVE_ROUND' };
+        if (!player) {
+          return { code: 'NO_ACTIVE_ROUND', reason: 'player_missing', room: structuredClone(locked) };
+        }
         if (player.guesses.length >= MAX_GUESSES) return { code: 'GUESS_LIMIT_REACHED' };
         if (player.guesses.some((item) => item.playerId === guess.id)) return { code: 'ALREADY_GUESSED' };
         const target = getPlayer(locked.targetPlayerId);
@@ -706,8 +737,27 @@ export function setupSocket(io: Server) {
           matchOver,
           room: structuredClone(locked),
         };
-      });
-      if (!result || 'code' in result) return ack?.({ code: result?.code ?? 'NO_ACTIVE_ROUND' });
+      }, (value) => !('code' in value) && !('duplicate' in value));
+      if (!result) return ack?.({ code: 'NO_ACTIVE_ROUND', reason: 'room_missing' });
+      if ('code' in result) {
+        if ('reason' in result && result.reason === 'deadline_passed') {
+          await finishRound(io, roomId, null, 'timeout', roundId);
+          const latest = await getRoom(roomId);
+          return ack?.({
+            code: result.code,
+            reason: result.reason,
+            room: latest ? publicRoom(latest, me.key) : undefined,
+          });
+        }
+        if ('room' in result && result.room) {
+          return ack?.({
+            code: result.code,
+            reason: 'reason' in result ? result.reason : undefined,
+            room: publicRoom(result.room, me.key),
+          });
+        }
+        return ack?.({ code: result.code });
+      }
       ack?.({ feedback: result.feedback });
       if (!('duplicate' in result)) {
         emitRoomViews(io, result.room, 'game:guess:applied', (viewerKey) => ({
@@ -739,10 +789,10 @@ export function setupSocket(io: Server) {
             answer: answerView(result.room.targetPlayerId),
             room: publicRoom(result.room, viewerKey),
           }));
-          await schedule('cleanup', room.id, '0', Date.now() + FINISHED_ROOM_TTL_MS);
+          await schedule('cleanup', roomId, '0', Date.now() + FINISHED_ROOM_TTL_MS);
         } else {
-          await schedule('next', room.id, String(result.round), result.room.nextRoundAt!);
-          setLocalTimer(`next:${room.id}`, NEXT_ROUND_DELAY_MS, () => void startRound(io, room.id));
+          await schedule('next', roomId, String(result.round), result.room.nextRoundAt!);
+          setLocalTimer(`next:${roomId}`, NEXT_ROUND_DELAY_MS, () => void startRound(io, roomId));
         }
       }
     });
@@ -775,7 +825,11 @@ export function setupSocket(io: Server) {
       if (await getRoomForIdentity(me.key)) return ack?.({ code: 'ALREADY_IN_ROOM' });
       await cancelQueue(me.key);
       const dbType: DbType = payload?.dbType === 'normal' ? 'normal' : 'easy';
-      const queuedMe: QueuedIdentity = { ...me, socketId: socket.id };
+      const queuedMe: QueuedIdentity = {
+        ...me,
+        socketId: socket.id,
+        anonymous: payload?.anonymous === true,
+      };
       let opponent = isRedisAvailable() ? await queueOrTakeOpponent(dbType, queuedMe) : null;
       if (isRedisAvailable() && !opponent) return ack?.({ queued: true });
       if (!isRedisAvailable() && !opponent) {
@@ -801,6 +855,7 @@ export function setupSocket(io: Server) {
         dbType,
         boType: 3,
         allowSpectators: false,
+        anonymous: Boolean(queuedMe.anonymous || opponent.anonymous),
         round: 0,
         players: [makePlayer(opponent, opponent.socketId, true), makePlayer(me, socket.id, true)],
         spectators: [],
@@ -836,7 +891,8 @@ export function setupSocket(io: Server) {
 
     socket.on('disconnect', () => {
       presenceSubscribers.delete(socket.id);
-      clearInterval(connectionHeartbeat);
+      connectionHeartbeatActive = false;
+      if (connectionHeartbeat) clearTimeout(connectionHeartbeat);
       if (socket.data.connectionSlot) {
         socket.data.connectionSlot = false;
         void releaseConnectionSlot(String(socket.data.ip), me.key, socket.id);
@@ -876,7 +932,6 @@ export function setupSocket(io: Server) {
         emitRoomState(io, result.room);
         io.to(room.id).emit('player:offline', {
           key: me.key,
-          name: me.name,
           graceMs: DISCONNECT_FORFEIT_MS,
         });
         await schedule('disconnect', room.id, me.key, result.deadline);

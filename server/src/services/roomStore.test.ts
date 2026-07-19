@@ -11,6 +11,7 @@ function makeRoom(id: string): StoredRoom {
     dbType: 'normal',
     boType: 3,
     allowSpectators: false,
+    anonymous: false,
     round: 0,
     players: [{
       key: 'u:1', userId: 1, name: 'one', socketId: 's1', ready: true,

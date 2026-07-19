@@ -16,6 +16,8 @@ export interface SingleGameState {
   lastActiveAt: number;
 }
 
+// Active single-player games expire after thirty minutes without a write/guess.
+// This is also the retention window used by the online single-game counter.
 export const SINGLE_GAME_TTL_SECONDS = 1800;
 
 function gameKey(id: string): string {
@@ -75,6 +77,10 @@ export async function loadSingleGame(
   if (!raw) return null;
   const game = JSON.parse(raw) as SingleGameState;
   if (game.identityKey !== identityKey) return null;
+  if (game.lastActiveAt + SINGLE_GAME_TTL_SECONDS * 1000 <= Date.now()) {
+    await deleteSingleGame(game);
+    return null;
+  }
   if (touch) {
     game.lastActiveAt = Date.now();
     await saveSingleGame(game);

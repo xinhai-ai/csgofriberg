@@ -77,6 +77,7 @@ export interface RoomState {
   dbType: 'easy' | 'normal';
   boType: number;
   allowSpectators: boolean;
+  anonymous: boolean;
   round: number;
   roundId: number;
   winsNeeded: number;
