@@ -63,6 +63,15 @@ Set `CORS_ORIGINS` to the exact public origin, such as
 Set `SHOW_LEADERBOARD=false` to hide the leaderboard entry and disable the
 leaderboard API. It defaults to `true`.
 
+PostgreSQL data is stored at `PGDATA_PATH`, which defaults to
+`./data/pgdata` relative to the deployment directory. Create the parent
+directory before the first start if your Docker installation does not create
+bind-mount directories automatically:
+
+```bash
+mkdir -p data/pgdata
+```
+
 ## 3. Start
 
 For a public GHCR package:
@@ -159,8 +168,9 @@ docker compose pull app
 docker compose up -d app
 ```
 
-PostgreSQL and Redis data live in named volumes and are not replaced when the
-application image changes.
+PostgreSQL data lives in the configured `PGDATA_PATH` bind mount, and Redis
+data lives in a named volume. Neither is replaced when the application image
+changes.
 
 ## 7. Backups
 

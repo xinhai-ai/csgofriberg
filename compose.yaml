@@ -87,7 +87,9 @@ services:
       - -c
       - max_connections=30
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - type: bind
+        source: ${PGDATA_PATH:-./data/pgdata}
+        target: /var/lib/postgresql/data
     mem_limit: 384m
     security_opt:
       - no-new-privileges:true
@@ -122,5 +124,4 @@ services:
       retries: 10
 
 volumes:
-  postgres-data:
   redis-data:

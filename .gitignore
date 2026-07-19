@@ -9,5 +9,6 @@ target/
 origin/
 data/imports/conversion-report.json
 data/imports/players-origin.json
+data/pgdata/
 .docker-runtime-test/
 .pnpm-store/
