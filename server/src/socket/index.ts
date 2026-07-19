@@ -11,6 +11,7 @@ import {
   QueuedIdentity,
   StoredPlayer,
   StoredRoom,
+  applyRoomGuess,
   acknowledgeSchedule,
   beginMaintenanceWindow,
   cancelQueue,
@@ -19,6 +20,7 @@ import {
   deleteRoom,
   getRoom,
   getRoomForIdentity,
+  getRoomGuessTarget,
   getRoomIdForIdentity,
   getMaintenanceUntil,
   setRecoveryWindow,
@@ -41,6 +43,26 @@ import { logTransientError, logTransientWarning } from '../services/transientLog
 const NEXT_ROUND_DELAY_MS = 6_000;
 const ROUND_TIME_MS = 120_000;
 const FINISHED_ROOM_TTL_MS = 5 * 60_000;
+const LOCAL_GUESS_LIMIT = 12;
+const LOCAL_GUESS_WINDOW_MS = 10_000;
+const localGuessBuckets = new Map<string, { count: number; expiresAt: number }>();
+
+function allowLocalGuess(identity: string): boolean {
+  const now = Date.now();
+  const current = localGuessBuckets.get(identity);
+  if (!current || current.expiresAt <= now) {
+    if (localGuessBuckets.size >= 10_000) {
+      for (const [key, bucket] of localGuessBuckets) {
+        if (bucket.expiresAt <= now) localGuessBuckets.delete(key);
+      }
+    }
+    localGuessBuckets.set(identity, { count: 1, expiresAt: now + LOCAL_GUESS_WINDOW_MS });
+    return true;
+  }
+  if (current.count >= LOCAL_GUESS_LIMIT) return false;
+  current.count += 1;
+  return true;
+}
 const MAX_SPECTATORS = 100;
 const MAX_CONNECTIONS_PER_IDENTITY = 3;
 const MAX_CONNECTIONS_PER_IP = 20;
@@ -873,6 +895,7 @@ export function setupSocket(io: Server) {
         }
       }
       socket.join(existing.id);
+      socket.data.roomId = existing.id;
       const refreshed = await getRoom(existing.id);
       if (refreshed) {
         emitRoomState(io, refreshed);
@@ -892,8 +915,12 @@ export function setupSocket(io: Server) {
     safeOn(socket, 'room:sync', async (_payload, ack) => {
       await restorePromise;
       const room = await getRoomForIdentity(me.key, true);
-      if (!room) return ack?.({ code: 'NOT_IN_ROOM' });
+      if (!room) {
+        socket.data.roomId = undefined;
+        return ack?.({ code: 'NOT_IN_ROOM' });
+      }
       socket.join(room.id);
+      socket.data.roomId = room.id;
       ack?.({
         room: publicRoom(room, me.key),
         role: room.players.some((p) => p.key === me.key) ? 'player' : 'spectator',
@@ -969,6 +996,7 @@ export function setupSocket(io: Server) {
         throw err;
       }
       socket.join(room.id);
+      socket.data.roomId = room.id;
       ack?.({ room: publicRoom(room, me.key) });
     });
 
@@ -1024,6 +1052,7 @@ export function setupSocket(io: Server) {
       if (!role) return ack?.({ code: 'ROOM_NOT_FOUND' });
       if ('code' in role) return ack?.({ code: role.code });
       socket.join(roomId);
+      socket.data.roomId = roomId;
       const room = await getRoom(roomId);
       if (!room) return ack?.({ code: 'ROOM_NOT_FOUND' });
       emitRoomState(io, room);
@@ -1082,9 +1111,10 @@ export function setupSocket(io: Server) {
 
     safeOn(socket, 'game:guess', async (payload, ack) => {
       await restorePromise;
-      if (!(await socketAllowed('guess', me.key, 12, 10))) return ack?.({ code: 'RATE_LIMITED' });
-      const roomId = await getRoomIdForIdentity(me.key);
+      if (!allowLocalGuess(me.key)) return ack?.({ code: 'RATE_LIMITED' });
+      const roomId = String(socket.data.roomId || await getRoomIdForIdentity(me.key) || '');
       if (!roomId) return ack?.({ code: 'NO_ACTIVE_ROUND', reason: 'identity_room_missing' });
+      socket.data.roomId = roomId;
       const guess = getEnabledPlayer(Number(payload?.playerId));
       if (!guess) return ack?.({ code: 'PLAYER_NOT_FOUND' });
       const roundId = Number(payload?.roundId);
@@ -1092,72 +1122,28 @@ export function setupSocket(io: Server) {
       if (!Number.isInteger(roundId) || !/^[\w-]{16,80}$/.test(eventId)) {
         return ack?.({ code: 'VALIDATION_FAILED' });
       }
-      const result = await withRoomLock(roomId, (locked) => {
-        const eventKey = `${me.key}:${eventId}`;
-        const previousIndex = locked.eventResults[eventKey];
-        if (previousIndex !== undefined) {
-          const previousPlayer = locked.players.find((candidate) => candidate.key === me.key);
-          const previous = previousPlayer?.guesses[previousIndex];
-          if (!previous) return { code: 'NO_ACTIVE_ROUND', reason: 'event_result_missing', room: locked };
-          return { duplicate: true, feedback: previous, round: locked.round, room: locked };
-        }
-        if (locked.status !== 'playing' || !locked.targetPlayerId) {
-          return { code: 'NO_ACTIVE_ROUND', reason: 'round_not_playing', room: locked };
-        }
-        if (locked.round !== roundId) {
-          return { code: 'STALE_ROUND', reason: 'round_id_mismatch', room: locked };
-        }
-        if (locked.roundEndsAt && locked.roundEndsAt <= Date.now()) {
-          return { code: 'NO_ACTIVE_ROUND', reason: 'deadline_passed', room: locked };
-        }
-        const player = locked.players.find((p) => p.key === me.key);
-        if (!player) {
-          return { code: 'NO_ACTIVE_ROUND', reason: 'player_missing', room: locked };
-        }
-        if (player.socketId !== socket.id) {
-          return { code: 'STALE_CONNECTION', room: locked };
-        }
-        if (player.guesses.length >= MAX_GUESSES) return { code: 'GUESS_LIMIT_REACHED' };
-        if (player.guesses.some((item) => item.playerId === guess.id)) return { code: 'ALREADY_GUESSED' };
-        const target = getPlayer(locked.targetPlayerId);
-        if (!target) return { code: 'INTERNAL_ERROR' };
-        const feedback = compareGuess(guess, target);
-        player.guesses.push(feedback);
-        locked.eventResults[eventKey] = player.guesses.length - 1;
-        const shouldFinish = feedback.correct || locked.players.every(
-          (candidate) => candidate.guesses.length >= MAX_GUESSES
-        );
-        let matchOver = false;
-        if (shouldFinish) {
-          if (feedback.correct) player.score += 1;
-          matchOver = feedback.correct && player.score >= winsNeeded(locked.boType);
-          locked.roundEndsAt = null;
-          if (matchOver) locked.status = 'finished';
-          else {
-            locked.status = 'round_over';
-            locked.nextRoundAt = Date.now() + NEXT_ROUND_DELAY_MS;
-          }
-          locked.roundResult = {
-            round: locked.round,
-            winnerKey: feedback.correct ? me.key : null,
-            reason: feedback.correct ? 'guessed' : 'exhausted',
-            matchOver,
-            nextRoundAt: locked.nextRoundAt,
-          };
-          if (matchOver) locked.matchResult = { winnerKey: me.key, reason: 'score' };
-        }
-        return {
-          feedback,
-          round: locked.round,
-          correct: feedback.correct,
-          shouldFinish,
-          matchOver,
-          room: locked,
-        };
-      }, (value) => !('code' in value) && !('duplicate' in value));
-      if (!result) return ack?.({ code: 'NO_ACTIVE_ROUND', reason: 'room_missing' });
-      if ('code' in result) {
-        if ('reason' in result && result.reason === 'deadline_passed') {
+      const targetState = await getRoomGuessTarget(roomId, roundId);
+      if (!targetState) return ack?.({ code: 'NO_ACTIVE_ROUND', reason: 'target_missing' });
+      if (targetState.round !== roundId) {
+        return ack?.({ code: 'STALE_ROUND', reason: 'round_id_mismatch' });
+      }
+      const target = getPlayer(targetState.targetPlayerId);
+      if (!target) return ack?.({ code: 'INTERNAL_ERROR' });
+      const result = await applyRoomGuess({
+        roomId,
+        identity: me.key,
+        socketId: socket.id,
+        expectedRound: roundId,
+        eventId,
+        targetPlayerId: targetState.targetPlayerId,
+        feedback: compareGuess(guess, target),
+        maxGuesses: MAX_GUESSES,
+        nextRoundDelayMs: NEXT_ROUND_DELAY_MS,
+        rateLimit: 12,
+        rateWindowSeconds: 10,
+      });
+      if (result.kind === 'error') {
+        if (result.reason === 'deadline_passed') {
           await finishRound(io, roomId, null, 'timeout', roundId);
           const latest = await getRoom(roomId);
           return ack?.({
@@ -1166,50 +1152,58 @@ export function setupSocket(io: Server) {
             room: latest ? publicRoom(latest, me.key) : undefined,
           });
         }
-        if ('room' in result && result.room) {
-          return ack?.({
-            code: result.code,
-            reason: 'reason' in result ? result.reason : undefined,
-            room: publicRoom(result.room, me.key),
-          });
-        }
-        return ack?.({ code: result.code });
+        return ack?.({ code: result.code, reason: result.reason });
       }
-      ack?.({ feedback: result.feedback, room: publicRoom(result.room, me.key) });
-      if (!('duplicate' in result)) {
-        emitRoomViews(io, result.room, 'game:guess:applied', (viewerKey) => ({
-          roomId: result.room.id,
-          roundId: result.round,
-          key: me.key,
-          eventId,
-          guessCount: result.room.players.find((player) => player.key === me.key)?.guesses.length ?? 0,
-          stateVersion: result.room.revision,
-          feedback: viewerKey === me.key || result.room.spectators.some(
-            (spectator) => spectator.key === viewerKey
-          )
-            ? result.feedback
-            : hiddenGuess(result.feedback),
-        }));
+      const delta = {
+        roomId,
+        roundId: result.round,
+        key: me.key,
+        eventId,
+        guessCount: result.guessCount,
+        stateVersion: result.revision,
+      };
+      if (result.kind === 'duplicate') {
+        ack?.({ feedback: result.feedback });
+        socket.emit('game:guess:applied', { ...delta, feedback: result.feedback });
+        return;
+      }
+      const finishedRoom = result.shouldFinish ? result.room : undefined;
+      ack?.({
+        feedback: result.feedback,
+        room: finishedRoom ? publicRoom(finishedRoom, me.key) : undefined,
+      });
+      for (const playerKey of result.playerKeys) {
+        io.to(identityChannel(playerKey)).emit('game:guess:applied', {
+          ...delta,
+          feedback: playerKey === me.key ? result.feedback : hiddenGuess(result.feedback),
+        });
+      }
+      if (result.spectatorKeys.length) {
+        io.to(result.spectatorKeys.map(identityChannel)).emit('game:guess:applied', {
+          ...delta,
+          feedback: result.feedback,
+        });
       }
       if (result.shouldFinish) {
+        if (!finishedRoom) throw new Error('MISSING_FINISHED_ROOM_SNAPSHOT');
         const winnerKey = result.correct ? me.key : null;
         const reason = result.correct ? 'guessed' : 'exhausted';
-        emitRoomViews(io, result.room, 'round:over', (viewerKey) => ({
+        emitRoomViews(io, finishedRoom, 'round:over', (viewerKey) => ({
           winnerKey,
           reason,
-          answer: answerView(result.room.targetPlayerId),
+          answer: answerView(finishedRoom.targetPlayerId),
           matchOver: result.matchOver,
           nextRoundInMs: result.matchOver ? undefined : NEXT_ROUND_DELAY_MS,
-          room: publicRoom(result.room, viewerKey),
+          room: publicRoom(finishedRoom, viewerKey),
         }));
         if (result.matchOver) {
-          emitRoomViews(io, result.room, 'match:over', (viewerKey) => ({
+          emitRoomViews(io, finishedRoom, 'match:over', (viewerKey) => ({
             winnerKey,
             reason: 'score',
-            answer: answerView(result.room.targetPlayerId),
-            room: publicRoom(result.room, viewerKey),
+            answer: answerView(finishedRoom.targetPlayerId),
+            room: publicRoom(finishedRoom, viewerKey),
           }));
-          void persistMatch(result.room, winnerKey).catch((err) => console.error('[match:persist]', err));
+          void persistMatch(finishedRoom, winnerKey).catch((err) => console.error('[match:persist]', err));
           setLocalTimer(`cleanup:${roomId}`, FINISHED_ROOM_TTL_MS, () => {
             return cleanupRoom(roomId);
           });
@@ -1224,7 +1218,7 @@ export function setupSocket(io: Server) {
       if (!(await socketAllowed('surrender', me.key, 5, 60))) {
         return ack?.({ code: 'RATE_LIMITED' });
       }
-      const roomId = await getRoomIdForIdentity(me.key);
+      const roomId = String(socket.data.roomId || await getRoomIdForIdentity(me.key) || '');
       if (!roomId) return ack?.({ code: 'NO_ACTIVE_ROUND' });
       const roundId = Number(payload?.roundId);
       if (!Number.isInteger(roundId) || roundId <= 0) {
@@ -1249,6 +1243,7 @@ export function setupSocket(io: Server) {
       if (room.status === 'finished') {
         await clearIdentityRoom(me.key, room.id);
         socket.leave(room.id);
+        socket.data.roomId = undefined;
         return ack?.({ ok: true });
       }
       const player = room.players.find((p) => p.key === me.key);
@@ -1280,6 +1275,7 @@ export function setupSocket(io: Server) {
         else if (refreshed) emitRoomState(io, refreshed);
       }
       socket.leave(room.id);
+      socket.data.roomId = undefined;
       ack?.({ ok: true });
     });
 
@@ -1380,6 +1376,7 @@ export function setupSocket(io: Server) {
       if (!savedRoom) throw new Error('ROOM_NOT_FOUND');
       await io.in(identityChannel(opponent.key)).socketsJoin(room.id);
       socket.join(room.id);
+      socket.data.roomId = room.id;
       ack?.({ queued: false, room: publicRoom(savedRoom, me.key) });
       emitRoomViews(io, savedRoom, 'match:found', (viewerKey) => ({
         room: publicRoom(savedRoom, viewerKey),

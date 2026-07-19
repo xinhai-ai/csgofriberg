@@ -21,6 +21,7 @@ const GROUP = 'match-result-writers';
 const consumer = `server-${process.pid}-${randomUUID().slice(0, 8)}`;
 const DEAD_LETTER_KEY = redisKey('stream:match-results:dead');
 let workerClient: NonNullable<ReturnType<typeof duplicateRedisClient>> | null = null;
+let pendingClaimCursor = '0-0';
 
 async function persist(payload: MatchResultPayload): Promise<void> {
   const winner = payload.players.find((player) => player.key === payload.winnerKey);
@@ -110,16 +111,12 @@ async function handleMessages(client: NonNullable<ReturnType<typeof duplicateRed
 }
 
 async function claimPending(client: NonNullable<ReturnType<typeof duplicateRedisClient>>) {
-  const pending = await client.sendCommand([
-    'XPENDING', STREAM_KEY, GROUP, '-', '+', '20',
+  const result = await client.sendCommand([
+    'XAUTOCLAIM', STREAM_KEY, GROUP, consumer, '5000', pendingClaimCursor, 'COUNT', '20',
   ]) as any[];
-  const staleIds = (pending ?? [])
-    .filter((item) => Number(item?.[2] ?? 0) >= 5000)
-    .map((item) => String(item[0]));
-  if (!staleIds.length) return;
-  const claimed = await client.sendCommand([
-    'XCLAIM', STREAM_KEY, GROUP, consumer, '5000', ...staleIds,
-  ]);
+  pendingClaimCursor = typeof result?.[0] === 'string' ? result[0] : '0-0';
+  const claimed = result?.[1];
+  if (!Array.isArray(claimed) || !claimed.length) return;
   await handleMessages(client, [[STREAM_KEY, claimed]]);
 }
 

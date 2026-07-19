@@ -148,8 +148,9 @@ describe('multiplayer socket integration', () => {
         emit(b, 'game:guess', { playerId: targetId, roundId: synced.room.roundId, eventId: `valid-${stamp}-0002` }),
       ]);
       expect(results.filter((result) => result.feedback?.correct)).toHaveLength(2);
-      const finalRoom = JSON.parse((await redis()!.get(redisKey(`room:${created.room.id}`)))!);
-      expect(finalRoom.players.reduce((sum: number, player: any) => sum + player.score, 0)).toBe(1);
+      const finalRoom = await getRoom(created.room.id);
+      expect(finalRoom).not.toBeNull();
+      expect(finalRoom!.players.reduce((sum: number, player: any) => sum + player.score, 0)).toBe(1);
     } finally {
       a.disconnect();
       b.disconnect();
@@ -236,6 +237,87 @@ describe('multiplayer socket integration', () => {
       a.disconnect();
       b.disconnect();
       spectator.disconnect();
+    }
+  });
+
+  it('uses incremental guesses and reloads the Redis script after SCRIPT FLUSH', async () => {
+    const stamp = Date.now();
+    const tokenA = jwt.sign({ key: `script-a-${stamp}`, typ: 'guest' }, config.jwtSecret, { expiresIn: '1h' });
+    const tokenB = jwt.sign({ key: `script-b-${stamp}`, typ: 'guest' }, config.jwtSecret, { expiresIn: '1h' });
+    const a = await connect(withPowCookie(`csgofriberg_guest=${tokenA}`));
+    const b = await connect(withPowCookie(`csgofriberg_guest=${tokenB}`));
+    try {
+      const created = await emit(a, 'room:create', { dbType: 'normal', boType: 3 });
+      createdRoomIds.push(created.room.id);
+      await emit(b, 'room:join', { roomId: created.room.id });
+      await emit(b, 'room:ready');
+      expect((await emit(a, 'game:start')).ok).toBe(true);
+      const synced = await emit(a, 'room:sync');
+      const stored = JSON.parse((await redis()!.get(redisKey(`room:${created.room.id}`)))!);
+      const wrongGuesses = await db('players')
+        .whereNot({ id: stored.targetPlayerId })
+        .select('id')
+        .limit(2);
+
+      const first = await emit(a, 'game:guess', {
+        playerId: wrongGuesses[0].id,
+        roundId: synced.room.roundId,
+        eventId: `script-${stamp}-0001`,
+      });
+      expect(first.feedback.playerId).toBe(wrongGuesses[0].id);
+      expect(first).not.toHaveProperty('room');
+      const identityA = `g:script-a-${stamp}`;
+      const snapshotAfterFirst = JSON.parse(
+        (await redis()!.get(redisKey(`room:${created.room.id}`)))!
+      );
+      expect(snapshotAfterFirst.players.find((player: any) => player.key === identityA).guesses)
+        .toHaveLength(0);
+      const hotGuesses = JSON.parse((await redis()!.hGet(
+        redisKey(`room:${created.room.id}:guesses`),
+        identityA
+      ))!);
+      expect(hotGuesses).toHaveLength(1);
+      expect((await getRoom(created.room.id))!.players.find(
+        (player) => player.key === identityA
+      )!.guesses).toHaveLength(1);
+      const bucket = Math.floor(Date.now() / 10_000);
+      const rateKeys = [bucket, bucket - 1].map((value) => redisKey(`rl:socket:guess:${value}`));
+      const rateKey = (await Promise.all(rateKeys.map(async (key) => ({
+        key,
+        exists: await redis()!.hExists(key, identityA),
+      })))).find((item) => item.exists)?.key;
+      expect(rateKey).toBeTruthy();
+      const fieldTtl = await redis()!.sendCommand([
+        'HTTL', rateKey!, 'FIELDS', '1', identityA,
+      ]) as number[];
+      expect(Number(fieldTtl[0])).toBeGreaterThan(0);
+
+      await redis()!.sendCommand(['SCRIPT', 'FLUSH']);
+      const second = await emit(a, 'game:guess', {
+        playerId: wrongGuesses[1].id,
+        roundId: synced.room.roundId,
+        eventId: `script-${stamp}-0002`,
+      });
+      expect(second.feedback.playerId).toBe(wrongGuesses[1].id);
+      expect(second).not.toHaveProperty('room');
+
+      for (let index = 3; index <= 12; index += 1) {
+        const repeated = await emit(a, 'game:guess', {
+          playerId: wrongGuesses[1].id,
+          roundId: synced.room.roundId,
+          eventId: `script-${stamp}-${String(index).padStart(4, '0')}`,
+        });
+        expect(repeated.code).toBe('ALREADY_GUESSED');
+      }
+      const limited = await emit(a, 'game:guess', {
+        playerId: wrongGuesses[1].id,
+        roundId: synced.room.roundId,
+        eventId: `script-${stamp}-0013`,
+      });
+      expect(limited.code).toBe('RATE_LIMITED');
+    } finally {
+      a.disconnect();
+      b.disconnect();
     }
   });
 

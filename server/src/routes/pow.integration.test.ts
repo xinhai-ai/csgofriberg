@@ -6,7 +6,7 @@ import powRoutes from './pow';
 import authRoutes from './auth';
 import { requirePow } from '../middleware/pow';
 import { errorHandler } from '../middleware/common';
-import { initRedis } from '../redis';
+import { initRedis, redis, redisKey } from '../redis';
 import { hasLeadingZeroBits, modifiedSha256, POW_COOKIE } from '../services/pow';
 
 let server: http.Server;
@@ -66,6 +66,15 @@ describe('proof of work gateway', () => {
   it('issues a short-lived pass and consumes the challenge once', async () => {
     const challengeResult = await request('/api/pow/challenge', { method: 'POST', body: '{}' });
     expect(challengeResult.response.status).toBe(200);
+    const rateKeys = await redis()!.keys(redisKey('rl:pow:challenge:*'));
+    const rateKey = rateKeys.at(-1);
+    expect(rateKey).toBeTruthy();
+    const fields = await redis()!.hKeys(rateKey!);
+    expect(fields.length).toBeGreaterThan(0);
+    const fieldTtl = await redis()!.sendCommand([
+      'HTTL', rateKey!, 'FIELDS', '1', fields[0],
+    ]) as number[];
+    expect(Number(fieldTtl[0])).toBeGreaterThan(0);
     const nonce = solve(challengeResult.data.challenge, challengeResult.data.difficulty);
     const body = JSON.stringify({ id: challengeResult.data.id, nonce });
 

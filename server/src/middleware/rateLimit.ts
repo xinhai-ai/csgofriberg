@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { redis, redisKey } from '../redis';
-import { config } from '../config';
+import { evalCommandScript, redis, redisKey } from '../redis';
 
 interface RateLimitOptions {
   name: string;
@@ -11,6 +10,11 @@ interface RateLimitOptions {
 }
 
 const localCounters = new Map<string, { count: number; expiresAt: number }>();
+const HASH_RATE_LIMIT_SCRIPT = `local count = redis.call('HINCRBY', KEYS[1], ARGV[1], 1)
+if count == 1 then
+  redis.call('HEXPIRE', KEYS[1], ARGV[2], 'FIELDS', '1', ARGV[1])
+end
+return count`;
 
 export async function consumeRateLimit(
   name: string,
@@ -19,23 +23,36 @@ export async function consumeRateLimit(
   windowSeconds: number
 ): Promise<boolean> {
   const bucket = Math.floor(Date.now() / (windowSeconds * 1000));
-  const key = redisKey(`rl:${name}:${identity}:${bucket}`);
+  const key = redisKey(`rl:${name}:${bucket}`);
+  const localKey = `${key}:${identity}`;
   const client = redis();
   if (client) {
-    const bounded = client.withCommandOptions({ timeout: config.redisCommandTimeoutMs });
-    const result = await bounded.multi()
-      .incr(key)
-      .expire(key, windowSeconds + 1)
-      .exec();
-    const count = Number(result?.[0] ?? 0);
+    let count: number;
+    try {
+      count = Number(await evalCommandScript(
+        'rate-limit-hexpire-v1',
+        HASH_RATE_LIMIT_SCRIPT,
+        [key],
+        [identity, String(windowSeconds + 1)]
+      ));
+    } catch (err) {
+      // Keep a compatibility path for Redis versions without hash-field TTL.
+      if (!(err instanceof Error) || !/unknown command|hexpire/i.test(err.message)) throw err;
+      const legacyKey = redisKey(`rl:${name}:${identity}:${bucket}`);
+      const result = await client.multi()
+        .incr(legacyKey)
+        .expire(legacyKey, windowSeconds + 1)
+        .exec();
+      count = Number(result?.[0] ?? 0);
+    }
     return count <= limit;
   }
   const now = Date.now();
-  const current = localCounters.get(key);
+  const current = localCounters.get(localKey);
   const item = !current || current.expiresAt <= now
     ? { count: 1, expiresAt: now + windowSeconds * 1000 }
     : { count: current.count + 1, expiresAt: current.expiresAt };
-  localCounters.set(key, item);
+  localCounters.set(localKey, item);
   return item.count <= limit;
 }
 

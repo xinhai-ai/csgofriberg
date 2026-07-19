@@ -116,12 +116,10 @@ export async function consumeAndVerifyChallenge(
 ): Promise<number> {
   const client = redis();
   if (!client) throw new Error('REDIS_UNAVAILABLE');
-  const raw = await client.eval(
-    `local value = redis.call('GET', KEYS[1])
-     if value then redis.call('DEL', KEYS[1]) end
-     return value`,
-    { keys: [redisKey(`pow:challenge:${id}`)], arguments: [] }
-  ) as string | null;
+  const raw = await client.sendCommand([
+    'GETDEL',
+    redisKey(`pow:challenge:${id}`),
+  ]) as string | null;
   if (!raw) throw new PowVerificationError('POW_CHALLENGE_EXPIRED');
   let stored: StoredChallenge;
   try {
