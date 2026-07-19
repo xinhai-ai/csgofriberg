@@ -216,7 +216,7 @@ button, a { touch-action: manipulation; }
 .muted { color: var(--text-light); font-size: 0.9rem; }
 
 /* ===== 表格 ===== */
-.table-scroll { width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; -webkit-overflow-scrolling: touch; }
+.table-scroll { position: relative; width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; -webkit-overflow-scrolling: touch; }
 .table-scroll .table { min-width: 620px; }
 table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
 .table th, .table td { padding: 12px; border-bottom: 1px solid var(--border); text-align: left; }
@@ -417,6 +417,25 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
   border-radius: 50%;
   background: currentColor;
   opacity: 0.55;
+}
+
+.room-player-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 0;
+}
+.room-player-row > b {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.room-ready-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
 }
 
 /* ===== 底部输入栏 + 自动补全 ===== */
@@ -782,9 +801,9 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
 
 /* ===== 多人房间:左右分栏 ===== */
 .score-bar {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: center;
   gap: clamp(14px, 4vw, 40px);
   min-height: 78px;
   padding: 14px;
@@ -799,6 +818,10 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.score-bar .player-name:last-child {
+  justify-content: flex-end;
+  text-align: right;
 }
 .score-bar .score {
   font-size: 2rem;
@@ -844,7 +867,9 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
 @media (max-width: 960px) {
   .boards { grid-template-columns: 1fr; }
   .lobby-grid { grid-template-columns: 1fr; grid-template-areas: none; max-width: 760px; }
-  .lobby-grid > * { grid-area: auto; }
+  .lobby-grid > :nth-child(1),
+  .lobby-grid > :nth-child(2),
+  .lobby-grid > :nth-child(3) { grid-area: auto; }
 }
 
 @media (max-width: 760px) {
@@ -889,6 +914,26 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
   .game-table td { min-width: 64px; padding: 10px 7px; border-radius: 7px; }
   .game-table td .dir svg { width: 12px; height: 12px; }
   .boards .card { padding: 14px; }
+  .game-table th:first-child,
+  .game-table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    box-shadow: 8px 0 16px rgba(0, 0, 0, 0.12);
+  }
+  .game-table th:first-child { z-index: 3; }
+  .table-scroll .table th:first-child,
+  .table-scroll .table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: var(--card);
+    box-shadow: 8px 0 16px rgba(0, 0, 0, 0.1);
+  }
+  .table-scroll .table th:first-child {
+    z-index: 3;
+    background: var(--card-soft);
+  }
 
   .input-dock { padding-block: 10px; }
   .input-bar { gap: 8px; }
@@ -927,14 +972,44 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
   .replay-answer { padding: 12px; }
   .admin-player-form-grid { grid-template-columns: 1fr; gap: 12px; }
   .admin-player-dialog-actions .btn { flex: 1; }
+  .overlay-card .btns,
+  .confirm-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .overlay-card .btns .btn,
+  .confirm-actions .btn { width: 100%; }
+  .room-player-row { flex-wrap: wrap; }
+  .room-player-row > b { flex: 1 1 140px; }
+  .room-ready-actions .btn { flex: 1; }
+}
+
+@media (max-width: 520px) {
+  .menu-grid { grid-template-columns: 1fr; }
+  .menu-card {
+    min-height: 112px;
+    flex-direction: row;
+    align-items: center;
+    padding: 18px;
+  }
+  .menu-copy { min-width: 0; text-align: left; }
+  .menu-description { display: block; }
+  .bottom-bar { grid-template-columns: 1fr; }
+  .room-code-toggle { width: 40px; padding-inline: 0; }
+  .room-code-toggle span { display: none; }
+  .score-bar { gap: 7px; }
+  .score-bar .player-name { font-size: 0.82rem; }
+  .score-bar .score { font-size: 1.35rem; }
 }
 
 @media (max-width: 400px) {
-  .header-bar .title { max-width: 43vw; }
-  .bottom-bar .btn { font-size: 0.8rem; }
-  .menu-card { min-height: 126px; }
+  :root { --page-inline: 10px; }
+  .header-bar .title { max-width: calc(100vw - 120px); }
+  .bottom-bar .btn { font-size: 0.88rem; }
+  .menu-card { min-height: 102px; }
   .input-bar .btn { padding-inline: 10px; }
   .join-room-form .btn { padding-inline: 8px; }
+  .score-bar .player-name svg { display: none; }
+  .overlay-card .btns,
+  .confirm-actions { grid-template-columns: 1fr; }
+  .room-ready-actions { flex-direction: column; }
 }
 
 @media (prefers-reduced-motion: reduce) {
