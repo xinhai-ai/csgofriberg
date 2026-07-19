@@ -45,9 +45,11 @@ describe('player schema migration', () => {
     expect(await instance.schema.hasColumn('players', 'real_name')).toBe(false);
     expect(await instance.schema.hasColumn('players', 'major_championships')).toBe(true);
     expect(await instance.schema.hasColumn('players', 'is_easy')).toBe(true);
+    expect(await instance.schema.hasColumn('players', 'is_enabled')).toBe(true);
     expect(await instance.schema.hasTable('app_migrations')).toBe(true);
     const player = await instance('players').where({ nickname: 'legacy' }).first();
     expect(player.major_championships).toBe(0);
     expect(player.is_easy).toBe(0);
+    expect(player.is_enabled).toBe(1);
   });
 });

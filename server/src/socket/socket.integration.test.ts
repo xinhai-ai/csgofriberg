@@ -5,9 +5,9 @@ import { Server } from 'socket.io';
 import { io as clientIo, Socket as ClientSocket } from 'socket.io-client';
 import { initDb } from '../db/init';
 import { db } from '../db/knex';
-import { initRedis, redis } from '../redis';
+import { initRedis, redis, redisKey } from '../redis';
 import { initPlayerCache } from '../services/playerCache';
-import { resolveSocketIp, setupSocket } from './index';
+import { resolveSocketIp, setRecoveryWindow, setupSocket } from './index';
 import { browserFingerprint, POW_COOKIE } from '../services/pow';
 import jwt from 'jsonwebtoken';
 import { config } from '../config';
@@ -16,7 +16,7 @@ import { guestNameFromKey, signToken } from '../middleware/auth';
 let server: http.Server;
 let io: Server;
 let baseUrl: string;
-let stopSocket: (() => void) | undefined;
+let stopSocket: (() => Promise<void>) | undefined;
 const createdRoomIds: string[] = [];
 const TEST_USER_AGENT = 'csgofriberg-socket-test';
 
@@ -61,8 +61,10 @@ function onceEvent(socket: ClientSocket, event: string): Promise<any> {
 
 describe('multiplayer socket integration', () => {
   beforeAll(async () => {
+    config.disconnectForfeitMs = 300;
     await initDb();
     await initRedis();
+    await setRecoveryWindow(0);
     await initPlayerCache();
     server = http.createServer();
     io = new Server(server, { cors: { origin: '*' } });
@@ -96,17 +98,17 @@ describe('multiplayer socket integration', () => {
     const client = redis();
     if (client) {
       for (const roomId of createdRoomIds) {
-        const key = `csgofriberg:room:${roomId}`;
+        const key = redisKey(`room:${roomId}`);
         const raw = await client.get(key);
         if (!raw) continue;
         const room = JSON.parse(raw);
         await client.del([key, ...[...room.players, ...room.spectators]
-          .map((member: any) => `csgofriberg:identity-room:${member.key}`)]);
-        await client.zRem('csgofriberg:rooms:active', roomId);
-        await client.zRem(`csgofriberg:rooms:active:ip:${room.ownerIp}`, roomId);
+          .map((member: any) => redisKey(`identity-room:${member.key}`))]);
+        await client.zRem(redisKey('rooms:active'), roomId);
+        await client.zRem(redisKey(`rooms:active:ip:${room.ownerIp}`), roomId);
       }
     }
-    stopSocket?.();
+    await stopSocket?.();
     io.close();
     await new Promise<void>((resolve) => server.close(() => resolve()));
   });
@@ -126,9 +128,10 @@ describe('multiplayer socket integration', () => {
       await emit(b, 'room:join', { roomId: created.room.id });
       await emit(b, 'room:ready');
       const starts = await Promise.all([emit(a, 'game:start'), emit(a, 'game:start')]);
-      expect(starts.filter((result) => result.ok)).toHaveLength(1);
+      expect(starts.every((result) => result.ok)).toBe(true);
       const synced = await emit(a, 'room:sync');
-      const room = await redis()!.get(`csgofriberg:room:${created.room.id}`);
+      expect(synced.room.roundId).toBe(1);
+      const room = await redis()!.get(redisKey(`room:${created.room.id}`));
       const stored = JSON.parse(room!);
       const targetId = stored.targetPlayerId;
       const stale = await emit(a, 'game:guess', {
@@ -144,7 +147,7 @@ describe('multiplayer socket integration', () => {
         emit(b, 'game:guess', { playerId: targetId, roundId: synced.room.roundId, eventId: `valid-${stamp}-0002` }),
       ]);
       expect(results.filter((result) => result.feedback?.correct)).toHaveLength(2);
-      const finalRoom = JSON.parse((await redis()!.get(`csgofriberg:room:${created.room.id}`))!);
+      const finalRoom = JSON.parse((await redis()!.get(redisKey(`room:${created.room.id}`)))!);
       expect(finalRoom.players.reduce((sum: number, player: any) => sum + player.score, 0)).toBe(1);
     } finally {
       a.disconnect();
@@ -182,7 +185,7 @@ describe('multiplayer socket integration', () => {
 
       const syncedA = await emit(a, 'room:sync');
       const stored = JSON.parse(
-        (await redis()!.get(`csgofriberg:room:${created.room.id}`))!
+        (await redis()!.get(redisKey(`room:${created.room.id}`)))!
       );
       const [wrongGuess] = await db('players')
         .whereNot({ id: stored.targetPlayerId })
@@ -324,6 +327,199 @@ describe('multiplayer socket integration', () => {
     }
   });
 
+  it('keeps a waiting-room seat during a short network interruption', async () => {
+    const stamp = Date.now();
+    const keyA = `waiting-reconnect-a-${stamp}`;
+    const keyB = `waiting-reconnect-b-${stamp}`;
+    const cookieA = withPowCookie(`csgofriberg_guest=${jwt.sign(
+      { key: keyA, typ: 'guest' }, config.jwtSecret, { expiresIn: '1h' }
+    )}`);
+    const cookieB = withPowCookie(`csgofriberg_guest=${jwt.sign(
+      { key: keyB, typ: 'guest' }, config.jwtSecret, { expiresIn: '1h' }
+    )}`);
+    const a = await connect(cookieA);
+    let b = await connect(cookieB);
+    try {
+      const created = await emit(a, 'room:create', { dbType: 'easy', boType: 3 });
+      createdRoomIds.push(created.room.id);
+      await emit(b, 'room:join', { roomId: created.room.id });
+      b.disconnect();
+      for (let attempt = 0; attempt < 20; attempt++) {
+        const raw = await redis()!.get(redisKey(`room:${created.room.id}`));
+        const player = raw && JSON.parse(raw).players.find((item: any) => item.key === `g:${keyB}`);
+        if (player && !player.connected) break;
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      const offline = await emit(a, 'room:sync');
+      expect(offline.room.players).toHaveLength(2);
+      expect(offline.room.players.find((player: any) => player.key === `g:${keyB}`).connected)
+        .toBe(false);
+
+      b = await connect(cookieB);
+      const restored = await emit(b, 'room:sync');
+      expect(restored.room.players).toHaveLength(2);
+      expect(restored.room.players.find((player: any) => player.key === `g:${keyB}`).connected)
+        .toBe(true);
+    } finally {
+      a.disconnect();
+      b.disconnect();
+    }
+  });
+
+  it('restores a spectator after a short network interruption', async () => {
+    const stamp = Date.now();
+    const ownerToken = jwt.sign({ key: `spectator-owner-${stamp}`, typ: 'guest' }, config.jwtSecret, { expiresIn: '1h' });
+    const spectatorKey = `spectator-reconnect-${stamp}`;
+    const spectatorCookie = withPowCookie(`csgofriberg_guest=${jwt.sign(
+      { key: spectatorKey, typ: 'guest' }, config.jwtSecret, { expiresIn: '1h' }
+    )}`);
+    const owner = await connect(withPowCookie(`csgofriberg_guest=${ownerToken}`));
+    let spectator = await connect(spectatorCookie);
+    try {
+      const created = await emit(owner, 'room:create', {
+        dbType: 'easy', boType: 3, allowSpectators: true,
+      });
+      createdRoomIds.push(created.room.id);
+      await emit(spectator, 'room:join', { roomId: created.room.id, spectate: true });
+      spectator.disconnect();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      spectator = await connect(spectatorCookie);
+      const restored = await emit(spectator, 'room:sync');
+      expect(restored.role).toBe('spectator');
+      expect(restored.room.id).toBe(created.room.id);
+      expect(restored.room.spectators).toContainEqual(expect.objectContaining({
+        key: `g:${spectatorKey}`,
+      }));
+    } finally {
+      owner.disconnect();
+      spectator.disconnect();
+    }
+  });
+
+  it('keeps explicit ready requests idempotent when an ack is retried', async () => {
+    const stamp = Date.now();
+    const tokenA = jwt.sign({ key: `ready-a-${stamp}`, typ: 'guest' }, config.jwtSecret, { expiresIn: '1h' });
+    const tokenB = jwt.sign({ key: `ready-b-${stamp}`, typ: 'guest' }, config.jwtSecret, { expiresIn: '1h' });
+    const a = await connect(withPowCookie(`csgofriberg_guest=${tokenA}`));
+    const b = await connect(withPowCookie(`csgofriberg_guest=${tokenB}`));
+    try {
+      const created = await emit(a, 'room:create', { dbType: 'easy', boType: 3 });
+      createdRoomIds.push(created.room.id);
+      await emit(b, 'room:join', { roomId: created.room.id });
+      expect((await emit(b, 'room:ready', { ready: true })).ok).toBe(true);
+      expect((await emit(b, 'room:ready', { ready: true })).ok).toBe(true);
+      const synced = await emit(a, 'room:sync');
+      expect(synced.room.players.find((player: any) => player.key === `g:ready-b-${stamp}`).ready)
+        .toBe(true);
+    } finally {
+      a.disconnect();
+      b.disconnect();
+    }
+  });
+
+  it('rejects mutations from a socket replaced by a newer connection', async () => {
+    const stamp = Date.now();
+    const keyA = `takeover-a-${stamp}`;
+    const keyB = `takeover-b-${stamp}`;
+    const cookieA = withPowCookie(`csgofriberg_guest=${jwt.sign(
+      { key: keyA, typ: 'guest' },
+      config.jwtSecret,
+      { expiresIn: '1h' }
+    )}`);
+    const cookieB = withPowCookie(`csgofriberg_guest=${jwt.sign(
+      { key: keyB, typ: 'guest' },
+      config.jwtSecret,
+      { expiresIn: '1h' }
+    )}`);
+    const oldA = await connect(cookieA);
+    const b = await connect(cookieB);
+    let newA: ClientSocket | null = null;
+    try {
+      const created = await emit(oldA, 'room:create', { dbType: 'easy', boType: 3 });
+      createdRoomIds.push(created.room.id);
+      await emit(b, 'room:join', { roomId: created.room.id });
+      newA = await connect(cookieA);
+      expect((await emit(newA, 'room:sync')).room.id).toBe(created.room.id);
+      expect((await emit(oldA, 'room:leave')).code).toBe('STALE_CONNECTION');
+      expect((await emit(oldA, 'room:ready', { ready: false })).code).toBe('STALE_CONNECTION');
+      expect((await emit(newA, 'room:sync')).room.id).toBe(created.room.id);
+    } finally {
+      oldA.disconnect();
+      newA?.disconnect();
+      b.disconnect();
+    }
+  });
+
+  it('ends as a draw instead of choosing a random winner when both players disconnect', async () => {
+    const stamp = Date.now();
+    const keyA = `double-offline-a-${stamp}`;
+    const keyB = `double-offline-b-${stamp}`;
+    const tokenA = jwt.sign({ key: keyA, typ: 'guest' }, config.jwtSecret, { expiresIn: '1h' });
+    const tokenB = jwt.sign({ key: keyB, typ: 'guest' }, config.jwtSecret, { expiresIn: '1h' });
+    const a = await connect(withPowCookie(`csgofriberg_guest=${tokenA}`));
+    const b = await connect(withPowCookie(`csgofriberg_guest=${tokenB}`));
+    const created = await emit(a, 'room:create', { dbType: 'easy', boType: 3 });
+    createdRoomIds.push(created.room.id);
+    await emit(b, 'room:join', { roomId: created.room.id });
+    await emit(b, 'room:ready', { ready: true });
+    await emit(a, 'game:start');
+    a.disconnect();
+    b.disconnect();
+
+    const roomKey = redisKey(`room:${created.room.id}`);
+
+    let finished: any = null;
+    for (let attempt = 0; attempt < 60; attempt++) {
+      const current = await redis()!.get(roomKey);
+      finished = current ? JSON.parse(current) : null;
+      if (finished?.matchResult?.reason === 'disconnect_timeout') break;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+    const schedules = await redis()!.zRangeWithScores(redisKey('room:schedules'), 0, -1);
+    expect(finished?.matchResult, JSON.stringify({ finished, schedules })).toMatchObject({
+      winnerKey: null,
+      reason: 'disconnect_timeout',
+    });
+  });
+
+  it('restores the final match result from the room snapshot', async () => {
+    const stamp = Date.now();
+    const keyA = `result-a-${stamp}`;
+    const keyB = `result-b-${stamp}`;
+    const tokenA = jwt.sign({ key: keyA, typ: 'guest' }, config.jwtSecret, { expiresIn: '1h' });
+    const tokenB = jwt.sign({ key: keyB, typ: 'guest' }, config.jwtSecret, { expiresIn: '1h' });
+    const a = await connect(withPowCookie(`csgofriberg_guest=${tokenA}`));
+    const b = await connect(withPowCookie(`csgofriberg_guest=${tokenB}`));
+    try {
+      const created = await emit(a, 'room:create', { dbType: 'easy', boType: 1 });
+      createdRoomIds.push(created.room.id);
+      await emit(b, 'room:join', { roomId: created.room.id });
+      await emit(b, 'room:ready', { ready: true });
+      await emit(a, 'game:start');
+      const before = await emit(a, 'room:sync');
+      const stored = JSON.parse((await redis()!.get(redisKey(`room:${created.room.id}`)))!);
+      const guessed = await emit(a, 'game:guess', {
+        playerId: stored.targetPlayerId,
+        roundId: before.room.roundId,
+        eventId: `result-${stamp}-0001`,
+      });
+      expect(guessed.room.status).toBe('finished');
+      const restored = await emit(a, 'room:sync');
+      expect(restored.room.matchResult).toMatchObject({
+        winnerKey: `g:${keyA}`,
+        reason: 'score',
+      });
+      expect(restored.room.roundResult).toMatchObject({
+        winnerKey: `g:${keyA}`,
+        reason: 'guessed',
+        matchOver: true,
+      });
+    } finally {
+      a.disconnect();
+      b.disconnect();
+    }
+  });
+
   it('does not interrupt an established socket when its PoW pass expires', async () => {
     const token = jwt.sign(
       { key: `socket-expiry-${Date.now()}`, typ: 'guest' },
@@ -371,10 +567,10 @@ describe('multiplayer socket integration', () => {
         multiplayerRooms: expect.any(Number),
         singleGames: expect.any(Number),
       });
-      expect(await redis()!.zScore('csgofriberg:presence:online', `u:${adminId}`)).not.toBeNull();
-      expect(await redis()!.zCard(`csgofriberg:connections:identity:u:${adminId}`)).toBe(2);
+      expect(await redis()!.zScore(redisKey('presence:online'), `u:${adminId}`)).not.toBeNull();
+      expect(await redis()!.zCard(redisKey(`connections:identity:u:${adminId}`))).toBe(2);
       expect(await redis()!.zCount(
-        'csgofriberg:presence:online',
+        redisKey('presence:online'),
         '-inf',
         '+inf'
       )).toBeGreaterThanOrEqual(1);
@@ -397,9 +593,9 @@ describe('multiplayer socket integration', () => {
     try {
       const created = await emit(socket, 'room:create', { dbType: 'easy', boType: 1 });
       createdRoomIds.push(created.room.id);
-      expect(await redis()!.zScore('csgofriberg:presence:rooms', created.room.id)).not.toBeNull();
+      expect(await redis()!.zScore(redisKey('presence:rooms'), created.room.id)).not.toBeNull();
       await emit(socket, 'room:leave');
-      expect(await redis()!.zScore('csgofriberg:presence:rooms', created.room.id)).toBeNull();
+      expect(await redis()!.zScore(redisKey('presence:rooms'), created.room.id)).toBeNull();
     } finally {
       socket.disconnect();
     }

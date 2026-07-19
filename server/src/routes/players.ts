@@ -38,7 +38,7 @@ router.get(
     const search = String(req.query.search ?? '').trim();
     const suggest = req.query.suggest === '1';
 
-    let query = db<Player>('players').orderBy('nickname');
+    let query = db<Player>('players').where({ is_enabled: true }).orderBy('nickname');
     if (search) {
       query = query.where((b) => {
         b.whereILike('nickname', `%${search}%`)

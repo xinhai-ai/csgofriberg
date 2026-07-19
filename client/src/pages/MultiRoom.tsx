@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Globe,
@@ -125,37 +125,46 @@ export default function MultiRoom() {
   const navigate = useNavigate();
   const confirm = useConfirm();
   const roomRef = useRef<RoomState | null>(null);
+  const myKeyRef = useRef('');
   roomRef.current = room;
+  myKeyRef.current = myKey;
+
+  const applyRoomSnapshot = useCallback((state: RoomState) => {
+    const current = roomRef.current;
+    if (current && state.id === current.id && state.stateVersion < current.stateVersion) return;
+    roomRef.current = state;
+    setRoom(state);
+    setRoundExpired(state.status !== 'playing');
+    setRoundOver(state.matchResult ? null : state.roundResult);
+    setMatchOver(state.matchResult);
+    if (state.players.every((player) => player.connected)) setOfflineNote('');
+  }, []);
 
   useEffect(() => {
     const socket = getSocket();
     const onState = (state: RoomState) => {
-      setRoom(state);
-      // 所有玩家都在线时清除离线提示(对手已重连)
-      if (state.players.every((p) => p.connected)) setOfflineNote('');
+      applyRoomSnapshot(state);
     };
     const onRoundStart = (p: { room: RoomState }) => {
       setRoundOver(null);
       setOfflineNote('');
       setError('');
       setRoundExpired(false);
-      setRoom(p.room);
+      applyRoomSnapshot(p.room);
     };
     const onRoundOver = (p: RoundOver & { room: RoomState }) => {
       setRoundExpired(true);
       setError('');
-      setRoundOver(p);
-      setRoom(p.room);
+      applyRoomSnapshot(p.room);
     };
     const onMatchOver = (p: MatchOver & { room: RoomState }) => {
       setRoundExpired(true);
       setError('');
       setRoundOver(null);
-      setMatchOver(p);
-      setRoom(p.room);
+      applyRoomSnapshot(p.room);
     };
     const onOffline = (p: { key: string; graceMs: number }) => {
-      if (p.key !== myKey) {
+      if (p.key !== myKeyRef.current) {
         const name = roomRef.current?.players.find((player) => player.key === p.key)?.name ?? '对手';
         setOfflineNote(`${name} 已离线,${Math.round(p.graceMs / 1000)} 秒内未重连将判负`);
       }
@@ -165,15 +174,33 @@ export default function MultiRoom() {
     const onGuessApplied = (p: {
       roundId: number;
       key: string;
+      eventId: string;
+      guessCount: number;
+      stateVersion: number;
       feedback: MultiplayerGuessFeedback;
     }) => {
       setRoom((current) => {
         if (!current || current.roundId !== p.roundId) return current;
+        if (p.stateVersion <= current.stateVersion) return current;
+        if (p.stateVersion !== current.stateVersion + 1) {
+          socket.emit('room:sync', {}, (sync: any) => {
+            if (sync?.room) applyRoomSnapshot(sync.room);
+          });
+          return current;
+        }
         const feedback = p.feedback;
         return {
           ...current,
+          stateVersion: p.stateVersion,
           players: current.players.map((player) => {
             if (player.key !== p.key) return player;
+            if (p.guessCount <= player.guessCount) return player;
+            if (p.guessCount !== player.guessCount + 1) {
+              socket.emit('room:sync', {}, (sync: any) => {
+                if (sync?.room) applyRoomSnapshot(sync.room);
+              });
+              return player;
+            }
             const duplicate = !('hidden' in feedback) && player.guesses.some(
               (guess) => !('hidden' in guess) && guess.playerId === feedback.playerId
             );
@@ -182,7 +209,7 @@ export default function MultiRoom() {
               : {
                   ...player,
                   guesses: [...player.guesses, feedback],
-                  guessCount: player.guessCount + 1,
+                  guessCount: p.guessCount,
                 };
           }),
         };
@@ -204,7 +231,7 @@ export default function MultiRoom() {
       const s = getSocket(); // 内部会对手动断开的 socket 执行 connect()
       s.emit('room:sync', {}, (res: any) => {
         if (res?.selfKey) setMyKey(res.selfKey);
-        if (res?.room) setRoom(res.room);
+        if (res?.room) applyRoomSnapshot(res.room);
       });
     };
     const onPageShow = () => resync();
@@ -215,12 +242,12 @@ export default function MultiRoom() {
     window.addEventListener('pageshow', onPageShow);
     document.addEventListener('visibilitychange', onVisible);
     // socket 层重连成功后也刷新一次(如网络闪断自动恢复)
-    socket.io.on('reconnect', resync);
+    socket.on('connect', resync);
 
     // 主动向服务端同步一次房间状态;确认不在任何房间才回大厅
     socket.emit('room:sync', {}, (res: any) => {
       if (res?.selfKey) setMyKey(res.selfKey);
-      if (res?.room) setRoom(res.room);
+      if (res?.room) applyRoomSnapshot(res.room);
       else if (!roomRef.current) navigate('/multi');
     });
     return () => {
@@ -235,15 +262,15 @@ export default function MultiRoom() {
       window.removeEventListener('pagehide', onPageHide);
       window.removeEventListener('pageshow', onPageShow);
       document.removeEventListener('visibilitychange', onVisible);
-      socket.io.off('reconnect', resync);
+      socket.off('connect', resync);
     };
-  }, [navigate, myKey]);
+  }, [applyRoomSnapshot, navigate]);
 
   const emit = (event: string, payload: unknown = {}) => {
     setError('');
     getSocket().emit(event, payload, (res: any) => {
       if (res?.code) setError(translate(res.code));
-      if (res?.room) setRoom(res.room);
+      if (res?.room) applyRoomSnapshot(res.room);
     });
   };
 
@@ -251,27 +278,43 @@ export default function MultiRoom() {
     const current = roomRef.current;
     if (!current || current.status !== 'playing' || roundExpired) return resolve();
     const socket = getSocket();
-    const timer = window.setTimeout(() => {
-      setError(translate('NETWORK_ERROR'));
+    let settled = false;
+    const finish = () => {
+      if (settled) return false;
+      settled = true;
       resolve();
+      return true;
+    };
+    const timer = window.setTimeout(() => {
+      if (!finish()) return;
+      setError(translate('NETWORK_ERROR'));
+      socket.emit('room:sync', {}, (sync: any) => {
+        if (sync?.room) applyRoomSnapshot(sync.room);
+      });
     }, 5_000);
     socket.emit('game:guess', {
       playerId,
       roundId: current.roundId,
       eventId: crypto.randomUUID(),
     }, (res: any) => {
+      if (!finish()) return;
       window.clearTimeout(timer);
-      if (res?.room) setRoom(res.room);
+      if (res?.room) applyRoomSnapshot(res.room);
       if (res?.code === 'NO_ACTIVE_ROUND' || res?.code === 'STALE_ROUND') {
         setError('');
         socket.emit('room:sync', {}, (sync: any) => {
-          if (sync?.room) setRoom(sync.room);
-          resolve();
+          if (sync?.room) applyRoomSnapshot(sync.room);
+        });
+        return;
+      }
+      if (res?.code === 'ROOM_BUSY') {
+        setError('');
+        socket.emit('room:sync', {}, (sync: any) => {
+          if (sync?.room) applyRoomSnapshot(sync.room);
         });
         return;
       }
       if (res?.code) setError(translate(res.code));
-      resolve();
     });
   });
 
@@ -429,7 +472,10 @@ export default function MultiRoom() {
                   开始对局
                 </button>
               ) : (
-                <button className="btn btn-success" onClick={() => emit('room:ready')}>
+                <button
+                  className="btn btn-success"
+                  onClick={() => emit('room:ready', { ready: !me?.ready })}
+                >
                   <Check size={16} />
                   {me?.ready ? '取消准备' : '准备'}
                 </button>
@@ -501,7 +547,7 @@ export default function MultiRoom() {
             </p>
           }
           actions={
-            <button className="btn" onClick={() => navigate('/multi')}>
+            <button className="btn" onClick={() => void leaveRoom()}>
               返回大厅
             </button>
           }

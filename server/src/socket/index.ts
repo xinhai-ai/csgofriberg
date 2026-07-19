@@ -3,7 +3,7 @@ import { isIP } from 'net';
 import { authenticateCookie, getGuestFromCookie } from '../middleware/auth';
 import { consumeRateLimit } from '../middleware/rateLimit';
 import { compareGuess, completeGuessFeedback, MAX_GUESSES } from '../services/gameService';
-import { getPlayer, pickCachedTarget } from '../services/playerCache';
+import { getEnabledPlayer, getPlayer, pickCachedTarget } from '../services/playerCache';
 import {
   BoType,
   DbType,
@@ -11,6 +11,8 @@ import {
   QueuedIdentity,
   StoredPlayer,
   StoredRoom,
+  acknowledgeSchedule,
+  beginMaintenanceWindow,
   cancelQueue,
   claimDueSchedules,
   clearIdentityRoom,
@@ -18,7 +20,11 @@ import {
   getRoom,
   getRoomForIdentity,
   getRoomIdForIdentity,
+  getMaintenanceUntil,
+  setRecoveryWindow,
+  isSocketAlive,
   queueOrTakeOpponent,
+  requeueCandidate,
   releaseRoomCapacity,
   reserveRoomCapacity,
   saveRoom,
@@ -27,12 +33,10 @@ import {
 } from '../services/roomStore';
 import { isRedisAvailable, redis, redisKey } from '../redis';
 import { enqueueMatchResult } from '../services/matchResultQueue';
-import { verifyPowCookie } from '../services/pow';
 import { getPresenceStats, ONLINE_STALE_MS, PresenceStats } from '../services/presence';
 import { GuessFeedback } from '../types';
 import { config } from '../config';
 
-const DISCONNECT_FORFEIT_MS = 30_000;
 const NEXT_ROUND_DELAY_MS = 6_000;
 const ROUND_TIME_MS = 120_000;
 const FINISHED_ROOM_TTL_MS = 5 * 60_000;
@@ -113,7 +117,28 @@ function publicRoom(room: StoredRoom, viewerKey: string) {
     maxGuesses: MAX_GUESSES,
     roundEndsAt: room.roundEndsAt,
     roundId: room.round,
-    spectators: room.spectators.map((s) => ({ key: s.key, name: s.name })),
+    stateVersion: room.revision,
+    spectators: room.spectators
+      .filter((spectator) => spectator.connected)
+      .map((spectator) => ({ key: spectator.key, name: spectator.name })),
+    roundResult: room.roundResult
+      ? {
+          winnerKey: room.roundResult.winnerKey,
+          reason: room.roundResult.reason,
+          answer: answerView(room.targetPlayerId),
+          matchOver: room.roundResult.matchOver,
+          nextRoundInMs: room.roundResult.nextRoundAt
+            ? Math.max(0, room.roundResult.nextRoundAt - Date.now())
+            : undefined,
+        }
+      : null,
+    matchResult: room.matchResult
+      ? {
+          winnerKey: room.matchResult.winnerKey,
+          reason: room.matchResult.reason,
+          answer: answerView(room.targetPlayerId),
+        }
+      : null,
     players: room.players.map((p, playerIndex) => {
       const guesses = p.guesses.map((feedback) => {
         const guess = getPlayer(feedback.playerId);
@@ -201,6 +226,25 @@ function setLocalTimer(key: string, delay: number, handler: () => void) {
   timers.set(key, timer);
 }
 
+async function scheduleReliably(
+  kind: string,
+  roomId: string,
+  discriminator: string,
+  at: number
+): Promise<void> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      if (await schedule(kind, roomId, discriminator, at)) return;
+      throw new Error('REDIS_UNAVAILABLE');
+    } catch (err) {
+      lastError = err;
+      await new Promise((resolve) => setTimeout(resolve, 100 * (attempt + 1)));
+    }
+  }
+  throw lastError;
+}
+
 async function persistMatch(room: StoredRoom, winnerKey: string | null) {
   await enqueueMatchResult({
     roomId: room.id,
@@ -219,34 +263,47 @@ async function finishMatch(
   io: Server,
   roomId: string,
   winnerKey: string | null,
-  reason: string
-) {
+  reason: string,
+  actor?: { key: string; socketId: string }
+): Promise<'finished' | 'stale' | 'ignored'> {
   const result = await withRoomLock(roomId, (room) => {
+    if (actor) {
+      const player = room.players.find((candidate) => candidate.key === actor.key);
+      if (!player || player.socketId !== actor.socketId) return { stale: true as const };
+    }
     if (room.status === 'finished') return null;
     room.status = 'finished';
     room.roundEndsAt = null;
     room.nextRoundAt = null;
     room.eventResults = {};
-    return structuredClone(room);
-  });
-  if (!result) return;
-  await persistMatch(result, winnerKey);
-  emitRoomViews(io, result, 'match:over', (viewerKey) => ({
+    room.roundResult = null;
+    room.matchResult = { winnerKey, reason };
+    return { room: structuredClone(room) };
+  }, (value) => Boolean(value && !('stale' in value)));
+  if (!result) return 'ignored';
+  if ('stale' in result) return 'stale';
+  emitRoomViews(io, result.room, 'match:over', (viewerKey) => ({
     winnerKey,
     reason,
-    answer: answerView(result.targetPlayerId),
-    room: publicRoom(result, viewerKey),
+    answer: answerView(result.room.targetPlayerId),
+    room: publicRoom(result.room, viewerKey),
   }));
-  await schedule('cleanup', roomId, '0', Date.now() + FINISHED_ROOM_TTL_MS);
+  void persistMatch(result.room, winnerKey).catch((err) => console.error('[match:persist]', err));
   setLocalTimer(`cleanup:${roomId}`, FINISHED_ROOM_TTL_MS, () => {
     void cleanupRoom(roomId);
   });
+  void scheduleReliably('cleanup', roomId, '0', Date.now() + FINISHED_ROOM_TTL_MS)
+    .catch((err) => console.error('[cleanup:schedule]', err));
+  return 'finished';
 }
 
 async function startRound(io: Server, roomId: string) {
   const result = await withRoomLock(roomId, (room) => {
     if (room.status !== 'waiting' && room.status !== 'round_over' && room.status !== 'starting') {
       return null;
+    }
+    if (room.players.length < 2 || !room.players.every((player) => player.connected)) {
+      return { waitingForReconnect: true as const };
     }
     const target = pickCachedTarget(room.dbType);
     if (!target) return { error: 'EMPTY_PLAYER_POOL' as const };
@@ -256,10 +313,13 @@ async function startRound(io: Server, roomId: string) {
     room.roundEndsAt = Date.now() + ROUND_TIME_MS;
     room.nextRoundAt = null;
     room.eventResults = {};
+    room.roundResult = null;
+    room.matchResult = null;
     for (const player of room.players) player.guesses = [];
     return { room: structuredClone(room) };
-  });
+  }, (value) => Boolean(value && !('waitingForReconnect' in value)));
   if (!result) return false;
+  if ('waitingForReconnect' in result) return false;
   if ('error' in result) {
     io.to(roomId).emit('room:error', { code: result.error });
     return false;
@@ -268,7 +328,6 @@ async function startRound(io: Server, roomId: string) {
   emitRoomViews(io, room, 'round:start', (viewerKey) => ({
     room: publicRoom(room, viewerKey),
   }));
-  await schedule('round', roomId, String(room.round), room.roundEndsAt!);
   setLocalTimer(`round:${roomId}`, ROUND_TIME_MS, () => {
     void finishRound(io, roomId, null, 'timeout', room.round);
   });
@@ -293,6 +352,14 @@ async function finishRound(
       room.status = 'round_over';
       room.nextRoundAt = Date.now() + NEXT_ROUND_DELAY_MS;
     }
+    room.roundResult = {
+      round: room.round,
+      winnerKey,
+      reason,
+      matchOver,
+      nextRoundAt: room.nextRoundAt,
+    };
+    if (matchOver) room.matchResult = { winnerKey, reason: 'score' };
     return { room: structuredClone(room), matchOver };
   });
   if (!result) return;
@@ -305,18 +372,21 @@ async function finishRound(
     nextRoundInMs: matchOver ? undefined : NEXT_ROUND_DELAY_MS,
     room: publicRoom(room, viewerKey),
   }));
-  if (matchOver) {
-    await persistMatch(room, winnerKey);
+    if (matchOver) {
     emitRoomViews(io, room, 'match:over', (viewerKey) => ({
       winnerKey,
       reason: 'score',
       answer: answerView(room.targetPlayerId),
       room: publicRoom(room, viewerKey),
     }));
-    await schedule('cleanup', roomId, '0', Date.now() + FINISHED_ROOM_TTL_MS);
+    void persistMatch(room, winnerKey).catch((err) => console.error('[match:persist]', err));
+    setLocalTimer(`cleanup:${roomId}`, FINISHED_ROOM_TTL_MS, () => {
+      void cleanupRoom(roomId);
+    });
+    void scheduleReliably('cleanup', roomId, '0', Date.now() + FINISHED_ROOM_TTL_MS)
+      .catch((err) => console.error('[cleanup:schedule]', err));
     return;
   }
-  await schedule('next', roomId, String(room.round), room.nextRoundAt!);
   setLocalTimer(`next:${roomId}`, NEXT_ROUND_DELAY_MS, () => void startRound(io, roomId));
 }
 
@@ -325,23 +395,111 @@ async function cleanupRoom(roomId: string) {
   if (room?.status === 'finished') await deleteRoom(room);
 }
 
-async function processSchedule(io: Server, item: string) {
+async function processSchedule(io: Server, item: string): Promise<number | null> {
   const [kind, roomId, discriminator] = item.split('|');
   const room = await getRoom(roomId);
-  if (!room) return;
+  if (!room) return null;
   if (kind === 'round' && room.status === 'playing' && room.round === Number(discriminator)) {
     await finishRound(io, roomId, null, 'timeout', room.round);
   } else if (kind === 'next' && room.status === 'round_over' && room.round === Number(discriminator)) {
     await startRound(io, roomId);
   } else if (kind === 'disconnect') {
+    const maintenanceUntil = await getMaintenanceUntil();
+    if (maintenanceUntil > Date.now()) return maintenanceUntil;
     const player = room.players.find((p) => p.key === discriminator);
     if (player && !player.connected && player.disconnectDeadline && player.disconnectDeadline <= Date.now()) {
+      if (room.status === 'waiting') {
+        const updated = await withRoomLock(roomId, (locked) => {
+          const current = locked.players.find((candidate) => candidate.key === discriminator);
+          if (
+            !current ||
+            current.connected ||
+            !current.disconnectDeadline ||
+            current.disconnectDeadline > Date.now()
+          ) return null;
+          locked.players = locked.players.filter((candidate) => candidate.key !== discriminator);
+          if (locked.players.length && locked.hostKey === discriminator) {
+            locked.hostKey = locked.players[0].key;
+          }
+          if (locked.players.length === 1) locked.players[0].ready = true;
+          return { room: structuredClone(locked) };
+        }, (value) => Boolean(value));
+        if (updated) {
+          await clearIdentityRoom(discriminator, roomId);
+          if (!updated.room.players.length && !updated.room.spectators.length) {
+            await deleteRoom(updated.room);
+          } else {
+            emitRoomState(io, updated.room);
+          }
+        }
+        return null;
+      }
       const opponent = room.players.find((p) => p.key !== discriminator);
-      await finishMatch(io, roomId, opponent?.key ?? null, 'disconnect_timeout');
+      if (opponent && !opponent.connected) {
+        const retryAt = Math.max(
+          player.disconnectDeadline,
+          opponent.disconnectDeadline ?? player.disconnectDeadline
+        );
+        if (retryAt > Date.now()) return retryAt;
+        await finishMatch(io, roomId, null, 'disconnect_timeout');
+      } else {
+        await finishMatch(io, roomId, opponent?.key ?? null, 'disconnect_timeout');
+      }
+    }
+  } else if (kind === 'spectator') {
+    const spectator = room.spectators.find((candidate) => candidate.key === discriminator);
+    if (
+      spectator &&
+      !spectator.connected &&
+      spectator.disconnectDeadline &&
+      spectator.disconnectDeadline <= Date.now()
+    ) {
+      const updated = await withRoomLock(roomId, (locked) => {
+        const current = locked.spectators.find((candidate) => candidate.key === discriminator);
+        if (
+          !current ||
+          current.connected ||
+          !current.disconnectDeadline ||
+          current.disconnectDeadline > Date.now()
+        ) return null;
+        locked.spectators = locked.spectators.filter((candidate) => candidate.key !== discriminator);
+        return { room: structuredClone(locked) };
+      }, (value) => Boolean(value));
+      if (updated) {
+        await clearIdentityRoom(discriminator, roomId);
+        if (!updated.room.players.length && !updated.room.spectators.length) {
+          await deleteRoom(updated.room);
+        } else {
+          emitRoomState(io, updated.room);
+        }
+      }
     }
   } else if (kind === 'cleanup') {
     await cleanupRoom(roomId);
+  } else if (kind === 'persist') {
+    if (room.status !== 'finished' || !room.matchResult) return null;
+    await persistMatch(room, room.matchResult.winnerKey);
   }
+  return null;
+}
+
+async function handleScheduledItem(io: Server, item: string): Promise<void> {
+  let retryAt: number | null;
+  try {
+    retryAt = await processSchedule(io, item);
+  } catch (err) {
+    if (err instanceof Error && err.message === 'STALE_ROOM_WRITE') {
+      await acknowledgeSchedule(item);
+      return;
+    }
+    throw err;
+  }
+  if (retryAt) {
+    const [kind, roomId, discriminator] = item.split('|');
+    await schedule(kind, roomId, discriminator, retryAt);
+    return;
+  }
+  await acknowledgeSchedule(item);
 }
 
 function safeOn(
@@ -352,7 +510,10 @@ function safeOn(
   socket.on(event, (payload: any, ack?: (value: any) => void) => {
     void handler(payload, ack).catch((err) => {
       console.error(`[socket:${event}]`, err);
-      ack?.({ code: err instanceof Error && err.message === 'ROOM_BUSY' ? 'ROOM_BUSY' : 'INTERNAL_ERROR' });
+      const code = err instanceof Error && ['ROOM_BUSY', 'REDIS_UNAVAILABLE', 'STALE_ROOM_WRITE'].includes(err.message)
+        ? err.message === 'STALE_ROOM_WRITE' ? 'ROOM_BUSY' : err.message
+        : 'INTERNAL_ERROR';
+      ack?.({ code });
     });
   });
 }
@@ -373,6 +534,7 @@ async function acquireConnectionSlot(ip: string, identity: string, socketId: str
      redis.call('ZADD', KEYS[1], ARGV[4], ARGV[5])
      redis.call('ZADD', KEYS[2], ARGV[4], ARGV[5])
      redis.call('ZADD', KEYS[3], ARGV[4], ARGV[6])
+     redis.call('SET', KEYS[4], '1', 'EX', 180)
      redis.call('expire', KEYS[1], 900); redis.call('expire', KEYS[2], 900)
      return 1`,
     {
@@ -380,6 +542,7 @@ async function acquireConnectionSlot(ip: string, identity: string, socketId: str
         redisKey(`connections:ip:${ip}`),
         redisKey(`connections:identity:${identity}`),
         redisKey('presence:online'),
+        redisKey(`connections:socket:${socketId}`),
       ],
       arguments: [
         String(Date.now() - ONLINE_STALE_MS),
@@ -401,6 +564,7 @@ async function releaseConnectionSlot(ip: string, identity: string, socketId: str
     `redis.call('ZREM', KEYS[1], ARGV[1])
      redis.call('ZREM', KEYS[2], ARGV[1])
      redis.call('ZREMRANGEBYSCORE', KEYS[2], '-inf', ARGV[3])
+     redis.call('DEL', KEYS[4])
      if redis.call('ZCARD', KEYS[2]) == 0 then
        redis.call('ZREM', KEYS[3], ARGV[2])
      else
@@ -412,6 +576,7 @@ async function releaseConnectionSlot(ip: string, identity: string, socketId: str
         redisKey(`connections:ip:${ip}`),
         redisKey(`connections:identity:${identity}`),
         redisKey('presence:online'),
+        redisKey(`connections:socket:${socketId}`),
       ],
       arguments: [
         socketId,
@@ -431,12 +596,18 @@ async function refreshConnectionSlot(ip: string, identity: string, socketId: str
     .zAdd(redisKey(`connections:ip:${ip}`), { score: now, value: socketId })
     .zAdd(redisKey(`connections:identity:${identity}`), { score: now, value: socketId })
     .zAdd(redisKey('presence:online'), { score: now, value: identity })
+    .set(redisKey(`connections:socket:${socketId}`), '1', { EX: 180 })
     .expire(redisKey(`connections:ip:${ip}`), 900)
     .expire(redisKey(`connections:identity:${identity}`), 900)
     .exec();
 }
 
 export function setupSocket(io: Server) {
+  const backgroundTasks = new Set<Promise<unknown>>();
+  const trackBackground = <T>(task: Promise<T>, label: string): void => {
+    backgroundTasks.add(task);
+    void task.catch((err) => console.error(label, err)).finally(() => backgroundTasks.delete(task));
+  };
   const presenceSubscribers = new Set<string>();
   let lastPresence: Omit<PresenceStats, 'updatedAt'> | null = null;
   let presenceRequest: Promise<PresenceStats> | null = null;
@@ -465,7 +636,18 @@ export function setupSocket(io: Server) {
   const worker = setInterval(() => {
     if (scheduleRequest) return;
     scheduleRequest = claimDueSchedules()
-      .then((items) => Promise.all(items.map((item) => processSchedule(io, item))))
+      .then(async (items) => {
+        const byRoom = new Map<string, string[]>();
+        for (const item of items) {
+          const roomId = item.split('|')[1] ?? '';
+          const group = byRoom.get(roomId) ?? [];
+          group.push(item);
+          byRoom.set(roomId, group);
+        }
+        await Promise.all([...byRoom.values()].map(async (group) => {
+          for (const item of group) await handleScheduledItem(io, item);
+        }));
+      })
       .then(() => undefined)
       .catch((err) => console.error('[schedule]', err))
       .finally(() => {
@@ -475,39 +657,42 @@ export function setupSocket(io: Server) {
   worker.unref?.();
 
   io.use(async (socket, next) => {
-    if (!verifyPowCookie(
-      socket.handshake.headers.cookie,
-      socket.handshake.headers['user-agent']
-    )) return next(new Error('POW_REQUIRED'));
-    const user = await authenticateCookie(socket.handshake.headers.cookie);
-    const guest = getGuestFromCookie(socket.handshake.headers.cookie);
-    let identity: StoredIdentity | null = null;
-    if (user) {
-      identity = { key: `u:${user.id}`, userId: user.id, name: user.username };
-    } else if (guest) {
-      identity = {
-        key: `g:${guest.key}`,
-        userId: null,
-        name: guest.name,
-      };
+    try {
+      const user = await authenticateCookie(socket.handshake.headers.cookie);
+      const guest = getGuestFromCookie(socket.handshake.headers.cookie);
+      let identity: StoredIdentity | null = null;
+      if (user) {
+        identity = { key: `u:${user.id}`, userId: user.id, name: user.username };
+      } else if (guest) {
+        identity = {
+          key: `g:${guest.key}`,
+          userId: null,
+          name: guest.name,
+        };
+      }
+      if (!identity) return next(new Error('IDENTITY_REQUIRED'));
+      const ip = resolveSocketIp(
+        socket.handshake.address,
+        socket.handshake.headers['x-forwarded-for'],
+        socket.handshake.headers['x-real-ip'],
+        config.trustProxy
+      );
+      if (!(await consumeRateLimit('socket:connect', `${ip}:${identity.key}`, 30, 60))) {
+        return next(new Error('RATE_LIMITED'));
+      }
+      if (!(await acquireConnectionSlot(ip, identity.key, socket.id))) {
+        return next(new Error('TOO_MANY_CONNECTIONS'));
+      }
+      socket.data.identity = identity;
+      socket.data.ip = ip;
+      socket.data.connectionSlot = true;
+      next();
+    } catch (err) {
+      console.error('[socket:connect]', err);
+      next(new Error(err instanceof Error && err.message === 'REDIS_UNAVAILABLE'
+        ? 'REDIS_UNAVAILABLE'
+        : 'INTERNAL_ERROR'));
     }
-    if (!identity) return next(new Error('IDENTITY_REQUIRED'));
-    const ip = resolveSocketIp(
-      socket.handshake.address,
-      socket.handshake.headers['x-forwarded-for'],
-      socket.handshake.headers['x-real-ip'],
-      config.trustProxy
-    );
-    if (!(await consumeRateLimit('socket:connect', `${ip}:${identity.key}`, 30, 60))) {
-      return next(new Error('RATE_LIMITED'));
-    }
-    if (!(await acquireConnectionSlot(ip, identity.key, socket.id))) {
-      return next(new Error('TOO_MANY_CONNECTIONS'));
-    }
-    socket.data.identity = identity;
-    socket.data.ip = ip;
-    socket.data.connectionSlot = true;
-    next();
   });
 
   io.on('connection', (socket) => {
@@ -527,27 +712,51 @@ export function setupSocket(io: Server) {
     };
     scheduleConnectionHeartbeat();
     socket.join(identityChannel(me.key));
-    void cancelQueue(me.key);
-
-    const restorePromise = getRoomForIdentity(me.key).then(async (existing) => {
+    const restorePromise = getRoomForIdentity(me.key, true).then(async (existing) => {
       if (!existing) return;
-      await withRoomLock(existing.id, (room) => {
-        const player = room.players.find((p) => p.key === me.key);
-        const spectator = room.spectators.find((p) => p.key === me.key);
-        if (player) {
-          player.socketId = socket.id;
-          player.connected = true;
-          player.disconnectDeadline = null;
-        } else if (spectator) spectator.socketId = socket.id;
-      });
+      if (existing.status !== 'finished') {
+        const restored = await withRoomLock(existing.id, (room) => {
+          const player = room.players.find((p) => p.key === me.key);
+          const spectator = room.spectators.find((p) => p.key === me.key);
+          if (player) {
+            player.socketId = socket.id;
+            player.connected = true;
+            player.disconnectDeadline = null;
+            return true;
+          }
+          if (spectator) {
+            spectator.socketId = socket.id;
+            spectator.connected = true;
+            spectator.disconnectDeadline = null;
+            return true;
+          }
+          return false;
+        }, (value) => value);
+        if (!restored) {
+          await clearIdentityRoom(me.key, existing.id);
+          return;
+        }
+      }
       socket.join(existing.id);
       const refreshed = await getRoom(existing.id);
-      if (refreshed) emitRoomState(io, refreshed);
+      if (refreshed) {
+        emitRoomState(io, refreshed);
+        if (
+          refreshed.players.length === 2 &&
+          refreshed.players.every((player) => player.connected) &&
+          (
+            refreshed.status === 'starting' ||
+            (refreshed.status === 'round_over' && (refreshed.nextRoundAt ?? 0) <= Date.now())
+          )
+        ) {
+          await startRound(io, refreshed.id);
+        }
+      }
     }).catch((err) => console.error('[socket:reconnect]', err));
 
     safeOn(socket, 'room:sync', async (_payload, ack) => {
       await restorePromise;
-      const room = await getRoomForIdentity(me.key);
+      const room = await getRoomForIdentity(me.key, true);
       if (!room) return ack?.({ code: 'NOT_IN_ROOM' });
       socket.join(room.id);
       ack?.({
@@ -572,8 +781,10 @@ export function setupSocket(io: Server) {
     });
 
     safeOn(socket, 'room:create', async (payload, ack) => {
+      await restorePromise;
       if (!(await socketAllowed('create', me.key, 5, 60))) return ack?.({ code: 'RATE_LIMITED' });
-      if (await getRoomForIdentity(me.key)) return ack?.({ code: 'ALREADY_IN_ROOM' });
+      const existing = await getRoomForIdentity(me.key);
+      if (existing) return ack?.({ room: publicRoom(existing, me.key) });
       const boType = ([1, 3, 5, 7] as BoType[]).includes(payload?.boType) ? payload.boType : 3;
       const now = Date.now();
       const roomId = await genRoomId();
@@ -596,6 +807,9 @@ export function setupSocket(io: Server) {
         roundEndsAt: null,
         nextRoundAt: null,
         eventResults: {},
+        roundResult: null,
+        matchResult: null,
+        revision: 0,
         createdAt: now,
         updatedAt: now,
       };
@@ -610,6 +824,7 @@ export function setupSocket(io: Server) {
     });
 
     safeOn(socket, 'room:join', async (payload, ack) => {
+      await restorePromise;
       if (!(await socketAllowed('join', me.key, 20, 60))) return ack?.({ code: 'RATE_LIMITED' });
       const roomId = String(payload?.roomId ?? '').toUpperCase();
       const current = await getRoomForIdentity(me.key);
@@ -618,6 +833,9 @@ export function setupSocket(io: Server) {
         if (room.status === 'finished') return { code: 'ROOM_NOT_FOUND' };
         const player = room.players.find((p) => p.key === me.key);
         if (player) {
+          if (player.connected && player.socketId !== socket.id) {
+            return { code: 'STALE_CONNECTION' };
+          }
           player.socketId = socket.id;
           player.connected = true;
           player.disconnectDeadline = null;
@@ -630,8 +848,21 @@ export function setupSocket(io: Server) {
         if (asSpectator) {
           if (!existingSpectator && !room.allowSpectators) return { code: 'SPECTATING_DISABLED' };
           if (!existingSpectator && room.spectators.length >= MAX_SPECTATORS) return { code: 'ROOM_FULL' };
-          if (existingSpectator) existingSpectator.socketId = socket.id;
-          else room.spectators.push({ ...me, socketId: socket.id });
+          if (existingSpectator && existingSpectator.socketId !== socket.id) {
+            return { code: 'STALE_CONNECTION' };
+          }
+          if (existingSpectator) {
+            existingSpectator.socketId = socket.id;
+            existingSpectator.connected = true;
+            existingSpectator.disconnectDeadline = null;
+          } else {
+            room.spectators.push({
+              ...me,
+              socketId: socket.id,
+              connected: true,
+              disconnectDeadline: null,
+            });
+          }
           return { role: 'spectator' as const };
         }
         room.players.push(makePlayer(me, socket.id, false));
@@ -646,16 +877,19 @@ export function setupSocket(io: Server) {
       ack?.({ room: publicRoom(room, me.key), role: role.role });
     });
 
-    safeOn(socket, 'room:ready', async (_payload, ack) => {
+    safeOn(socket, 'room:ready', async (payload, ack) => {
+      await restorePromise;
       const room = await getRoomForIdentity(me.key);
       if (!room) return ack?.({ code: 'NOT_IN_WAITING_ROOM' });
       const changed = await withRoomLock(room.id, (locked) => {
         if (locked.status !== 'waiting') return false;
         const player = locked.players.find((p) => p.key === me.key);
         if (!player) return false;
-        player.ready = !player.ready;
+        if (player.socketId !== socket.id) return 'STALE_CONNECTION' as const;
+        player.ready = typeof payload?.ready === 'boolean' ? payload.ready : !player.ready;
         return true;
       });
+      if (changed === 'STALE_CONNECTION') return ack?.({ code: changed });
       if (!changed) return ack?.({ code: 'NOT_IN_WAITING_ROOM' });
       const refreshed = await getRoom(room.id);
       if (refreshed) emitRoomState(io, refreshed);
@@ -663,26 +897,39 @@ export function setupSocket(io: Server) {
     });
 
     safeOn(socket, 'game:start', async (_payload, ack) => {
+      await restorePromise;
       const room = await getRoomForIdentity(me.key);
       if (!room) return ack?.({ code: 'ROOM_NOT_READY' });
       const result = await withRoomLock(room.id, (locked) => {
-        if (locked.status !== 'waiting') return 'ROOM_NOT_READY';
         if (locked.hostKey !== me.key) return 'NOT_HOST';
+        if (locked.players.find((player) => player.key === me.key)?.socketId !== socket.id) {
+          return 'STALE_CONNECTION';
+        }
+        if (locked.status === 'starting' || locked.status === 'playing') return 'ALREADY_STARTED';
+        if (locked.status !== 'waiting') return 'ROOM_NOT_READY';
         if (locked.players.length < 2) return 'NEED_TWO_PLAYERS';
-        if (!locked.players.every((p) => p.ready)) return 'PLAYERS_NOT_READY';
+        if (!locked.players.every((p) => p.ready && p.connected)) return 'PLAYERS_NOT_READY';
         locked.status = 'starting';
         return 'OK';
       });
+      if (result === 'ALREADY_STARTED') {
+        if (room.status === 'starting') await startRound(io, room.id);
+        const current = await getRoom(room.id);
+        return ack?.(current
+          ? { ok: true, room: publicRoom(current, me.key) }
+          : { code: 'ROOM_NOT_READY' });
+      }
       if (result !== 'OK') return ack?.({ code: result ?? 'ROOM_NOT_READY' });
       const started = await startRound(io, room.id);
       ack?.(started ? { ok: true } : { code: 'EMPTY_PLAYER_POOL' });
     });
 
     safeOn(socket, 'game:guess', async (payload, ack) => {
+      await restorePromise;
       if (!(await socketAllowed('guess', me.key, 12, 10))) return ack?.({ code: 'RATE_LIMITED' });
       const roomId = await getRoomIdForIdentity(me.key);
       if (!roomId) return ack?.({ code: 'NO_ACTIVE_ROUND', reason: 'identity_room_missing' });
-      const guess = getPlayer(Number(payload?.playerId));
+      const guess = getEnabledPlayer(Number(payload?.playerId));
       if (!guess) return ack?.({ code: 'PLAYER_NOT_FOUND' });
       const roundId = Number(payload?.roundId);
       const eventId = typeof payload?.eventId === 'string' ? payload.eventId : '';
@@ -708,6 +955,9 @@ export function setupSocket(io: Server) {
         if (!player) {
           return { code: 'NO_ACTIVE_ROUND', reason: 'player_missing', room: structuredClone(locked) };
         }
+        if (player.socketId !== socket.id) {
+          return { code: 'STALE_CONNECTION', room: structuredClone(locked) };
+        }
         if (player.guesses.length >= MAX_GUESSES) return { code: 'GUESS_LIMIT_REACHED' };
         if (player.guesses.some((item) => item.playerId === guess.id)) return { code: 'ALREADY_GUESSED' };
         const target = getPlayer(locked.targetPlayerId);
@@ -728,6 +978,14 @@ export function setupSocket(io: Server) {
             locked.status = 'round_over';
             locked.nextRoundAt = Date.now() + NEXT_ROUND_DELAY_MS;
           }
+          locked.roundResult = {
+            round: locked.round,
+            winnerKey: feedback.correct ? me.key : null,
+            reason: feedback.correct ? 'guessed' : 'exhausted',
+            matchOver,
+            nextRoundAt: locked.nextRoundAt,
+          };
+          if (matchOver) locked.matchResult = { winnerKey: me.key, reason: 'score' };
         }
         return {
           feedback,
@@ -758,11 +1016,14 @@ export function setupSocket(io: Server) {
         }
         return ack?.({ code: result.code });
       }
-      ack?.({ feedback: result.feedback });
+      ack?.({ feedback: result.feedback, room: publicRoom(result.room, me.key) });
       if (!('duplicate' in result)) {
         emitRoomViews(io, result.room, 'game:guess:applied', (viewerKey) => ({
           roundId: result.round,
           key: me.key,
+          eventId,
+          guessCount: result.room.players.find((player) => player.key === me.key)?.guesses.length ?? 0,
+          stateVersion: result.room.revision,
           feedback: viewerKey === me.key || result.room.spectators.some(
             (spectator) => spectator.key === viewerKey
           )
@@ -782,36 +1043,57 @@ export function setupSocket(io: Server) {
           room: publicRoom(result.room, viewerKey),
         }));
         if (result.matchOver) {
-          await persistMatch(result.room, winnerKey);
           emitRoomViews(io, result.room, 'match:over', (viewerKey) => ({
             winnerKey,
             reason: 'score',
             answer: answerView(result.room.targetPlayerId),
             room: publicRoom(result.room, viewerKey),
           }));
-          await schedule('cleanup', roomId, '0', Date.now() + FINISHED_ROOM_TTL_MS);
+          void persistMatch(result.room, winnerKey).catch((err) => console.error('[match:persist]', err));
+          setLocalTimer(`cleanup:${roomId}`, FINISHED_ROOM_TTL_MS, () => {
+            void cleanupRoom(roomId);
+          });
+          void scheduleReliably('cleanup', roomId, '0', Date.now() + FINISHED_ROOM_TTL_MS)
+            .catch((err) => console.error('[cleanup:schedule]', err));
         } else {
-          await schedule('next', roomId, String(result.round), result.room.nextRoundAt!);
           setLocalTimer(`next:${roomId}`, NEXT_ROUND_DELAY_MS, () => void startRound(io, roomId));
         }
       }
     });
 
     safeOn(socket, 'room:leave', async (_payload, ack) => {
-      const room = await getRoomForIdentity(me.key);
+      await restorePromise;
+      const room = await getRoomForIdentity(me.key, true);
       if (!room) return ack?.({ ok: true });
+      if (room.status === 'finished') {
+        await clearIdentityRoom(me.key, room.id);
+        socket.leave(room.id);
+        return ack?.({ ok: true });
+      }
       const player = room.players.find((p) => p.key === me.key);
       if (player && (room.status === 'playing' || room.status === 'round_over' || room.status === 'starting')) {
         const opponent = room.players.find((p) => p.key !== me.key);
-        await finishMatch(io, room.id, opponent?.key ?? null, 'opponent_left');
+        const finished = await finishMatch(io, room.id, opponent?.key ?? null, 'opponent_left', {
+          key: me.key,
+          socketId: socket.id,
+        });
+        if (finished === 'stale') return ack?.({ code: 'STALE_CONNECTION' });
       } else {
-        await withRoomLock(room.id, (locked) => {
+        const left = await withRoomLock(room.id, (locked) => {
+          const currentPlayer = locked.players.find((candidate) => candidate.key === me.key);
+          const currentSpectator = locked.spectators.find((candidate) => candidate.key === me.key);
+          if (
+            (currentPlayer && currentPlayer.socketId !== socket.id) ||
+            (currentSpectator && currentSpectator.socketId !== socket.id)
+          ) return 'STALE_CONNECTION' as const;
           locked.players = locked.players.filter((p) => p.key !== me.key);
           locked.spectators = locked.spectators.filter((p) => p.key !== me.key);
           if (locked.players.length && locked.hostKey === me.key) locked.hostKey = locked.players[0].key;
           if (locked.players.length === 1) locked.players[0].ready = true;
+          return 'LEFT' as const;
         });
-        await clearIdentityRoom(me.key);
+        if (left === 'STALE_CONNECTION') return ack?.({ code: left });
+        await clearIdentityRoom(me.key, room.id);
         const refreshed = await getRoom(room.id);
         if (refreshed && !refreshed.players.length && !refreshed.spectators.length) await deleteRoom(refreshed);
         else if (refreshed) emitRoomState(io, refreshed);
@@ -821,8 +1103,10 @@ export function setupSocket(io: Server) {
     });
 
     safeOn(socket, 'match:start', async (payload, ack) => {
+      await restorePromise;
       if (!(await socketAllowed('match', me.key, 10, 60))) return ack?.({ code: 'RATE_LIMITED' });
-      if (await getRoomForIdentity(me.key)) return ack?.({ code: 'ALREADY_IN_ROOM' });
+      const currentRoom = await getRoomForIdentity(me.key);
+      if (currentRoom) return ack?.({ queued: false, room: publicRoom(currentRoom, me.key) });
       await cancelQueue(me.key);
       const dbType: DbType = payload?.dbType === 'normal' ? 'normal' : 'easy';
       const queuedMe: QueuedIdentity = {
@@ -842,9 +1126,14 @@ export function setupSocket(io: Server) {
         }
       }
       if (!opponent) return ack?.({ queued: true });
+      if (!socket.connected) {
+        await requeueCandidate(dbType, opponent);
+        return;
+      }
       const now = Date.now();
       const roomId = await genRoomId();
       if (!(await reserveRoomCapacity(String(socket.data.ip), roomId))) {
+        await requeueCandidate(dbType, opponent);
         return ack?.({ code: 'ROOM_CAPACITY_REACHED' });
       }
       const room: StoredRoom = {
@@ -863,25 +1152,50 @@ export function setupSocket(io: Server) {
         roundEndsAt: null,
         nextRoundAt: null,
         eventResults: {},
+        roundResult: null,
+        matchResult: null,
+        revision: 0,
         createdAt: now,
         updatedAt: now,
       };
       try {
         await saveRoom(room);
       } catch (err) {
-        await releaseRoomCapacity(room.ownerIp, room.id);
+        await Promise.allSettled([
+          releaseRoomCapacity(room.ownerIp, room.id),
+          requeueCandidate(dbType, opponent),
+        ]);
         throw err;
       }
+      const [opponentAlive, currentAlive] = await Promise.all([
+        isSocketAlive(opponent.socketId),
+        isSocketAlive(socket.id),
+      ]);
+      if (!opponentAlive || !currentAlive) {
+        await withRoomLock(room.id, (locked) => {
+          const deadline = Date.now() + config.disconnectForfeitMs;
+          for (const player of locked.players) {
+            const alive = player.key === me.key ? currentAlive : opponentAlive;
+            if (!alive) {
+              player.connected = false;
+              player.disconnectDeadline = deadline;
+            }
+          }
+        });
+      }
+      const savedRoom = await getRoom(room.id);
+      if (!savedRoom) throw new Error('ROOM_NOT_FOUND');
       await io.in(identityChannel(opponent.key)).socketsJoin(room.id);
       socket.join(room.id);
-      ack?.({ queued: false });
-      emitRoomViews(io, room, 'match:found', (viewerKey) => ({
-        room: publicRoom(room, viewerKey),
+      ack?.({ queued: false, room: publicRoom(savedRoom, me.key) });
+      emitRoomViews(io, savedRoom, 'match:found', (viewerKey) => ({
+        room: publicRoom(savedRoom, viewerKey),
       }));
-      await startRound(io, room.id);
+      await startRound(io, savedRoom.id);
     });
 
     safeOn(socket, 'match:cancel', async (_payload, ack) => {
+      await restorePromise;
       await cancelQueue(me.key);
       for (const [key, queue] of localQueue) {
         localQueue.set(key, queue.filter((item) => item.key !== me.key));
@@ -895,34 +1209,38 @@ export function setupSocket(io: Server) {
       if (connectionHeartbeat) clearTimeout(connectionHeartbeat);
       if (socket.data.connectionSlot) {
         socket.data.connectionSlot = false;
-        void releaseConnectionSlot(String(socket.data.ip), me.key, socket.id);
+        void releaseConnectionSlot(String(socket.data.ip), me.key, socket.id)
+          .catch((err) => console.error('[presence:release]', err));
       }
-      void cancelQueue(me.key);
+      void cancelQueue(me.key, socket.id).catch((err) => console.error('[match:cancel-disconnect]', err));
       for (const [key, queue] of localQueue) {
-        localQueue.set(key, queue.filter((item) => item.key !== me.key));
+        localQueue.set(
+          key,
+          queue.filter((item) => item.key !== me.key || item.socketId !== socket.id)
+        );
       }
-      void getRoomForIdentity(me.key).then(async (room) => {
+      const disconnectTask = getRoomForIdentity(me.key).then(async (room) => {
         if (!room) return;
         const result = await withRoomLock(room.id, (locked) => {
           const spectator = locked.spectators.find((p) => p.key === me.key);
           if (spectator?.socketId === socket.id) {
-            locked.spectators = locked.spectators.filter((p) => p.key !== me.key);
-            return { spectator: true };
+            spectator.connected = false;
+            spectator.disconnectDeadline = Date.now() + config.disconnectForfeitMs;
+            return { spectator: true, room: structuredClone(locked) };
           }
           const player = locked.players.find((p) => p.key === me.key);
           if (!player || player.socketId !== socket.id) return null;
-          if (locked.status === 'waiting') {
-            locked.players = locked.players.filter((p) => p.key !== me.key);
-            if (locked.players.length && locked.hostKey === me.key) locked.hostKey = locked.players[0].key;
-            return { removed: true };
-          }
           player.connected = false;
-          player.disconnectDeadline = Date.now() + DISCONNECT_FORFEIT_MS;
+          player.disconnectDeadline = Date.now() + config.disconnectForfeitMs;
           return { deadline: player.disconnectDeadline, room: structuredClone(locked) };
         });
         if (!result) return;
         if ('spectator' in result || 'removed' in result) {
-          await clearIdentityRoom(me.key);
+          if ('spectator' in result) {
+            emitRoomState(io, result.room);
+            return;
+          }
+          await clearIdentityRoom(me.key, room.id);
           const refreshed = await getRoom(room.id);
           if (refreshed && !refreshed.players.length && !refreshed.spectators.length) {
             await deleteRoom(refreshed);
@@ -932,20 +1250,24 @@ export function setupSocket(io: Server) {
         emitRoomState(io, result.room);
         io.to(room.id).emit('player:offline', {
           key: me.key,
-          graceMs: DISCONNECT_FORFEIT_MS,
+          graceMs: config.disconnectForfeitMs,
         });
-        await schedule('disconnect', room.id, me.key, result.deadline);
-        setLocalTimer(`disconnect:${room.id}:${me.key}`, DISCONNECT_FORFEIT_MS, () => {
-          void processSchedule(io, `disconnect|${room.id}|${me.key}`);
+        setLocalTimer(`disconnect:${room.id}:${me.key}`, config.disconnectForfeitMs, () => {
+          void handleScheduledItem(io, `disconnect|${room.id}|${me.key}`)
+            .catch((err) => console.error('[disconnect:schedule]', err));
         });
-      }).catch((err) => console.error('[socket:disconnect]', err));
+      });
+      trackBackground(disconnectTask, '[socket:disconnect]');
     });
   });
 
-  return () => {
+  return async () => {
     clearInterval(worker);
     clearInterval(presenceWorker);
     clearInterval(presenceCleanupWorker);
     presenceSubscribers.clear();
+    if (backgroundTasks.size) await Promise.allSettled([...backgroundTasks]);
   };
 }
+
+export { beginMaintenanceWindow, setRecoveryWindow };

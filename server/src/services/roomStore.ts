@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import { redis, redisKey } from '../redis';
 import { GuessFeedback } from '../types';
+import { config } from '../config';
 
 export type BoType = 1 | 3 | 5 | 7;
 export type DbType = 'easy' | 'normal';
@@ -28,6 +29,21 @@ export interface StoredPlayer extends StoredIdentity {
 
 export interface StoredSpectator extends StoredIdentity {
   socketId: string;
+  connected: boolean;
+  disconnectDeadline: number | null;
+}
+
+export interface StoredRoundResult {
+  round: number;
+  winnerKey: string | null;
+  reason: 'guessed' | 'exhausted' | 'timeout';
+  matchOver: boolean;
+  nextRoundAt: number | null;
+}
+
+export interface StoredMatchResult {
+  winnerKey: string | null;
+  reason: string;
 }
 
 export interface StoredRoom {
@@ -46,11 +62,15 @@ export interface StoredRoom {
   roundEndsAt: number | null;
   nextRoundAt: number | null;
   eventResults: Record<string, GuessFeedback>;
+  roundResult: StoredRoundResult | null;
+  matchResult: StoredMatchResult | null;
+  revision: number;
   createdAt: number;
   updatedAt: number;
 }
 
 const ROOM_TTL_SECONDS = 6 * 60 * 60;
+const FINISHED_ROOM_TTL_MS = 5 * 60_000;
 const MAX_GLOBAL_ROOMS = 10_000;
 const MAX_ROOMS_PER_IP = 50;
 const localRooms = new Map<string, StoredRoom>();
@@ -65,84 +85,192 @@ function identityKey(identity: string) {
   return redisKey(`identity-room:${identity}`);
 }
 
-export async function getRoom(id: string): Promise<StoredRoom | null> {
+function stateRedis() {
   const client = redis();
-  if (!client) {
-    const room = localRooms.get(id);
-    if (room && typeof room.allowSpectators !== 'boolean') room.allowSpectators = false;
-    if (room && typeof room.anonymous !== 'boolean') room.anonymous = false;
-    return room ?? null;
-  }
-  const raw = await client.get(roomKey(id));
-  if (!raw) return null;
-  const room = JSON.parse(raw) as StoredRoom;
+  if (!client && config.redisRequired) throw new Error('REDIS_UNAVAILABLE');
+  return client;
+}
+
+function normalizeRoom(room: StoredRoom): StoredRoom {
   if (typeof room.allowSpectators !== 'boolean') room.allowSpectators = false;
   if (typeof room.anonymous !== 'boolean') room.anonymous = false;
+  room.eventResults ??= {};
+  room.roundResult ??= null;
+  room.matchResult ??= null;
+  room.revision ??= 0;
+  for (const spectator of room.spectators) {
+    spectator.connected ??= true;
+    spectator.disconnectDeadline ??= null;
+  }
   return room;
 }
 
-export async function getRoomForIdentity(identity: string): Promise<StoredRoom | null> {
+export async function getRoom(id: string): Promise<StoredRoom | null> {
+  const client = stateRedis();
+  if (!client) {
+    const room = localRooms.get(id);
+    return room ? structuredClone(normalizeRoom(room)) : null;
+  }
+  const raw = await client.get(roomKey(id));
+  if (!raw) return null;
+  return normalizeRoom(JSON.parse(raw) as StoredRoom);
+}
+
+export async function getRoomForIdentity(
+  identity: string,
+  includeFinished = false
+): Promise<StoredRoom | null> {
   const id = await getRoomIdForIdentity(identity);
   if (!id) return null;
   const room = await getRoom(id);
-  if (!room || room.status === 'finished') {
-    await clearIdentityRoom(identity);
+  if (!room) {
+    await clearIdentityRoom(identity, id);
     return null;
   }
+  if (room.status === 'finished' && !includeFinished) return null;
   return room;
 }
 
 export async function getRoomIdForIdentity(identity: string): Promise<string | null> {
-  const client = redis();
+  const client = stateRedis();
   return client
     ? await client.get(identityKey(identity))
     : localIdentityRooms.get(identity) ?? null;
 }
 
 export async function saveRoom(room: StoredRoom): Promise<void> {
+  if (room.status === 'finished' && !room.matchResult) {
+    throw new Error('INVALID_FINISHED_ROOM');
+  }
+  const previousRevision = room.revision ?? 0;
   room.updatedAt = Date.now();
-  const client = redis();
+  room.revision = previousRevision + 1;
+  const client = stateRedis();
   if (!client) {
+    const current = localRooms.get(room.id);
+    if (current && current.revision > previousRevision) throw new Error('STALE_ROOM_WRITE');
     localRooms.set(room.id, structuredClone(room));
     for (const member of [...room.players, ...room.spectators]) {
       localIdentityRooms.set(member.key, room.id);
     }
     return;
   }
-  const multi = client.multi();
-  multi.set(roomKey(room.id), JSON.stringify(room), { EX: ROOM_TTL_SECONDS });
-  if (room.status === 'finished') {
-    multi.zRem(redisKey('presence:rooms'), room.id);
-  } else {
-    multi.zAdd(redisKey('presence:rooms'), {
-      score: room.updatedAt + ROOM_TTL_SECONDS * 1000,
-      value: room.id,
+  const members = [...room.players, ...room.spectators];
+  const schedules: { score: number; value: string }[] = [];
+  if (room.status === 'playing' && room.roundEndsAt) {
+    schedules.push({
+      score: room.roundEndsAt,
+      value: `round|${room.id}|${room.round}`,
     });
+  } else if (room.status === 'round_over' && room.nextRoundAt) {
+    schedules.push({
+      score: room.nextRoundAt,
+      value: `next|${room.id}|${room.round}`,
+    });
+  } else if (room.status === 'finished') {
+    schedules.push(
+      { score: Date.now(), value: `persist|${room.id}|0` },
+      { score: Date.now() + FINISHED_ROOM_TTL_MS, value: `cleanup|${room.id}|0` }
+    );
   }
-  for (const member of [...room.players, ...room.spectators]) {
-    multi.set(identityKey(member.key), room.id, { EX: ROOM_TTL_SECONDS });
+  for (const player of room.players) {
+    if (!player.connected && player.disconnectDeadline) {
+      schedules.push({
+        score: player.disconnectDeadline,
+        value: `disconnect|${room.id}|${player.key}`,
+      });
+    }
   }
-  await multi.exec();
+  for (const spectator of room.spectators) {
+    if (!spectator.connected && spectator.disconnectDeadline) {
+      schedules.push({
+        score: spectator.disconnectDeadline,
+        value: `spectator|${room.id}|${spectator.key}`,
+      });
+    }
+  }
+  const result = await client.eval(
+    `local incoming = cjson.decode(ARGV[1])
+     local currentRaw = redis.call('GET', KEYS[1])
+     if currentRaw then
+       local ok, current = pcall(cjson.decode, currentRaw)
+       if ok and tonumber(current.revision or 0) >= tonumber(incoming.revision or 0) then
+         return 0
+       end
+     end
+     redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[3])
+     if ARGV[4] == '1' then
+       redis.call('ZREM', KEYS[2], ARGV[2])
+     else
+       redis.call('ZADD', KEYS[2], ARGV[5], ARGV[2])
+     end
+     local identityCount = tonumber(ARGV[6])
+     for index = 1, identityCount do
+       redis.call('SET', KEYS[3 + index], ARGV[2], 'EX', ARGV[3])
+     end
+     local scheduleCount = tonumber(ARGV[7])
+     local argumentIndex = 8
+     for index = 1, scheduleCount do
+       redis.call('ZADD', KEYS[3], ARGV[argumentIndex], ARGV[argumentIndex + 1])
+       argumentIndex = argumentIndex + 2
+     end
+     return 1`,
+    {
+      keys: [
+        roomKey(room.id),
+        redisKey('presence:rooms'),
+        redisKey('room:schedules'),
+        ...members.map((member) => identityKey(member.key)),
+      ],
+      arguments: [
+        JSON.stringify(room),
+        room.id,
+        String(ROOM_TTL_SECONDS),
+        room.status === 'finished' ? '1' : '0',
+        String(room.updatedAt + ROOM_TTL_SECONDS * 1000),
+        String(members.length),
+        String(schedules.length),
+        ...schedules.flatMap((item) => [String(item.score), item.value]),
+      ],
+    }
+  );
+  if (Number(result) !== 1) throw new Error('STALE_ROOM_WRITE');
 }
 
 export async function deleteRoom(room: StoredRoom): Promise<void> {
   const identities = [...room.players, ...room.spectators].map((p) => p.key);
-  const client = redis();
+  const client = stateRedis();
   if (!client) {
     localRooms.delete(room.id);
-    for (const identity of identities) localIdentityRooms.delete(identity);
+    for (const identity of identities) {
+      if (localIdentityRooms.get(identity) === room.id) localIdentityRooms.delete(identity);
+    }
     return;
   }
-  await client.multi()
-    .del([roomKey(room.id), ...identities.map(identityKey)])
-    .zRem(redisKey('rooms:active'), room.id)
-    .zRem(redisKey(`rooms:active:ip:${room.ownerIp}`), room.id)
-    .zRem(redisKey('presence:rooms'), room.id)
-    .exec();
+  await client.eval(
+    `redis.call('DEL', KEYS[1])
+     redis.call('ZREM', KEYS[2], ARGV[1])
+     redis.call('ZREM', KEYS[3], ARGV[1])
+     redis.call('ZREM', KEYS[4], ARGV[1])
+     for index = 5, #KEYS do
+       if redis.call('GET', KEYS[index]) == ARGV[1] then redis.call('DEL', KEYS[index]) end
+     end
+     return 1`,
+    {
+      keys: [
+        roomKey(room.id),
+        redisKey('rooms:active'),
+        redisKey(`rooms:active:ip:${room.ownerIp}`),
+        redisKey('presence:rooms'),
+        ...identities.map(identityKey),
+      ],
+      arguments: [room.id],
+    }
+  );
 }
 
 export async function reserveRoomCapacity(ip: string, roomId: string): Promise<boolean> {
-  const client = redis();
+  const client = stateRedis();
   if (!client) return true;
   const result = await client.eval(
     `redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', ARGV[1])
@@ -169,7 +297,7 @@ export async function reserveRoomCapacity(ip: string, roomId: string): Promise<b
 }
 
 export async function releaseRoomCapacity(ip: string, roomId: string): Promise<void> {
-  const client = redis();
+  const client = stateRedis();
   if (!client) return;
   await Promise.all([
     client.zRem(redisKey('rooms:active'), roomId),
@@ -177,13 +305,25 @@ export async function releaseRoomCapacity(ip: string, roomId: string): Promise<v
   ]);
 }
 
-export async function clearIdentityRoom(identity: string): Promise<void> {
-  localIdentityRooms.delete(identity);
-  await redis()?.del(identityKey(identity));
+export async function clearIdentityRoom(identity: string, expectedRoomId?: string): Promise<void> {
+  if (!expectedRoomId || localIdentityRooms.get(identity) === expectedRoomId) {
+    localIdentityRooms.delete(identity);
+  }
+  const client = stateRedis();
+  if (!client) return;
+  if (!expectedRoomId) {
+    await client.del(identityKey(identity));
+    return;
+  }
+  await client.eval(
+    `if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('DEL', KEYS[1]) end
+     return 0`,
+    { keys: [identityKey(identity)], arguments: [expectedRoomId] }
+  );
 }
 
 async function acquireRedisLock(id: string): Promise<(() => Promise<void>) | null> {
-  const client = redis();
+  const client = stateRedis();
   if (!client) return null;
   const token = randomUUID();
   const key = redisKey(`lock:room:${id}`);
@@ -212,10 +352,13 @@ export async function withRoomLock<T>(
       const room = await getRoom(id);
       if (!room) return null;
       const result = await handler(room);
-      if (shouldSave(result)) await saveRoom(room);
+      if (shouldSave(result)) {
+        await saveRoom(room);
+        syncResultRoomVersion(result, room);
+      }
       return result;
     } finally {
-      await releaseRedis();
+      await releaseRedis().catch((err) => console.error('[room:lock-release]', err));
     }
   }
 
@@ -229,7 +372,10 @@ export async function withRoomLock<T>(
     const room = await getRoom(id);
     if (!room) return null;
     const result = await handler(room);
-    if (shouldSave(result)) await saveRoom(room);
+    if (shouldSave(result)) {
+      await saveRoom(room);
+      syncResultRoomVersion(result, room);
+    }
     return result;
   } finally {
     release();
@@ -237,11 +383,19 @@ export async function withRoomLock<T>(
   }
 }
 
+function syncResultRoomVersion<T>(result: T, room: StoredRoom): void {
+  if (!result || typeof result !== 'object' || !('room' in result)) return;
+  const snapshot = (result as { room?: StoredRoom }).room;
+  if (!snapshot) return;
+  snapshot.revision = room.revision;
+  snapshot.updatedAt = room.updatedAt;
+}
+
 export async function queueOrTakeOpponent(
   dbType: DbType,
   identity: QueuedIdentity
 ): Promise<QueuedIdentity | null> {
-  const client = redis();
+  const client = stateRedis();
   if (!client) return null;
   const queueKey = redisKey(`matchmaking:${dbType}`);
   const profilePrefix = redisKey('match-profile:');
@@ -250,24 +404,82 @@ export async function queueOrTakeOpponent(
      for _, candidate in ipairs(candidates) do
        if candidate ~= ARGV[1] and redis.call('ZREM', KEYS[1], candidate) == 1 then
          local profile = redis.call('GET', ARGV[2] .. candidate)
+         if profile then
+           local decodedOk, decoded = pcall(cjson.decode, profile)
+           if decodedOk and decoded.socketId and redis.call('EXISTS', ARGV[3] .. decoded.socketId) == 1 then
+             redis.call('DEL', ARGV[2] .. candidate)
+             return profile
+           end
+         end
          redis.call('DEL', ARGV[2] .. candidate)
-         if profile then return profile end
        end
      end
-     redis.call('ZADD', KEYS[1], ARGV[3], ARGV[1])
-     redis.call('SET', ARGV[2] .. ARGV[1], ARGV[4], 'EX', 300)
+     redis.call('ZADD', KEYS[1], ARGV[4], ARGV[1])
+     redis.call('SET', ARGV[2] .. ARGV[1], ARGV[5], 'EX', 300)
      return false`,
     {
       keys: [queueKey],
-      arguments: [identity.key, profilePrefix, String(Date.now()), JSON.stringify(identity)],
+      arguments: [
+        identity.key,
+        profilePrefix,
+        redisKey('connections:socket:'),
+        String(Date.now()),
+        JSON.stringify(identity),
+      ],
     }
   );
   return typeof result === 'string' ? JSON.parse(result) as QueuedIdentity : null;
 }
 
-export async function cancelQueue(identity: string): Promise<void> {
-  const client = redis();
+export async function requeueCandidate(dbType: DbType, identity: QueuedIdentity): Promise<void> {
+  const client = stateRedis();
   if (!client) return;
+  await client.eval(
+    `if redis.call('EXISTS', KEYS[3]) == 0 then return 0 end
+     redis.call('ZADD', KEYS[1], ARGV[2], ARGV[1])
+     redis.call('SET', KEYS[2], ARGV[3], 'EX', 300)
+     return 1`,
+    {
+      keys: [
+        redisKey(`matchmaking:${dbType}`),
+        redisKey(`match-profile:${identity.key}`),
+        redisKey(`connections:socket:${identity.socketId}`),
+      ],
+      arguments: [identity.key, String(Date.now()), JSON.stringify(identity)],
+    }
+  );
+}
+
+export async function isSocketAlive(socketId: string): Promise<boolean> {
+  const client = stateRedis();
+  if (!client) return true;
+  return (await client.exists(redisKey(`connections:socket:${socketId}`))) === 1;
+}
+
+export async function cancelQueue(identity: string, socketId?: string): Promise<void> {
+  const client = stateRedis();
+  if (!client) return;
+  if (socketId) {
+    await client.eval(
+      `local profile = redis.call('GET', KEYS[3])
+       if not profile then return 0 end
+       local decodedOk, decoded = pcall(cjson.decode, profile)
+       if not decodedOk or decoded.socketId ~= ARGV[2] then return 0 end
+       redis.call('ZREM', KEYS[1], ARGV[1])
+       redis.call('ZREM', KEYS[2], ARGV[1])
+       redis.call('DEL', KEYS[3])
+       return 1`,
+      {
+        keys: [
+          redisKey('matchmaking:easy'),
+          redisKey('matchmaking:normal'),
+          redisKey(`match-profile:${identity}`),
+        ],
+        arguments: [identity, socketId],
+      }
+    );
+    return;
+  }
   await Promise.all([
     client.zRem(redisKey('matchmaking:easy'), identity),
     client.zRem(redisKey('matchmaking:normal'), identity),
@@ -275,26 +487,66 @@ export async function cancelQueue(identity: string): Promise<void> {
   ]);
 }
 
-export async function schedule(kind: string, roomId: string, discriminator: string, at: number) {
-  const client = redis();
-  if (!client) return;
+export async function schedule(
+  kind: string,
+  roomId: string,
+  discriminator: string,
+  at: number
+): Promise<boolean> {
+  const client = stateRedis();
+  if (!client) return false;
   await client.zAdd(redisKey('room:schedules'), {
     score: at,
     value: `${kind}|${roomId}|${discriminator}`,
   });
+  return true;
 }
 
 export async function claimDueSchedules(limit = 100): Promise<string[]> {
-  const client = redis();
+  const client = stateRedis();
   if (!client) return [];
-  const result = await client.eval(
+  const now = Date.now();
+  return client.eval(
     `local items = redis.call('ZRANGEBYSCORE', KEYS[1], '-inf', ARGV[1], 'LIMIT', 0, ARGV[2])
-     for _, item in ipairs(items) do redis.call('ZREM', KEYS[1], item) end
+     for _, item in ipairs(items) do
+       redis.call('ZADD', KEYS[1], 'XX', ARGV[3], item)
+     end
      return items`,
     {
       keys: [redisKey('room:schedules')],
-      arguments: [String(Date.now()), String(limit)],
+      arguments: [String(now), String(limit), String(now + 15_000)],
     }
-  );
-  return result as string[];
+  ) as Promise<string[]>;
+}
+
+export async function acknowledgeSchedule(item: string): Promise<void> {
+  await redis()?.zRem(redisKey('room:schedules'), item);
+}
+
+export async function beginMaintenanceWindow(durationMs = 90_000): Promise<number> {
+  const until = Date.now() + durationMs;
+  const client = stateRedis();
+  if (client) {
+    await client.set(redisKey('maintenance:until'), String(until), {
+      PX: durationMs,
+    });
+  }
+  return until;
+}
+
+export async function getMaintenanceUntil(): Promise<number> {
+  const client = stateRedis();
+  if (!client) return 0;
+  return Number(await client.get(redisKey('maintenance:until'))) || 0;
+}
+
+export async function setRecoveryWindow(durationMs: number): Promise<void> {
+  const client = stateRedis();
+  if (!client) return;
+  if (durationMs <= 0) {
+    await client.del(redisKey('maintenance:until'));
+    return;
+  }
+  const until = Date.now() + durationMs;
+  await client.set(redisKey('maintenance:until'), String(until), { PX: durationMs });
 }

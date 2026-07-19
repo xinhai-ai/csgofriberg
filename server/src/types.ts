@@ -19,6 +19,7 @@ export interface Player {
   major_appearances: number;
   is_easy: boolean | number;
   is_active: boolean | number;
+  is_enabled: boolean | number;
   created_at: string;
 }
 

@@ -36,6 +36,7 @@ export async function ensureSchema(instance: Knex = db): Promise<void> {
       t.integer('major_appearances').notNullable().defaultTo(0);
       t.boolean('is_easy').notNullable().defaultTo(false);
       t.boolean('is_active').notNullable().defaultTo(true);
+      t.boolean('is_enabled').notNullable().defaultTo(true);
       t.timestamp('created_at').notNullable().defaultTo(instance.fn.now());
     });
   }
@@ -47,6 +48,11 @@ export async function ensureSchema(instance: Knex = db): Promise<void> {
   if (!(await instance.schema.hasColumn('players', 'is_easy'))) {
     await instance.schema.alterTable('players', (t) => {
       t.boolean('is_easy').notNullable().defaultTo(false);
+    });
+  }
+  if (!(await instance.schema.hasColumn('players', 'is_enabled'))) {
+    await instance.schema.alterTable('players', (t) => {
+      t.boolean('is_enabled').notNullable().defaultTo(true);
     });
   }
   if (await instance.schema.hasColumn('players', 'real_name')) {

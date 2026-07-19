@@ -133,35 +133,44 @@ export function ensureGuestCookie(req: Request, res: Response): GuestIdentity {
 export async function authenticateCookie(cookieHeader: string | undefined): Promise<AuthPayload | null> {
   const token = parseCookies(cookieHeader)[AUTH_COOKIE];
   if (!token) return null;
+  let payload: AuthTokenPayload;
   try {
-    const payload = jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] }) as AuthTokenPayload;
-    if (payload.typ !== 'auth' || !/^\d+$/.test(payload.sub)) return null;
-    const userId = Number(payload.sub);
-    const client = redis();
-    const cacheKey = redisKey(`auth:user:${userId}`);
-    if (client) {
+    payload = jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] }) as AuthTokenPayload;
+  } catch {
+    return null;
+  }
+  if (payload.typ !== 'auth' || !/^\d+$/.test(payload.sub)) return null;
+  const userId = Number(payload.sub);
+  const client = redis();
+  const cacheKey = redisKey(`auth:user:${userId}`);
+  if (client) {
+    try {
       const cached = await client.get(cacheKey);
       if (cached) {
         const user = JSON.parse(cached) as CachedAuthUser;
         if (user.tokenVersion !== Number(payload.ver)) return null;
         return { id: user.id, username: user.username, role: user.role };
       }
+    } catch (err) {
+      console.warn('[auth:cache-read]', err instanceof Error ? err.message : err);
     }
-    const user = await db<User>('users').where({ id: userId }).first();
-    if (!user || Number(user.token_version) !== Number(payload.ver)) return null;
-    if (client) {
-      const cached: CachedAuthUser = {
-        id: user.id,
-        username: user.username,
-        role: user.role,
-        tokenVersion: Number(user.token_version),
-      };
-      await client.set(cacheKey, JSON.stringify(cached), { EX: 300 });
-    }
-    return { id: user.id, username: user.username, role: user.role };
-  } catch {
-    return null;
   }
+  const user = await db<User>('users').where({ id: userId }).first();
+  if (!user || Number(user.token_version) !== Number(payload.ver)) return null;
+  if (client) {
+    const cached: CachedAuthUser = {
+      id: user.id,
+      username: user.username,
+      role: user.role,
+      tokenVersion: Number(user.token_version),
+    };
+    try {
+      await client.set(cacheKey, JSON.stringify(cached), { EX: 300 });
+    } catch (err) {
+      console.warn('[auth:cache-write]', err instanceof Error ? err.message : err);
+    }
+  }
+  return { id: user.id, username: user.username, role: user.role };
 }
 
 export async function invalidateAuthUser(userId: number): Promise<void> {

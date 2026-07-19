@@ -17,10 +17,10 @@ export async function refreshPlayerCache(): Promise<void> {
   if (refreshPromise) return refreshPromise;
   refreshPromise = (async () => {
     const rows = await db<Player>('players').orderBy('nickname');
-    allPlayers = rows;
-    easyPlayers = rows.filter((p) => Boolean(p.is_easy));
     playersById = new Map(rows.map((p) => [p.id, p]));
-    const publicPlayers = rows.map((p) => ({ id: p.id, nickname: p.nickname }));
+    allPlayers = rows.filter((p) => Boolean(p.is_enabled));
+    easyPlayers = allPlayers.filter((p) => Boolean(p.is_easy));
+    const publicPlayers = allPlayers.map((p) => ({ id: p.id, nickname: p.nickname }));
     version = createHash('sha256')
       .update(JSON.stringify(publicPlayers))
       .digest('hex')
@@ -58,6 +58,11 @@ export async function initPlayerCache(): Promise<void> {
 
 export function getPlayer(id: number): Player | undefined {
   return playersById.get(id);
+}
+
+export function getEnabledPlayer(id: number): Player | undefined {
+  const player = playersById.get(id);
+  return player && Boolean(player.is_enabled) ? player : undefined;
 }
 
 export function pickCachedTarget(mode: 'easy' | 'normal'): Player | null {

@@ -5,7 +5,7 @@ import {
   loadSingleGame,
   saveSingleGame,
 } from './singleGameStore';
-import { initRedis, redis } from '../redis';
+import { initRedis, redis, redisKey } from '../redis';
 
 describe('singleGameStore', () => {
   it('requires Redis instead of silently writing active games to the database', async () => {
@@ -42,7 +42,7 @@ describe('singleGameStore', () => {
     });
     created.guesses.push({ playerId: 2, nickname: 'test' } as any);
     await saveSingleGame(created);
-    expect(await redis()!.zScore('csgofriberg:presence:single', created.id)).not.toBeNull();
+    expect(await redis()!.zScore(redisKey('presence:single'), created.id)).not.toBeNull();
 
     const restored = await createOrResumeSingleGame({
       identityKey,
@@ -57,7 +57,7 @@ describe('singleGameStore', () => {
 
     await deleteSingleGame(restored);
     expect(await loadSingleGame(restored.id, identityKey)).toBeNull();
-    expect(await redis()!.zScore('csgofriberg:presence:single', restored.id)).toBeNull();
+    expect(await redis()!.zScore(redisKey('presence:single'), restored.id)).toBeNull();
   });
 
   it('removes legacy games once last activity is older than thirty minutes', async () => {
@@ -72,13 +72,13 @@ describe('singleGameStore', () => {
     });
     created.lastActiveAt = Date.now() - 1_801_000;
     await redis()!.set(
-      `csgofriberg:single:game:${created.id}`,
+      redisKey(`single:game:${created.id}`),
       JSON.stringify(created),
       { EX: 1800 }
     );
 
     expect(await loadSingleGame(created.id, identityKey)).toBeNull();
-    expect(await redis()!.get(`csgofriberg:single:active:${identityKey}:normal`)).toBeNull();
-    expect(await redis()!.zScore('csgofriberg:presence:single', created.id)).toBeNull();
+    expect(await redis()!.get(redisKey(`single:active:${identityKey}:normal`))).toBeNull();
+    expect(await redis()!.zScore(redisKey('presence:single'), created.id)).toBeNull();
   });
 });

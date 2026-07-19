@@ -43,6 +43,10 @@ const playerSchema = z.object({
   major_appearances: z.number().int().min(0).default(0),
   is_easy: z.boolean().default(false),
   is_active: z.boolean().default(true),
+  is_enabled: z.boolean().default(true),
+});
+const importedPlayerSchema = playerSchema.extend({
+  is_enabled: z.boolean().optional(),
 });
 
 const playerListQuerySchema = z.object({
@@ -112,13 +116,12 @@ router.delete(
   adminWriteLimit,
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) throw new HttpError(400, 'VALIDATION_FAILED');
+    const player = await db('players').where({ id }).first();
+    if (!player) throw new HttpError(404, 'PLAYER_NOT_FOUND');
+    if (Boolean(player.is_enabled)) throw new HttpError(409, 'PLAYER_MUST_BE_DISABLED');
     const used = await db('games').where({ target_player_id: id }).first();
-    if (used) {
-      // 有历史对局引用时不物理删除,标记退役并保留数据
-      await db('players').where({ id }).update({ is_active: false });
-      await invalidatePlayerCache();
-      return res.json({ ok: true, softDeleted: true });
-    }
+    if (used) throw new HttpError(409, 'PLAYER_HAS_HISTORY');
     const count = await db('players').where({ id }).del();
     if (!count) throw new HttpError(404, 'PLAYER_NOT_FOUND');
     await invalidatePlayerCache();
@@ -130,20 +133,29 @@ router.delete(
 router.post(
   '/players/import',
   adminImportLimit,
-  validateBody(z.object({ players: z.array(playerSchema).min(1).max(1000) })),
+  validateBody(z.object({ players: z.array(importedPlayerSchema).min(1).max(1000) })),
   asyncHandler(async (req, res) => {
     let created = 0;
     let updated = 0;
     await db.transaction(async (trx) => {
       const nicknames = req.body.players.map((p: { nickname: string }) => p.nickname);
-      const existing = await trx('players').whereIn('nickname', nicknames).select('nickname');
+      const existing = await trx('players')
+        .whereIn('nickname', nicknames)
+        .select('nickname', 'is_enabled');
       const existingNames = new Set(existing.map((p: any) => p.nickname));
+      const existingEnabled = new Map(
+        existing.map((p: any) => [p.nickname, Boolean(p.is_enabled)])
+      );
       updated = req.body.players.filter((p: { nickname: string }) => existingNames.has(p.nickname)).length;
       created = req.body.players.length - updated;
+      const importedPlayers = req.body.players.map((player: { nickname: string; is_enabled?: boolean }) => ({
+        ...player,
+        is_enabled: player.is_enabled ?? existingEnabled.get(player.nickname) ?? true,
+      }));
       const chunkSize = 200;
-      for (let index = 0; index < req.body.players.length; index += chunkSize) {
+      for (let index = 0; index < importedPlayers.length; index += chunkSize) {
         await trx('players')
-          .insert(req.body.players.slice(index, index + chunkSize))
+          .insert(importedPlayers.slice(index, index + chunkSize))
           .onConflict('nickname')
           .merge();
       }

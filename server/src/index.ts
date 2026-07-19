@@ -17,7 +17,7 @@ import statsRoutes from './routes/stats';
 import leaderboardRoutes from './routes/leaderboard';
 import announcementRoutes from './routes/announcements';
 import adminRoutes from './routes/admin';
-import { setupSocket } from './socket';
+import { beginMaintenanceWindow, setRecoveryWindow, setupSocket } from './socket';
 import { closeRedis, duplicateRedisClient, initRedis, isRedisAvailable } from './redis';
 import { initPlayerCache } from './services/playerCache';
 import { rateLimit } from './middleware/rateLimit';
@@ -60,6 +60,7 @@ async function main() {
   await initDb();
   console.log('[server] 数据库结构已就绪');
   const redisReady = await initRedis();
+  if (redisReady) await setRecoveryWindow(10_000);
   await initPlayerCache();
   const stopMatchWorker = redisReady ? await initMatchResultWorker() : async () => undefined;
 
@@ -153,8 +154,8 @@ async function main() {
     shutdownPromise = (async () => {
       shuttingDown = true;
       console.log(`[server] 收到 ${signal},开始优雅退出`);
-      stopSocket();
       stopRuntimeMonitor();
+      await beginMaintenanceWindow().catch((err) => console.error('[shutdown:maintenance]', err));
 
       const serverClosed = new Promise<void>((resolve) => {
         server.close(() => resolve());
@@ -166,6 +167,9 @@ async function main() {
         withTimeout(socketClosed, SHUTDOWN_TIMEOUT_MS, () => io.disconnectSockets(true)),
         withTimeout(stopMatchWorker(), SHUTDOWN_TIMEOUT_MS, () => undefined),
       ]);
+      await withTimeout(stopSocket(), SHUTDOWN_TIMEOUT_MS, () => undefined).catch((err) => {
+        console.error('[shutdown:socket-drain]', err);
+      });
 
       await Promise.allSettled([
         withTimeout(

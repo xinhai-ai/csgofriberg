@@ -47,6 +47,7 @@ export default function AdminPlayers() {
         ...p,
         is_easy: Boolean(p.is_easy),
         is_active: Boolean(p.is_active),
+        is_enabled: Boolean(p.is_enabled),
       })));
       setTotal(res.data.total);
       if (res.data.page !== page) setPage(res.data.page);
@@ -91,18 +92,37 @@ export default function AdminPlayers() {
     }
   };
 
+  const setEnabled = async (p: AdminPlayer, isEnabled: boolean) => {
+    if (!isEnabled && !await confirm({
+      title: `停用选手 ${p.nickname}?`,
+      message: '停用后，该选手会立即从目标池和猜测候选列表中移除，但历史对局仍会保留。',
+      confirmLabel: '确认停用',
+      tone: 'warning',
+    })) return;
+    setError('');
+    setMessage('');
+    try {
+      await api.put(`/admin/players/${p.id}`, { is_enabled: isEnabled });
+      clearPlayerListCache();
+      setMessage(isEnabled ? `${p.nickname} 已重新加入选手池` : `${p.nickname} 已停用并移出选手池`);
+      await load();
+    } catch (err) {
+      setError(errMsg(err));
+    }
+  };
+
   const remove = async (p: AdminPlayer) => {
     if (!await confirm({
-      title: `删除选手 ${p.nickname}?`,
-      message: '存在历史对局时会标记为退役，否则会永久删除该选手。',
-      confirmLabel: '确认删除',
+      title: `永久删除 ${p.nickname}?`,
+      message: '永久删除无法撤销。已有历史对局的选手不能永久删除，请改用停用。',
+      confirmLabel: '永久删除',
       tone: 'danger',
     })) return;
     setError('');
     try {
-      const res = await api.delete(`/admin/players/${p.id}`);
+      await api.delete(`/admin/players/${p.id}`);
       clearPlayerListCache();
-      setMessage(res.data.softDeleted ? '该选手有历史对局,已标记为退役' : '已删除');
+      setMessage(`${p.nickname} 已永久删除`);
       await load();
     } catch (err) {
       setError(errMsg(err));
@@ -137,13 +157,27 @@ export default function AdminPlayers() {
     { key: 'major_appearances', title: 'Major' },
     { key: 'is_easy', title: '简单版', render: (p) => (p.is_easy ? '是' : '否') },
     { key: 'is_active', title: '状态', render: (p) => (p.is_active ? '现役' : '退役') },
+    { key: 'is_enabled', title: '选手池', render: (p) => (p.is_enabled ? '可用' : '已停用') },
     {
       key: 'actions',
       title: '操作',
       render: (p) => (
         <span style={{ display: 'flex', gap: 6 }}>
           <button className="btn btn-ghost" onClick={() => setEditing(p)}>编辑</button>
-          <button className="btn btn-red" onClick={() => void remove(p)}>删除</button>
+          <button
+            className="btn btn-ghost"
+            onClick={() => void setEnabled(p, !p.is_enabled)}
+          >
+            {p.is_enabled ? '停用' : '启用'}
+          </button>
+          <button
+            className="btn btn-red"
+            onClick={() => void remove(p)}
+            disabled={p.is_enabled}
+            title={p.is_enabled ? '请先停用，再永久删除' : '永久删除'}
+          >
+            永久删除
+          </button>
         </span>
       ),
     },
@@ -219,14 +253,14 @@ export default function AdminPlayers() {
         <h3>JSON 批量导入</h3>
         <p className="muted">
           粘贴选手数组,字段: nickname, nationality, region, team, birth_year, role,
-          major_championships, major_appearances, is_easy, is_active。按昵称去重,已存在则更新。
+          major_championships, major_appearances, is_easy, is_active, is_enabled。按昵称去重,已存在则更新。
         </p>
         <textarea
           className="input"
           rows={6}
           value={importText}
           onChange={(e) => setImportText(e.target.value)}
-          placeholder='[{"nickname":"s1mple","nationality":"乌克兰","region":"欧洲","team":"NAVI","birth_year":1997,"role":"AWPer","major_championships":1,"major_appearances":12,"is_easy":true,"is_active":true}]'
+          placeholder='[{"nickname":"s1mple","nationality":"乌克兰","region":"欧洲","team":"NAVI","birth_year":1997,"role":"AWPer","major_championships":1,"major_appearances":12,"is_easy":true,"is_active":true,"is_enabled":true}]'
         />
         <button className="btn" style={{ marginTop: 8 }} onClick={() => void doImport()} disabled={!importText.trim()}>
           导入

@@ -56,7 +56,7 @@ export default function MultiLobby() {
   const [allowSpectators, setAllowSpectators] = useState(false);
   const [anonymous, setAnonymous] = useState(false);
   const [mmDbType, setMmDbType] = useState<DbType>('normal');
-  const [mmAnonymous, setMmAnonymous] = useState(true);
+  const mmAnonymous = true;
   const [joinCode, setJoinCode] = useState('');
   const [createdRoom, setCreatedRoom] = useState<RoomState | null>(null);
   const [currentRoom, setCurrentRoom] = useState<RoomState | null>(null);
@@ -67,6 +67,8 @@ export default function MultiLobby() {
   const navigate = useNavigate();
   const confirm = useConfirm();
   const searchingRef = useRef(false);
+  const matchOptionsRef = useRef({ dbType: mmDbType, anonymous: mmAnonymous });
+  matchOptionsRef.current = { dbType: mmDbType, anonymous: mmAnonymous };
 
   useEffect(() => {
     const socket = getSocket();
@@ -74,7 +76,23 @@ export default function MultiLobby() {
       searchingRef.current = false;
       navigate('/multi/room');
     };
+    const restoreSearch = () => {
+      if (!searchingRef.current) return;
+      socket.emit('match:start', matchOptionsRef.current, (res: any) => {
+        if (res?.room) {
+          searchingRef.current = false;
+          setSearching(false);
+          navigate('/multi/room');
+          return;
+        }
+        if (!res?.code) return;
+        searchingRef.current = false;
+        setSearching(false);
+        setError(translate(res.code));
+      });
+    };
     socket.on('match:found', onMatchFound);
+    socket.on('connect', restoreSearch);
     // 查询自己是否还挂在某个房间里(断线重进/误退出场景)
     socket.emit('room:sync', {}, (res: any) => {
       if (res?.room) {
@@ -84,6 +102,7 @@ export default function MultiLobby() {
     });
     return () => {
       socket.off('match:found', onMatchFound);
+      socket.off('connect', restoreSearch);
       // 离开大厅时取消排队
       if (searchingRef.current) socket.emit('match:cancel', {});
     };
@@ -124,7 +143,15 @@ export default function MultiLobby() {
 
   const startMatch = () => {
     setError('');
+    setSearching(true);
+    searchingRef.current = true;
     getSocket().emit('match:start', { dbType: mmDbType, anonymous: mmAnonymous }, (res: any) => {
+      if (res?.room) {
+        setSearching(false);
+        searchingRef.current = false;
+        navigate('/multi/room');
+        return;
+      }
       if (res?.code) {
         setSearching(false);
         searchingRef.current = false;
@@ -276,15 +303,6 @@ export default function MultiLobby() {
               onChange={setMmDbType}
               format={(v) => (v === 'normal' ? '完整版' : '简单版')}
             />
-            <label className="spectator-option">
-              <input
-                type="checkbox"
-                checked={mmAnonymous}
-                disabled={searching}
-                onChange={(event) => setMmAnonymous(event.target.checked)}
-              />
-              <span>匿名匹配</span>
-            </label>
             {searching ? (
               <div style={{ textAlign: 'center', marginTop: 14 }}>
                 <div className="spinner" />

@@ -23,6 +23,7 @@ export async function seedPlayersIfEmpty(): Promise<void> {
     major_appearances: p.major_appearances ?? 0,
     is_easy: p.is_easy ?? false,
     is_active: p.is_active ?? true,
+    is_enabled: p.is_enabled ?? true,
   }));
   await db.batchInsert('players', rows, 50);
   console.log(`[seed] 已导入 ${rows.length} 名选手`);

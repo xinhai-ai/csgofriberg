@@ -59,9 +59,16 @@ async function persist(payload: MatchResultPayload): Promise<void> {
 export async function enqueueMatchResult(payload: MatchResultPayload): Promise<void> {
   const client = redis();
   if (!client) return persist(payload);
-  await client.sendCommand([
-    'XADD', STREAM_KEY, 'MAXLEN', '~', '100000', '*', 'payload', JSON.stringify(payload),
-  ]);
+  try {
+    await client.sendCommand([
+      'XADD', STREAM_KEY, 'MAXLEN', '~', '100000', '*', 'payload', JSON.stringify(payload),
+    ]);
+  } catch (err) {
+    // A timed-out XADD may still have reached Redis. Direct persistence is safe
+    // because match_records.room_id is unique and the transaction is idempotent.
+    console.warn('[match-result] queue unavailable, persisting directly', err);
+    await persist(payload);
+  }
 }
 
 function parseMessages(reply: unknown): { id: string; payload: MatchResultPayload }[] {

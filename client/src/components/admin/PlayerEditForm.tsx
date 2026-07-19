@@ -14,6 +14,7 @@ export interface PlayerForm {
   major_appearances: number;
   is_easy: boolean;
   is_active: boolean;
+  is_enabled: boolean;
 }
 
 export const emptyPlayer: PlayerForm = {
@@ -27,6 +28,7 @@ export const emptyPlayer: PlayerForm = {
   major_appearances: 0,
   is_easy: false,
   is_active: true,
+  is_enabled: true,
 };
 
 interface Props {
@@ -47,12 +49,17 @@ export default function PlayerEditForm({ initial, onSubmit, onCancel }: Props) {
     const oldOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     firstInputRef.current?.focus();
+    return () => {
+      document.body.style.overflow = oldOverflow;
+    };
+  }, []);
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && !saving) onCancel();
     };
     document.addEventListener('keydown', onKeyDown);
     return () => {
-      document.body.style.overflow = oldOverflow;
       document.removeEventListener('keydown', onKeyDown);
     };
   }, [onCancel, saving]);
@@ -129,6 +136,7 @@ export default function PlayerEditForm({ initial, onSubmit, onCancel }: Props) {
           <div className="admin-player-flags">
             <label><input type="checkbox" checked={form.is_easy} onChange={(event) => set({ is_easy: event.target.checked })} />加入简单版选手池</label>
             <label><input type="checkbox" checked={form.is_active} onChange={(event) => set({ is_active: event.target.checked })} />现役选手</label>
+            <label><input type="checkbox" checked={form.is_enabled} onChange={(event) => set({ is_enabled: event.target.checked })} />允许进入选手池和猜测列表</label>
           </div>
 
           {submitError && <p className="error admin-player-submit-error">{submitError}</p>}

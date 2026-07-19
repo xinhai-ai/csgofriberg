@@ -80,11 +80,38 @@ export interface RoomState {
   anonymous: boolean;
   round: number;
   roundId: number;
+  stateVersion: number;
   winsNeeded: number;
   maxGuesses: number;
   roundEndsAt: number | null;
   spectators: { key: string; name: string }[];
   players: RoomPlayer[];
+  roundResult: {
+    winnerKey: string | null;
+    reason: string;
+    answer: {
+      nickname: string;
+      team: string;
+      nationality: string;
+      role: string;
+      majorChampionships: number;
+      majorAppearances: number;
+    } | null;
+    matchOver: boolean;
+    nextRoundInMs?: number;
+  } | null;
+  matchResult: {
+    winnerKey: string | null;
+    reason: string;
+    answer: {
+      nickname: string;
+      team: string;
+      nationality: string;
+      role: string;
+      majorChampionships: number;
+      majorAppearances: number;
+    } | null;
+  } | null;
 }
 
 export interface PresenceStats {

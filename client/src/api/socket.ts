@@ -1,15 +1,11 @@
 import { io, Socket } from 'socket.io-client';
-import { ensurePow } from './pow';
 import { ensureGuestSession, hasAuthHint } from './session';
 
 let socket: Socket | null = null;
 let connectTask: Promise<void> | null = null;
 
 async function prepareSocketIdentity(): Promise<void> {
-  await Promise.all([
-    ensurePow(),
-    hasAuthHint() ? Promise.resolve() : ensureGuestSession(),
-  ]);
+  if (!hasAuthHint()) await ensureGuestSession();
 }
 
 function connectSocket(): void {
@@ -37,9 +33,7 @@ export function getSocket(): Socket {
     transports: ['websocket'],
   });
   socket.on('connect_error', (error) => {
-    if (error.message === 'POW_REQUIRED') {
-      void ensurePow(true).then(connectSocket).catch(() => undefined);
-    } else if (error.message === 'IDENTITY_REQUIRED') {
+    if (error.message === 'IDENTITY_REQUIRED') {
       void ensureGuestSession(true).then(connectSocket).catch(() => undefined);
     }
   });

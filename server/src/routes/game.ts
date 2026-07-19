@@ -5,7 +5,7 @@ import { optionalAuth } from '../middleware/auth';
 import { validateBody, asyncHandler, HttpError } from '../middleware/common';
 import { GuessFeedback, Player } from '../types';
 import { compareGuess, completeGuessFeedback, MAX_GUESSES } from '../services/gameService';
-import { getPlayer, pickCachedTarget } from '../services/playerCache';
+import { getEnabledPlayer, getPlayer, pickCachedTarget } from '../services/playerCache';
 import { rateLimit, requestIdentity } from '../middleware/rateLimit';
 import { withKeyLock } from '../services/keyLock';
 import { invalidateCached } from '../services/queryCache';
@@ -127,7 +127,7 @@ router.post(
     const gameId = String(req.params.id);
     const response = await withKeyLock(`single-game:${gameId}`, async () => {
       const game = await loadOwnedGame(gameId, owner.identityKey);
-      const guess = getPlayer(req.body.playerId);
+      const guess = getEnabledPlayer(req.body.playerId);
       if (!guess) throw new HttpError(404, 'PLAYER_NOT_FOUND');
       const target = getPlayer(game.targetPlayerId);
       if (!target) throw new HttpError(500, 'INTERNAL_ERROR');

@@ -40,6 +40,7 @@ export const config = {
   bcryptRounds: Number.isInteger(configuredBcryptRounds)
     ? Math.max(8, Math.min(12, configuredBcryptRounds))
     : 8,
+  disconnectForfeitMs: Math.max(100, Number(process.env.DISCONNECT_FORFEIT_MS || 30_000)),
   powDifficulty: Number(process.env.POW_DIFFICULTY || 17),
   powChallengeTtlSeconds: Number(process.env.POW_CHALLENGE_TTL_SECONDS || 120),
   powTokenTtlSeconds: Number(process.env.POW_TOKEN_TTL_SECONDS || 600),
