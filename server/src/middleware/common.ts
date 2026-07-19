@@ -34,6 +34,9 @@ export function errorHandler(
   if (err instanceof Error && err.message === 'REDIS_UNAVAILABLE') {
     return res.status(503).json({ code: 'REDIS_UNAVAILABLE' });
   }
+  if (err instanceof Error && err.message === 'PASSWORD_SERVICE_BUSY') {
+    return res.status(503).json({ code: 'AUTH_BUSY' });
+  }
   console.error(err);
   res.status(500).json({ code: 'INTERNAL_ERROR' });
 }

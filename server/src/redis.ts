@@ -52,7 +52,8 @@ export function isRedisAvailable(): boolean {
 }
 
 export function redis(): Client | null {
-  return isRedisAvailable() ? commandClient : null;
+  if (!isRedisAvailable() || !commandClient) return null;
+  return commandClient.withCommandOptions({ timeout: config.redisCommandTimeoutMs }) as Client;
 }
 
 export function redisPublisher(): Client | null {

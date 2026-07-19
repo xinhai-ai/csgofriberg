@@ -14,6 +14,8 @@ const configuredJwtSecret = process.env.JWT_SECRET?.trim();
 const configuredGuestIdSalt = process.env.GUEST_ID_SALT?.trim();
 const unsafeJwtSecrets = new Set(['dev-secret', 'change-me-in-production']);
 const jwtSecret = configuredJwtSecret || crypto.randomBytes(48).toString('base64url');
+const configuredPasswordWorkers = Number(process.env.PASSWORD_WORKERS || 2);
+const configuredPasswordQueueLimit = Number(process.env.PASSWORD_QUEUE_LIMIT || 64);
 
 export const config = {
   port: Number(process.env.PORT || 3000),
@@ -28,6 +30,12 @@ export const config = {
   redisPrefix: process.env.REDIS_PREFIX || 'csgofriberg:',
   redisRequired: process.env.REDIS_REQUIRED === 'true',
   redisCommandTimeoutMs: Number(process.env.REDIS_COMMAND_TIMEOUT_MS || 1500),
+  passwordWorkers: Number.isInteger(configuredPasswordWorkers)
+    ? Math.max(1, Math.min(4, configuredPasswordWorkers))
+    : 2,
+  passwordQueueLimit: Number.isInteger(configuredPasswordQueueLimit)
+    ? Math.max(8, configuredPasswordQueueLimit)
+    : 64,
   powDifficulty: Number(process.env.POW_DIFFICULTY || 17),
   powChallengeTtlSeconds: Number(process.env.POW_CHALLENGE_TTL_SECONDS || 120),
   powTokenTtlSeconds: Number(process.env.POW_TOKEN_TTL_SECONDS || 600),

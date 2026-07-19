@@ -82,10 +82,7 @@ export async function getRoom(id: string): Promise<StoredRoom | null> {
 }
 
 export async function getRoomForIdentity(identity: string): Promise<StoredRoom | null> {
-  const client = redis();
-  const id = client
-    ? await client.get(identityKey(identity))
-    : localIdentityRooms.get(identity);
+  const id = await getRoomIdForIdentity(identity);
   if (!id) return null;
   const room = await getRoom(id);
   if (!room || room.status === 'finished') {
@@ -93,6 +90,13 @@ export async function getRoomForIdentity(identity: string): Promise<StoredRoom |
     return null;
   }
   return room;
+}
+
+export async function getRoomIdForIdentity(identity: string): Promise<string | null> {
+  const client = redis();
+  return client
+    ? await client.get(identityKey(identity))
+    : localIdentityRooms.get(identity) ?? null;
 }
 
 export async function saveRoom(room: StoredRoom): Promise<void> {
@@ -199,7 +203,8 @@ async function acquireRedisLock(id: string): Promise<(() => Promise<void>) | nul
 
 export async function withRoomLock<T>(
   id: string,
-  handler: (room: StoredRoom) => Promise<T> | T
+  handler: (room: StoredRoom) => Promise<T> | T,
+  shouldSave: (result: T) => boolean = () => true
 ): Promise<T | null> {
   const releaseRedis = await acquireRedisLock(id);
   if (releaseRedis) {
@@ -207,7 +212,7 @@ export async function withRoomLock<T>(
       const room = await getRoom(id);
       if (!room) return null;
       const result = await handler(room);
-      await saveRoom(room);
+      if (shouldSave(result)) await saveRoom(room);
       return result;
     } finally {
       await releaseRedis();
@@ -224,7 +229,7 @@ export async function withRoomLock<T>(
     const room = await getRoom(id);
     if (!room) return null;
     const result = await handler(room);
-    await saveRoom(room);
+    if (shouldSave(result)) await saveRoom(room);
     return result;
   } finally {
     release();

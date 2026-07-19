@@ -189,6 +189,11 @@ container restart.
 as rate limiting. This prevents a congested Redis instance from indefinitely
 holding HTTP requests open.
 
+Password hashing runs in a bounded worker-thread pool so login and registration
+cannot block the main HTTP and Socket.IO event loop. `PASSWORD_WORKERS` defaults
+to 2 and `PASSWORD_QUEUE_LIMIT` defaults to 64; keep the worker count low on a
+1 GB server.
+
 An unfinished single-player game is kept in Redis for up to 1800 seconds (30
 minutes) after its last activity. A completed game or an explicit exit removes
 it immediately.

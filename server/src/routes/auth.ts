@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { db } from '../db/knex';
 import {
@@ -14,6 +13,7 @@ import { validateBody, asyncHandler, HttpError } from '../middleware/common';
 import { User } from '../types';
 import { rateLimit, requestIdentity } from '../middleware/rateLimit';
 import { invalidateCached } from '../services/queryCache';
+import { hashPassword, verifyPassword } from '../services/password';
 
 const router = Router();
 
@@ -40,7 +40,7 @@ router.post(
     const [id] = await db('users')
       .insert({
         username,
-        password_hash: await bcrypt.hash(password, 10),
+        password_hash: await hashPassword(password, 10),
         role,
       })
       .returning('id')
@@ -66,7 +66,7 @@ router.post(
   asyncHandler(async (req, res) => {
     const { username, password } = req.body;
     const user = await db<User>('users').where({ username }).first();
-    if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+    if (!user || !(await verifyPassword(password, user.password_hash))) {
       throw new HttpError(401, 'INVALID_CREDENTIALS');
     }
     setAuthCookie(res, user);

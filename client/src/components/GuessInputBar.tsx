@@ -29,6 +29,8 @@ export default function GuessInputBar({
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const timer = useRef<number>();
+  const input = useRef<HTMLInputElement>(null);
+  const refocusAfterSubmit = useRef(false);
   const players = useRef<Suggestion[]>([]);
 
   useEffect(() => {
@@ -56,8 +58,40 @@ export default function GuessInputBar({
     return () => window.clearTimeout(timer.current);
   }, [text]);
 
+  useEffect(() => {
+    if (submitting || disabled || !refocusAfterSubmit.current) return;
+    refocusAfterSubmit.current = false;
+    input.current?.focus();
+  }, [disabled, submitting]);
+
+  useEffect(() => {
+    const focusInputOnEnter = (event: KeyboardEvent) => {
+      if (
+        event.key !== 'Enter' ||
+        event.defaultPrevented ||
+        event.isComposing ||
+        submitting ||
+        disabled ||
+        document.querySelector('[aria-modal="true"]')
+      ) return;
+
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        target.closest('input, textarea, select, button, a, [contenteditable="true"], [role="button"]')
+      ) return;
+
+      event.preventDefault();
+      input.current?.focus();
+    };
+
+    window.addEventListener('keydown', focusInputOnEnter);
+    return () => window.removeEventListener('keydown', focusInputOnEnter);
+  }, [disabled, submitting]);
+
   const pick = async (item: Suggestion) => {
     if (disabled || submitting) return;
+    refocusAfterSubmit.current = true;
     setSubmitting(true);
     try {
       await onPick(item);
@@ -91,6 +125,7 @@ export default function GuessInputBar({
       )}
       <form className="input-bar" onSubmit={submit}>
         <input
+          ref={input}
           className="input"
           value={text}
           disabled={disabled || submitting}
