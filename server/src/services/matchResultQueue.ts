@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { db } from '../db/knex';
 import { duplicateRedisClient, redis, redisKey } from '../redis';
 import { invalidateCached } from './queryCache';
+import { logTransientError } from './transientLog';
 
 export interface MatchResultPayload {
   roomId: string;
@@ -123,7 +124,7 @@ async function claimPending(client: NonNullable<ReturnType<typeof duplicateRedis
 }
 
 export async function initMatchResultWorker(): Promise<() => Promise<void>> {
-  const client = duplicateRedisClient();
+  const client = duplicateRedisClient('match-result');
   if (!client) return async () => undefined;
   workerClient = client;
   await client.connect();
@@ -144,12 +145,12 @@ export async function initMatchResultWorker(): Promise<() => Promise<void>> {
         await handleMessages(client, reply);
       } catch (err) {
         if (client.isOpen) {
-          console.error('[match-result] worker error', err);
+          logTransientError('[match-result]', err);
           await new Promise((resolve) => setTimeout(resolve, 1000));
         }
       }
     }
-  })();
+  })().catch((err) => logTransientError('[match-result:stopped]', err));
   return async () => {
     const active = workerClient;
     workerClient = null;

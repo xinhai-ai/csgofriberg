@@ -6,6 +6,7 @@ export interface RuntimeSnapshot {
     maxMs: number;
     utilization: number;
     timerDriftMs: number;
+    processCpuMs: number;
   };
   memory: {
     rssMb: number;
@@ -19,7 +20,7 @@ const SAMPLE_INTERVAL_MS = 5_000;
 const WARN_DELAY_MS = 250;
 let stopCurrent: (() => void) | null = null;
 let snapshot: RuntimeSnapshot = {
-  eventLoop: { p99Ms: 0, maxMs: 0, utilization: 0, timerDriftMs: 0 },
+  eventLoop: { p99Ms: 0, maxMs: 0, utilization: 0, timerDriftMs: 0, processCpuMs: 0 },
   memory: { rssMb: 0, heapUsedMb: 0, externalMb: 0 },
   sampledAt: Date.now(),
 };
@@ -37,11 +38,14 @@ export function startRuntimeMonitor(): () => void {
   const histogram = monitorEventLoopDelay({ resolution: 20 });
   histogram.enable();
   let previousUtilization = performance.eventLoopUtilization();
+  let previousCpuUsage = process.cpuUsage();
   let expectedAt = Date.now() + SAMPLE_INTERVAL_MS;
   const timer = setInterval(() => {
     const now = Date.now();
     const utilization = performance.eventLoopUtilization(previousUtilization);
     previousUtilization = performance.eventLoopUtilization();
+    const cpuUsage = process.cpuUsage(previousCpuUsage);
+    previousCpuUsage = process.cpuUsage();
     const memory = process.memoryUsage();
     snapshot = {
       eventLoop: {
@@ -49,6 +53,7 @@ export function startRuntimeMonitor(): () => void {
         maxMs: Math.round(histogram.max / 1e6),
         utilization: Number(utilization.utilization.toFixed(3)),
         timerDriftMs: Math.max(0, now - expectedAt),
+        processCpuMs: Math.round((cpuUsage.user + cpuUsage.system) / 1000),
       },
       memory: {
         rssMb: mb(memory.rss),

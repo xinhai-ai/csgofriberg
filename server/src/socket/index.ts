@@ -31,11 +31,12 @@ import {
   schedule,
   withRoomLock,
 } from '../services/roomStore';
-import { isRedisAvailable, redis, redisKey } from '../redis';
+import { isRedisAvailable, isRedisTimeoutError, redis, redisKey } from '../redis';
 import { enqueueMatchResult } from '../services/matchResultQueue';
 import { getPresenceStats, ONLINE_STALE_MS, PresenceStats } from '../services/presence';
 import { GuessFeedback } from '../types';
 import { config } from '../config';
+import { logTransientError, logTransientWarning } from '../services/transientLog';
 
 const NEXT_ROUND_DELAY_MS = 6_000;
 const ROUND_TIME_MS = 120_000;
@@ -236,12 +237,14 @@ function makePlayer(identity: StoredIdentity, socketId: string, ready: boolean):
   };
 }
 
-function setLocalTimer(key: string, delay: number, handler: () => void) {
+function setLocalTimer(key: string, delay: number, handler: () => void | Promise<unknown>) {
   const old = timers.get(key);
   if (old) clearTimeout(old);
   const timer = setTimeout(() => {
     timers.delete(key);
-    handler();
+    void Promise.resolve()
+      .then(handler)
+      .catch((err) => logTransientError(`[timer:${key.split(':', 1)[0]}]`, err));
   }, Math.max(0, delay));
   timer.unref?.();
   timers.set(key, timer);
@@ -292,7 +295,7 @@ async function finishMatch(
   }));
   void persistMatch(result.room, winnerKey).catch((err) => console.error('[match:persist]', err));
   setLocalTimer(`cleanup:${roomId}`, FINISHED_ROOM_TTL_MS, () => {
-    void cleanupRoom(roomId);
+    return cleanupRoom(roomId);
   });
   return 'finished';
 }
@@ -329,7 +332,7 @@ async function startRound(io: Server, roomId: string) {
     room: publicRoom(room, viewerKey),
   }));
   setLocalTimer(`round:${roomId}`, ROUND_TIME_MS, () => {
-    void finishRound(io, roomId, null, 'timeout', room.round);
+    return finishRound(io, roomId, null, 'timeout', room.round);
   });
   return true;
 }
@@ -372,7 +375,7 @@ async function finishRound(
     nextRoundInMs: matchOver ? undefined : NEXT_ROUND_DELAY_MS,
     room: publicRoom(room, viewerKey),
   }));
-    if (matchOver) {
+  if (matchOver) {
     emitRoomViews(io, room, 'match:over', (viewerKey) => ({
       winnerKey,
       reason: 'score',
@@ -381,11 +384,11 @@ async function finishRound(
     }));
     void persistMatch(room, winnerKey).catch((err) => console.error('[match:persist]', err));
     setLocalTimer(`cleanup:${roomId}`, FINISHED_ROOM_TTL_MS, () => {
-      void cleanupRoom(roomId);
+      return cleanupRoom(roomId);
     });
     return;
   }
-  setLocalTimer(`next:${roomId}`, NEXT_ROUND_DELAY_MS, () => void startRound(io, roomId));
+  setLocalTimer(`next:${roomId}`, NEXT_ROUND_DELAY_MS, () => startRound(io, roomId));
 }
 
 async function surrenderRound(
@@ -443,10 +446,10 @@ async function surrenderRound(
     }));
     void persistMatch(result.room, winnerKey).catch((err) => console.error('[match:persist]', err));
     setLocalTimer(`cleanup:${roomId}`, FINISHED_ROOM_TTL_MS, () => {
-      void cleanupRoom(roomId);
+      return cleanupRoom(roomId);
     });
   } else {
-    setLocalTimer(`next:${roomId}`, NEXT_ROUND_DELAY_MS, () => void startRound(io, roomId));
+    setLocalTimer(`next:${roomId}`, NEXT_ROUND_DELAY_MS, () => startRound(io, roomId));
   }
   return result;
 }
@@ -582,14 +585,20 @@ function safeOn(
         });
         return;
       }
-      console.error(`[socket:${event}]`, err);
-      const code = err instanceof Error && [
-        'ROOM_BUSY',
-        'REDIS_UNAVAILABLE',
-        'STALE_ROOM_WRITE',
-      ].includes(err.message)
-        ? err.message === 'STALE_ROOM_WRITE' ? 'ROOM_BUSY' : err.message
-        : 'INTERNAL_ERROR';
+      const code = isRedisTimeoutError(err)
+        ? 'REDIS_UNAVAILABLE'
+        : err instanceof Error && [
+          'ROOM_BUSY',
+          'REDIS_UNAVAILABLE',
+          'STALE_ROOM_WRITE',
+        ].includes(err.message)
+          ? err.message === 'STALE_ROOM_WRITE' ? 'ROOM_BUSY' : err.message
+          : 'INTERNAL_ERROR';
+      if (code === 'ROOM_BUSY' || code === 'REDIS_UNAVAILABLE') {
+        logTransientWarning(`[socket:${event}]`, code);
+      } else {
+        console.error(`[socket:${event}]`, err);
+      }
       ack?.({ code });
     });
   });
@@ -725,7 +734,7 @@ export function setupSocket(io: Server) {
   const backgroundTasks = new Set<Promise<unknown>>();
   const trackBackground = <T>(task: Promise<T>, label: string): void => {
     backgroundTasks.add(task);
-    void task.catch((err) => console.error(label, err)).finally(() => backgroundTasks.delete(task));
+    void task.catch((err) => logTransientError(label, err)).finally(() => backgroundTasks.delete(task));
   };
   const presenceSubscribers = new Set<string>();
   const heartbeatEntries = new Map<string, { ip: string; identity: string; socketId: string }>();
@@ -746,11 +755,11 @@ export function setupSocket(io: Server) {
       if (lastPresence && JSON.stringify(lastPresence) === JSON.stringify(comparable)) return;
       lastPresence = comparable;
       for (const socketId of presenceSubscribers) io.to(socketId).emit('presence:stats', stats);
-    }).catch((err) => console.error('[presence]', err));
+    }).catch((err) => logTransientError('[presence]', err));
   }, 2000);
   presenceWorker.unref?.();
   const presenceCleanupWorker = setInterval(() => {
-    void getPresenceStats().catch((err) => console.error('[presence:cleanup]', err));
+    void getPresenceStats().catch((err) => logTransientError('[presence:cleanup]', err));
   }, 60_000);
   presenceCleanupWorker.unref?.();
   let scheduleRequest: Promise<void> | null = null;
@@ -770,7 +779,7 @@ export function setupSocket(io: Server) {
         });
       })
       .then(() => undefined)
-      .catch((err) => console.error('[schedule]', err))
+      .catch((err) => logTransientError('[schedule]', err))
       .finally(() => {
         scheduleRequest = null;
       });
@@ -784,7 +793,7 @@ export function setupSocket(io: Server) {
         await refreshConnectionSlots(entries.slice(index, index + 100));
         await yieldEventLoop();
       }
-    })().catch((err) => console.error('[presence:heartbeat]', err)).finally(() => {
+    })().catch((err) => logTransientError('[presence:heartbeat]', err)).finally(() => {
       heartbeatRequest = null;
     });
   }, 60_000);
@@ -1042,6 +1051,9 @@ export function setupSocket(io: Server) {
 
     safeOn(socket, 'game:start', async (_payload, ack) => {
       await restorePromise;
+      if (!(await socketAllowed('start', me.key, 8, 10))) {
+        return ack?.({ code: 'RATE_LIMITED' });
+      }
       const room = await getRoomForIdentity(me.key);
       if (!room) return ack?.({ code: 'ROOM_NOT_READY' });
       const result = await withRoomLock(room.id, (locked) => {
@@ -1199,10 +1211,10 @@ export function setupSocket(io: Server) {
           }));
           void persistMatch(result.room, winnerKey).catch((err) => console.error('[match:persist]', err));
           setLocalTimer(`cleanup:${roomId}`, FINISHED_ROOM_TTL_MS, () => {
-            void cleanupRoom(roomId);
+            return cleanupRoom(roomId);
           });
         } else {
-          setLocalTimer(`next:${roomId}`, NEXT_ROUND_DELAY_MS, () => void startRound(io, roomId));
+          setLocalTimer(`next:${roomId}`, NEXT_ROUND_DELAY_MS, () => startRound(io, roomId));
         }
       }
     });
@@ -1390,9 +1402,9 @@ export function setupSocket(io: Server) {
       if (socket.data.connectionSlot) {
         socket.data.connectionSlot = false;
         void releaseConnectionSlot(String(socket.data.ip), me.key, socket.id)
-          .catch((err) => console.error('[presence:release]', err));
+          .catch((err) => logTransientError('[presence:release]', err));
       }
-      void cancelQueue(me.key, socket.id).catch((err) => console.error('[match:cancel-disconnect]', err));
+      void cancelQueue(me.key, socket.id).catch((err) => logTransientError('[match:cancel-disconnect]', err));
       for (const [key, queue] of localQueue) {
         localQueue.set(
           key,
@@ -1433,8 +1445,7 @@ export function setupSocket(io: Server) {
           graceMs: config.disconnectForfeitMs,
         });
         setLocalTimer(`disconnect:${room.id}:${me.key}`, config.disconnectForfeitMs, () => {
-          void handleScheduledItem(io, `disconnect|${room.id}|${me.key}`)
-            .catch((err) => console.error('[disconnect:schedule]', err));
+          return handleScheduledItem(io, `disconnect|${room.id}|${me.key}`);
         });
       });
       trackBackground(disconnectTask, '[socket:disconnect]');

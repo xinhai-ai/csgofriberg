@@ -33,6 +33,7 @@ const MESSAGES: Record<string, string> = {
   NOT_IN_WAITING_ROOM: '当前不在等待中的房间',
   NOT_IN_ROOM: '你不在任何房间中',
   ROOM_NOT_READY: '房间当前不可开始',
+  ROOM_BUSY: '房间操作繁忙，请稍后重试',
   NOT_HOST: '只有房主可以开始对局',
   NEED_TWO_PLAYERS: '需要两名玩家才能开始',
   PLAYERS_NOT_READY: '有玩家尚未准备',

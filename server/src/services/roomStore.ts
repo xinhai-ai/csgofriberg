@@ -1,7 +1,8 @@
 import { randomUUID } from 'crypto';
-import { redis, redisKey } from '../redis';
+import { redisKey, redisState } from '../redis';
 import { GuessFeedback } from '../types';
 import { config } from '../config';
+import { logTransientError } from './transientLog';
 
 export type BoType = 1 | 3 | 5 | 7;
 export type DbType = 'easy' | 'normal';
@@ -86,7 +87,7 @@ function identityKey(identity: string) {
 }
 
 function stateRedis() {
-  const client = redis();
+  const client = redisState();
   if (!client && config.redisRequired) throw new Error('REDIS_UNAVAILABLE');
   return client;
 }
@@ -399,7 +400,9 @@ async function acquireRedisLock(id: string): Promise<(() => Promise<void>) | nul
   if (!client) return null;
   const token = randomUUID();
   const key = redisKey(`lock:room:${id}`);
-  for (let attempt = 0; attempt < 8; attempt++) {
+  const deadline = Date.now() + config.roomLockWaitMs;
+  let attempt = 0;
+  do {
     if (await client.set(key, token, { NX: true, PX: 15_000 })) {
       return async () => {
         await client.eval(
@@ -408,8 +411,10 @@ async function acquireRedisLock(id: string): Promise<(() => Promise<void>) | nul
         );
       };
     }
-    await new Promise((resolve) => setTimeout(resolve, 8 + Math.floor(Math.random() * 8)));
-  }
+    const delay = Math.min(50, 8 + attempt * 4) + Math.floor(Math.random() * 8);
+    attempt += 1;
+    await new Promise((resolve) => setTimeout(resolve, delay));
+  } while (Date.now() < deadline);
   throw new Error('ROOM_BUSY');
 }
 
@@ -430,7 +435,7 @@ export async function withRoomLock<T>(
       }
       return result;
     } finally {
-      await releaseRedis().catch((err) => console.error('[room:lock-release]', err));
+      await releaseRedis().catch((err) => logTransientError('[room:lock-release]', err));
     }
   }
 
@@ -592,7 +597,7 @@ export async function claimDueSchedules(limit = 100): Promise<string[]> {
 }
 
 export async function acknowledgeSchedule(item: string): Promise<void> {
-  await redis()?.zRem(redisKey('room:schedules'), item);
+  await stateRedis()?.zRem(redisKey('room:schedules'), item);
 }
 
 export async function beginMaintenanceWindow(durationMs = 90_000): Promise<number> {

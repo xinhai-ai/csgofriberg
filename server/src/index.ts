@@ -18,7 +18,13 @@ import leaderboardRoutes from './routes/leaderboard';
 import announcementRoutes from './routes/announcements';
 import adminRoutes from './routes/admin';
 import { setupSocket } from './socket';
-import { closeRedis, duplicateRedisClient, initRedis, isRedisAvailable } from './redis';
+import {
+  closeRedis,
+  duplicateRedisClient,
+  initRedis,
+  isRedisAvailable,
+  isRedisTimeoutError,
+} from './redis';
 import { initPlayerCache } from './services/playerCache';
 import { rateLimit } from './middleware/rateLimit';
 import { initMatchResultWorker } from './services/matchResultQueue';
@@ -30,6 +36,17 @@ import { requireAdmin, requireAuth } from './middleware/auth';
 import { parseJsonOnce, rejectOversizedBody } from './middleware/jsonBody';
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
+
+process.on('unhandledRejection', (reason) => {
+  if (isRedisTimeoutError(reason)) {
+    console.error('[server:redis-timeout-unhandled]', reason);
+    return;
+  }
+  console.error('[server:unhandled-rejection]', reason);
+  setImmediate(() => {
+    throw reason instanceof Error ? reason : new Error(String(reason));
+  });
+});
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, onTimeout: () => void): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -143,8 +160,8 @@ async function main() {
     next();
   });
   if (redisReady) {
-    adapterPubClient = duplicateRedisClient();
-    adapterSubClient = duplicateRedisClient();
+    adapterPubClient = duplicateRedisClient('socket-adapter-pub');
+    adapterSubClient = duplicateRedisClient('socket-adapter-sub');
     if (adapterPubClient && adapterSubClient) {
       await Promise.all([adapterPubClient.connect(), adapterSubClient.connect()]);
       io.adapter(createAdapter(adapterPubClient, adapterSubClient));

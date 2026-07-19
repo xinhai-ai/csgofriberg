@@ -35,6 +35,10 @@ export const config = {
   redisPrefix: process.env.REDIS_PREFIX || 'csgofriberg:',
   redisRequired: process.env.REDIS_REQUIRED === 'true',
   redisCommandTimeoutMs: Number(process.env.REDIS_COMMAND_TIMEOUT_MS || 1500),
+  roomLockWaitMs: Math.max(
+    100,
+    Math.min(5_000, Number(process.env.ROOM_LOCK_WAIT_MS) || 1_000)
+  ),
   passwordWorkers: Number.isInteger(configuredPasswordWorkers)
     ? Math.max(1, Math.min(4, configuredPasswordWorkers))
     : 2,
