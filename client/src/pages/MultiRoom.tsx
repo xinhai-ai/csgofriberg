@@ -391,7 +391,7 @@ export default function MultiRoom() {
           {room.players.map((p) => (
             <div
               key={p.key}
-              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0' }}
+              className="room-player-row"
             >
               <b>{p.name}</b>
               {p.key === room.hostKey && <Crown size={15} color="var(--warning)" />}
@@ -418,7 +418,7 @@ export default function MultiRoom() {
             <p className="muted">等待对手加入</p>
           )}
           {!isSpectator && (
-            <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+            <div className="room-ready-actions">
               {isHost ? (
                 <button
                   className="btn btn-success"
