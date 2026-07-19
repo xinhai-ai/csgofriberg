@@ -25,6 +25,32 @@ import { initMatchResultWorker } from './services/matchResultQueue';
 import powRoutes from './routes/pow';
 import { requirePow } from './middleware/pow';
 
+const SHUTDOWN_TIMEOUT_MS = 10_000;
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, onTimeout: () => void): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      try {
+        onTimeout();
+        reject(new Error('SHUTDOWN_TIMEOUT'));
+      } catch (err) {
+        reject(err);
+      }
+    }, timeoutMs);
+    timer.unref?.();
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
+}
+
 async function main() {
   validateProductionConfig();
   console.log('[server] 正在检查数据库结构');
@@ -53,6 +79,7 @@ async function main() {
   }));
   app.use(cors({ origin: config.corsOrigins, credentials: true }));
   app.use((req, res, next) => {
+    if (shuttingDown) return res.status(503).json({ code: 'SERVER_SHUTTING_DOWN' });
     if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
       const origin = req.headers.origin;
       if (origin && !config.corsOrigins.includes(origin)) {
@@ -65,7 +92,11 @@ async function main() {
   app.use('/api', rateLimit({ name: 'api', limit: 600, windowSeconds: 60 }));
 
   app.get('/api/health', (_req, res) =>
-    res.json({ ok: true, redis: isRedisAvailable() ? 'up' : 'degraded' })
+    res.json({
+      ok: true,
+      redis: isRedisAvailable() ? 'up' : 'degraded',
+      features: { leaderboard: config.showLeaderboard },
+    })
   );
   app.use('/api/pow', powRoutes);
   app.use('/api', requirePow);
@@ -91,12 +122,20 @@ async function main() {
 
   const server = http.createServer(app);
   const io = new Server(server, { cors: { origin: config.corsOrigins, credentials: true } });
+  let shuttingDown = false;
+  let shutdownPromise: Promise<void> | null = null;
+  let adapterPubClient: ReturnType<typeof duplicateRedisClient> = null;
+  let adapterSubClient: ReturnType<typeof duplicateRedisClient> = null;
+  io.use((_socket, next) => {
+    if (shuttingDown) return next(new Error('SERVER_SHUTTING_DOWN'));
+    next();
+  });
   if (redisReady) {
-    const pubClient = duplicateRedisClient();
-    const subClient = duplicateRedisClient();
-    if (pubClient && subClient) {
-      await Promise.all([pubClient.connect(), subClient.connect()]);
-      io.adapter(createAdapter(pubClient, subClient));
+    adapterPubClient = duplicateRedisClient();
+    adapterSubClient = duplicateRedisClient();
+    if (adapterPubClient && adapterSubClient) {
+      await Promise.all([adapterPubClient.connect(), adapterSubClient.connect()]);
+      io.adapter(createAdapter(adapterPubClient, adapterSubClient));
     }
   }
   const stopSocket = setupSocket(io);
@@ -106,16 +145,60 @@ async function main() {
     console.log(`[server] allowed origins: ${config.corsOrigins.join(', ')}`);
   });
 
-  const shutdown = async () => {
-    stopSocket();
-    await stopMatchWorker();
-    await new Promise<void>((resolve) => io.close(() => resolve()));
-    await new Promise<void>((resolve) => server.close(() => resolve()));
-    await closeRedis();
-    await db.destroy();
+  const shutdown = async (signal: string): Promise<void> => {
+    if (shutdownPromise) return shutdownPromise;
+    shutdownPromise = (async () => {
+      shuttingDown = true;
+      console.log(`[server] 收到 ${signal},开始优雅退出`);
+      stopSocket();
+
+      const serverClosed = new Promise<void>((resolve) => {
+        server.close(() => resolve());
+        server.closeIdleConnections?.();
+      });
+      const socketClosed = new Promise<void>((resolve) => io.close(() => resolve()));
+      await Promise.allSettled([
+        withTimeout(serverClosed, SHUTDOWN_TIMEOUT_MS, () => server.closeAllConnections?.()),
+        withTimeout(socketClosed, SHUTDOWN_TIMEOUT_MS, () => io.disconnectSockets(true)),
+        withTimeout(stopMatchWorker(), SHUTDOWN_TIMEOUT_MS, () => undefined),
+      ]);
+
+      await Promise.allSettled([
+        withTimeout(
+          adapterPubClient?.isOpen ? adapterPubClient.quit().then(() => undefined) : Promise.resolve(),
+          SHUTDOWN_TIMEOUT_MS,
+          () => undefined
+        ),
+        withTimeout(
+          adapterSubClient?.isOpen ? adapterSubClient.quit().then(() => undefined) : Promise.resolve(),
+          SHUTDOWN_TIMEOUT_MS,
+          () => undefined
+        ),
+        withTimeout(closeRedis(), SHUTDOWN_TIMEOUT_MS, () => undefined),
+        withTimeout(db.destroy(), SHUTDOWN_TIMEOUT_MS, () => undefined),
+      ]);
+      console.log('[server] 优雅退出完成');
+    })();
+    return shutdownPromise;
   };
-  process.once('SIGINT', () => void shutdown().finally(() => process.exit(0)));
-  process.once('SIGTERM', () => void shutdown().finally(() => process.exit(0)));
+  const handleSignal = (signal: string) => {
+    const forceExitTimer = setTimeout(() => {
+      console.error('[server] 优雅退出超时,强制退出');
+      process.exit(1);
+    }, SHUTDOWN_TIMEOUT_MS * 2 + 2_000);
+    void shutdown(signal)
+      .then(() => {
+        clearTimeout(forceExitTimer);
+        process.exit(0);
+      })
+      .catch((err) => {
+        clearTimeout(forceExitTimer);
+        console.error('[server] 优雅退出失败:', err);
+        process.exit(1);
+      });
+  };
+  process.once('SIGINT', () => handleSignal('SIGINT'));
+  process.once('SIGTERM', () => handleSignal('SIGTERM'));
 }
 
 main().catch((err) => {

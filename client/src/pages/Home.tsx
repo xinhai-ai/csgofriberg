@@ -1,4 +1,4 @@
-import { useSyncExternalStore, useState } from 'react';
+import { useEffect, useSyncExternalStore, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -46,7 +46,19 @@ export default function Home() {
   const confirm = useConfirm();
   const [logoutError, setLogoutError] = useState('');
   const [loggingOut, setLoggingOut] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(true);
   const guestName = useSyncExternalStore(subscribeGuestName, getGuestName, () => '访客');
+
+  useEffect(() => {
+    void fetch('/api/health', { credentials: 'include' })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data: { features?: { leaderboard?: boolean } } | null) => {
+        if (typeof data?.features?.leaderboard === 'boolean') {
+          setShowLeaderboard(data.features.leaderboard);
+        }
+      })
+      .catch(() => undefined);
+  }, []);
 
   const logout = async () => {
     if (!await confirm({
@@ -135,10 +147,12 @@ export default function Home() {
             <BarChart3 size={15} />
             统计
           </Link>
-          <Link to="/leaderboard" className="btn btn-warning">
-            <Trophy size={15} />
-            排行榜
-          </Link>
+          {showLeaderboard && (
+            <Link to="/leaderboard" className="btn btn-warning">
+              <Trophy size={15} />
+              排行榜
+            </Link>
+          )}
           <Link to="/announcement" className="btn btn-success">
             <Megaphone size={15} />
             更新公告

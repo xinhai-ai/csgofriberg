@@ -30,6 +30,7 @@ export const config = {
   powDifficulty: Number(process.env.POW_DIFFICULTY || 17),
   powChallengeTtlSeconds: Number(process.env.POW_CHALLENGE_TTL_SECONDS || 120),
   powTokenTtlSeconds: Number(process.env.POW_TOKEN_TTL_SECONDS || 600),
+  showLeaderboard: process.env.SHOW_LEADERBOARD !== 'false',
   corsOrigins: (process.env.CORS_ORIGINS || 'http://localhost:5173')
     .split(',')
     .map((s) => s.trim())

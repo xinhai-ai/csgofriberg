@@ -60,6 +60,9 @@ PostgreSQL variables, so the password is configured only once.
 Set `CORS_ORIGINS` to the exact public origin, such as
 `https://game.example.com`, without a trailing slash.
 
+Set `SHOW_LEADERBOARD=false` to hide the leaderboard entry and disable the
+leaderboard API. It defaults to `true`.
+
 ## 3. Start
 
 For a public GHCR package:
@@ -83,6 +86,11 @@ and indexes and imports the bundled player seed only when the player table is
 empty. The `app` service is not started unless migration exits successfully.
 The application also calls the same idempotent initialization before listening
 as a second guard against an incomplete schema.
+
+The Node process handles `SIGTERM`/`SIGINT` gracefully: it stops accepting new
+HTTP and Socket.IO connections, closes active sockets, stops background workers,
+then releases Redis and PostgreSQL connections. Compose allows 15 seconds for
+this drain before forcing the container to stop.
 
 Check migration output separately when startup fails:
 

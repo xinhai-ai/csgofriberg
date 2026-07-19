@@ -37,6 +37,7 @@ const MESSAGES: Record<string, string> = {
   TOO_MANY_CONNECTIONS: '当前身份或网络连接数过多',
   INVALID_ORIGIN: '请求来源未被允许',
   NETWORK_ERROR: '网络异常,请检查连接',
+  FEATURE_DISABLED: '该功能当前未开放',
 };
 
 export function translate(code: string | undefined | null): string {

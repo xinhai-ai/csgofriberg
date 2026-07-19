@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import { db } from '../db/knex';
-import { asyncHandler } from '../middleware/common';
+import { asyncHandler, HttpError } from '../middleware/common';
 import { cached } from '../services/queryCache';
 import { rateLimit } from '../middleware/rateLimit';
+import { config } from '../config';
 
 const router = Router();
 
@@ -11,6 +12,7 @@ router.get(
   '/',
   rateLimit({ name: 'leaderboard', limit: 60, windowSeconds: 60, failClosed: true }),
   asyncHandler(async (_req, res) => {
+    if (!config.showLeaderboard) throw new HttpError(404, 'FEATURE_DISABLED');
     const board = await cached('leaderboard', 30, async () => {
       const rows = await db('games as g')
       .join('users as u', 'u.id', 'g.user_id')

@@ -18,6 +18,7 @@ x-app-environment: &app-environment
   POW_DIFFICULTY: ${POW_DIFFICULTY:-17}
   POW_CHALLENGE_TTL_SECONDS: ${POW_CHALLENGE_TTL_SECONDS:-120}
   POW_TOKEN_TTL_SECONDS: ${POW_TOKEN_TTL_SECONDS:-600}
+  SHOW_LEADERBOARD: ${SHOW_LEADERBOARD:-true}
 
 services:
   migrate:
@@ -40,6 +41,7 @@ services:
     image: ${IMAGE:-ghcr.io/xinhai-ai/csgofriberg:latest}
     restart: unless-stopped
     init: true
+    stop_grace_period: 15s
     depends_on:
       migrate:
         condition: service_completed_successfully
