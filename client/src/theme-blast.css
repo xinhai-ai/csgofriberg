@@ -669,8 +669,8 @@ select.input { color-scheme: dark; }
   .menu-description { font-size: 0.72rem; }
   .menu-arrow { right: 12px; bottom: 11px; width: 15px; height: 15px; }
   .card::before { left: 14px; width: 44px; }
-  .game-table th:first-child { background: #1d0e18; }
-  .game-table td:first-child { background: #2a1723; }
+  .game-table tr { border-color: rgba(255, 255, 255, 0.1); background: #190c15; }
+  .game-table td:first-child:not(.correct):not(.close):not(.wrong) { background: #2a1723; }
   .table-scroll .table th:first-child { background: #21101b; }
   .table-scroll .table td:first-child { background: #281520; }
 }

@@ -1,6 +1,9 @@
 import { Player, GuessFeedback, AttributeFeedback } from '../types';
 
 const CURRENT_YEAR = new Date().getFullYear();
+const AGE_CLOSE_RANGE = 3;
+const MAJOR_CHAMPIONSHIPS_CLOSE_RANGE = 1;
+const MAJOR_APPEARANCES_CLOSE_RANGE = 1;
 
 function textAttr(guess: string, target: string): AttributeFeedback {
   return { value: guess, level: guess === target ? 'correct' : 'wrong' };
@@ -44,17 +47,17 @@ export function compareGuess(guess: Player, target: Player): GuessFeedback {
       nationality: nationalityAttr(guess, target),
       region: textAttr(guess.region, target.region),
       team: textAttr(guess.team, target.team),
-      age: numberAttr(ageOf(guess), ageOf(target), 2),
+      age: numberAttr(ageOf(guess), ageOf(target), AGE_CLOSE_RANGE),
       role: textAttr(guess.role, target.role),
       majorChampionships: numberAttr(
         guess.major_championships,
         target.major_championships,
-        1
+        MAJOR_CHAMPIONSHIPS_CLOSE_RANGE
       ),
       majorAppearances: numberAttr(
         guess.major_appearances,
         target.major_appearances,
-        2
+        MAJOR_APPEARANCES_CLOSE_RANGE
       ),
       isActive: {
         value: Boolean(guess.is_active),
@@ -76,7 +79,11 @@ export function completeGuessFeedback(
     attributes: {
       ...feedback.attributes,
       majorChampionships: guess && target
-        ? numberAttr(guess.major_championships, target.major_championships, 1)
+        ? numberAttr(
+            guess.major_championships,
+            target.major_championships,
+            MAJOR_CHAMPIONSHIPS_CLOSE_RANGE
+          )
         : { value: '-', level: 'wrong' },
     },
   };

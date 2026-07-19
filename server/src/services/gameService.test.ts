@@ -41,16 +41,28 @@ describe('compareGuess', () => {
     expect(fb.attributes.region.level).toBe('wrong');
   });
 
-  it('年龄相差 2 岁以内给 close 并带方向提示', () => {
-    const guess = makePlayer({ id: 2, birth_year: target.birth_year + 2 });
+  it('年龄相差 3 岁给 close 并带方向提示', () => {
+    const guess = makePlayer({ id: 2, birth_year: target.birth_year + 3 });
     const fb = compareGuess(guess, target);
     expect(fb.attributes.age.level).toBe('close');
     // 猜的人更年轻,目标年龄更大
     expect(fb.attributes.age.hint).toBe('higher');
   });
 
-  it('Major 次数差距大给 wrong 并带方向提示', () => {
-    const guess = makePlayer({ id: 2, major_appearances: 2 });
+  it('年龄相差 4 岁给 wrong', () => {
+    const guess = makePlayer({ id: 2, birth_year: target.birth_year + 4 });
+    expect(compareGuess(guess, target).attributes.age.level).toBe('wrong');
+  });
+
+  it('Major 参赛次数相差 1 给 close 并带方向提示', () => {
+    const guess = makePlayer({ id: 2, major_appearances: target.major_appearances - 1 });
+    const fb = compareGuess(guess, target);
+    expect(fb.attributes.majorAppearances.level).toBe('close');
+    expect(fb.attributes.majorAppearances.hint).toBe('higher');
+  });
+
+  it('Major 参赛次数相差 2 给 wrong 并带方向提示', () => {
+    const guess = makePlayer({ id: 2, major_appearances: target.major_appearances - 2 });
     const fb = compareGuess(guess, target);
     expect(fb.attributes.majorAppearances.level).toBe('wrong');
     expect(fb.attributes.majorAppearances.hint).toBe('higher');
@@ -61,6 +73,11 @@ describe('compareGuess', () => {
     const fb = compareGuess(guess, target);
     expect(fb.attributes.majorChampionships.level).toBe('close');
     expect(fb.attributes.majorChampionships.hint).toBe('higher');
+  });
+
+  it('Major 冠军数相差 2 给 wrong', () => {
+    const guess = makePlayer({ id: 2, major_championships: target.major_championships + 2 });
+    expect(compareGuess(guess, target).attributes.majorChampionships.level).toBe('wrong');
   });
 
   it('位置不同时给 wrong', () => {
