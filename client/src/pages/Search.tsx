@@ -39,34 +39,36 @@ export default function Search() {
         />
       }
     >
-      {error && <div className="error">{error}</div>}
-      {player ? (
-        <div className="card">
-          <h3>
-            <CircleDot size={15} color={player.isActive ? '#16a34a' : '#9aa3b2'} />
-            {player.nickname}
-            <span className="muted" style={{ fontWeight: 400 }}>
-              {player.isActive ? '现役' : '退役'} · {player.age} 岁
-            </span>
-          </h3>
-          <PlayerInfoTable
-            answer={{
-              nickname: player.nickname,
-              realName: player.realName,
-              team: player.team,
-              nationality: `${player.nationality}(${player.region})`,
-              role: player.role,
-              majorAppearances: player.majorAppearances,
-            }}
-          />
-        </div>
-      ) : (
-        <div style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--text-light)' }}>
-          <SearchIcon size={32} strokeWidth={1.5} />
-          <p>在下方输入框中输入选手名称即可查询</p>
-          <p style={{ fontSize: '0.8rem' }}>支持模糊搜索:输入部分名称即可匹配</p>
-        </div>
-      )}
+      <div className="player-search-content">
+        {error && <div className="error">{error}</div>}
+        {player ? (
+          <div className="card">
+            <h3>
+              <CircleDot size={15} color={player.isActive ? '#16a34a' : '#9aa3b2'} />
+              {player.nickname}
+              <span className="muted" style={{ fontWeight: 400 }}>
+                {player.isActive ? '现役' : '退役'} · {player.age} 岁
+              </span>
+            </h3>
+            <PlayerInfoTable
+              answer={{
+                nickname: player.nickname,
+                team: player.team,
+                nationality: `${player.nationality}(${player.region})`,
+                role: player.role,
+                majorChampionships: player.majorChampionships,
+                majorAppearances: player.majorAppearances,
+              }}
+            />
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--text-light)' }}>
+            <SearchIcon size={32} strokeWidth={1.5} />
+            <p>在下方输入框中输入选手名称即可查询</p>
+            <p style={{ fontSize: '0.8rem' }}>支持模糊搜索:输入部分名称即可匹配</p>
+          </div>
+        )}
+      </div>
     </Page>
   );
 }

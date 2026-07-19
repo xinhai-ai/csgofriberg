@@ -5,19 +5,43 @@ import { requireAuth, requireAdmin } from '../middleware/auth';
 import { validateBody, asyncHandler, HttpError } from '../middleware/common';
 import { invalidatePlayerCache } from '../services/playerCache';
 import { invalidateCached } from '../services/queryCache';
+import { rateLimit, requestIdentity } from '../middleware/rateLimit';
 
 const router = Router();
 router.use(requireAuth, requireAdmin);
+const adminReadLimit = rateLimit({
+  name: 'admin-read',
+  limit: 60,
+  windowSeconds: 60,
+  key: requestIdentity,
+  failClosed: true,
+});
+const adminWriteLimit = rateLimit({
+  name: 'admin-write',
+  limit: 30,
+  windowSeconds: 60,
+  key: requestIdentity,
+  failClosed: true,
+});
+const adminImportLimit = rateLimit({
+  name: 'admin-import',
+  limit: 10,
+  windowSeconds: 60,
+  key: requestIdentity,
+  failClosed: true,
+});
+const playerRoles = ['Rifler', 'AWPer', 'Coach'] as const;
 
 const playerSchema = z.object({
   nickname: z.string().min(1).max(64),
-  real_name: z.string().max(128).default(''),
   nationality: z.string().min(1).max(64),
   region: z.string().max(32).default(''),
   team: z.string().max(64).default(''),
   birth_year: z.number().int().min(1970).max(2015),
-  role: z.string().max(32).default('Rifler'),
+  role: z.enum(playerRoles).default('Rifler'),
+  major_championships: z.number().int().min(0).default(0),
   major_appearances: z.number().int().min(0).default(0),
+  is_easy: z.boolean().default(false),
   is_active: z.boolean().default(true),
 });
 
@@ -29,6 +53,7 @@ const playerListQuerySchema = z.object({
 
 router.get(
   '/players',
+  adminReadLimit,
   asyncHandler(async (req, res) => {
     const parsed = playerListQuerySchema.safeParse(req.query);
     if (!parsed.success) throw new HttpError(400, 'VALIDATION_FAILED');
@@ -37,11 +62,9 @@ router.get(
     if (search) {
       query.where((builder) => {
         builder.whereILike('nickname', `%${search}%`)
-          .orWhereILike('real_name', `%${search}%`)
           .orWhereILike('nationality', `%${search}%`)
           .orWhereILike('region', `%${search}%`)
-          .orWhereILike('team', `%${search}%`)
-          .orWhereILike('role', `%${search}%`);
+          .orWhereILike('team', `%${search}%`);
       });
     }
     const countRow = await query.clone().count({ count: 'id' }).first();
@@ -58,6 +81,7 @@ router.get(
 
 router.post(
   '/players',
+  adminWriteLimit,
   validateBody(playerSchema),
   asyncHandler(async (req, res) => {
     const exists = await db('players').where({ nickname: req.body.nickname }).first();
@@ -73,6 +97,7 @@ router.post(
 
 router.put(
   '/players/:id',
+  adminWriteLimit,
   validateBody(playerSchema.partial()),
   asyncHandler(async (req, res) => {
     const count = await db('players').where({ id: Number(req.params.id) }).update(req.body);
@@ -84,6 +109,7 @@ router.put(
 
 router.delete(
   '/players/:id',
+  adminWriteLimit,
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id);
     const used = await db('games').where({ target_player_id: id }).first();
@@ -103,6 +129,7 @@ router.delete(
 /** JSON 批量导入,按昵称 upsert */
 router.post(
   '/players/import',
+  adminImportLimit,
   validateBody(z.object({ players: z.array(playerSchema).min(1).max(1000) })),
   asyncHandler(async (req, res) => {
     let created = 0;
@@ -133,6 +160,7 @@ const announcementSchema = z.object({
 
 router.post(
   '/announcements',
+  adminWriteLimit,
   validateBody(announcementSchema),
   asyncHandler(async (req, res) => {
     const [id] = await db('announcements')
@@ -146,6 +174,7 @@ router.post(
 
 router.delete(
   '/announcements/:id',
+  adminWriteLimit,
   asyncHandler(async (req, res) => {
     const count = await db('announcements').where({ id: Number(req.params.id) }).del();
     if (!count) throw new HttpError(404, 'NOT_FOUND');

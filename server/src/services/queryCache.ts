@@ -1,6 +1,7 @@
 import { redis, redisKey } from '../redis';
 
 const local = new Map<string, { value: unknown; expiresAt: number }>();
+const inFlight = new Map<string, Promise<unknown>>();
 
 export async function cached<T>(
   key: string,
@@ -16,10 +17,18 @@ export async function cached<T>(
     const hit = local.get(fullKey);
     if (hit && hit.expiresAt > Date.now()) return hit.value as T;
   }
-  const value = await loader();
-  if (client) await client.set(fullKey, JSON.stringify(value), { EX: ttlSeconds });
-  else local.set(fullKey, { value, expiresAt: Date.now() + ttlSeconds * 1000 });
-  return value;
+  const existingLoad = inFlight.get(fullKey);
+  if (existingLoad) return existingLoad as Promise<T>;
+
+  const load = loader().then(async (value) => {
+    if (client) await client.set(fullKey, JSON.stringify(value), { EX: ttlSeconds });
+    else local.set(fullKey, { value, expiresAt: Date.now() + ttlSeconds * 1000 });
+    return value;
+  }).finally(() => {
+    if (inFlight.get(fullKey) === load) inFlight.delete(fullKey);
+  });
+  inFlight.set(fullKey, load);
+  return load;
 }
 
 export async function invalidateCached(...keys: string[]): Promise<void> {

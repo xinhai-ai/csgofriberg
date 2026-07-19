@@ -53,7 +53,7 @@ async function persist(payload: MatchResultPayload): Promise<void> {
       }))
     );
   });
-  await invalidateCached('leaderboard');
+  await invalidateCached('leaderboard', 'stats:global');
 }
 
 export async function enqueueMatchResult(payload: MatchResultPayload): Promise<void> {

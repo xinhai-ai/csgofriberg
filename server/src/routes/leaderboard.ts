@@ -2,12 +2,14 @@ import { Router } from 'express';
 import { db } from '../db/knex';
 import { asyncHandler } from '../middleware/common';
 import { cached } from '../services/queryCache';
+import { rateLimit } from '../middleware/rateLimit';
 
 const router = Router();
 
 /** 排行榜: 单人胜场/胜率/平均猜测次数 + 多人胜场 */
 router.get(
   '/',
+  rateLimit({ name: 'leaderboard', limit: 60, windowSeconds: 60, failClosed: true }),
   asyncHandler(async (_req, res) => {
     const board = await cached('leaderboard', 30, async () => {
       const rows = await db('games as g')

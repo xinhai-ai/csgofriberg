@@ -1,7108 +1,7754 @@
 [
   {
     "nickname": "friis",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1989,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "zonic",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "Falcons",
     "birth_year": 1986,
     "role": "Coach",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "f0rest",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1988,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 12,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "threat",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1988,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "GeT-RiGhT",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1990,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 12,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "pronax",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1991,
     "role": "Rifler",
+    "major_championships": 3,
     "major_appearances": 8,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "troubley",
-    "real_name": "",
     "nationality": "德国",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1992,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "gob-b",
-    "real_name": "",
     "nationality": "德国",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1987,
     "role": "Coach",
+    "major_championships": 0,
     "major_appearances": 6,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "sixer",
-    "real_name": "",
     "nationality": "法国",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1991,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "maj3r",
-    "real_name": "",
     "nationality": "土耳其",
     "region": "亚洲",
     "team": "未签约/已下放",
     "birth_year": 1991,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 6,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "harts",
-    "real_name": "",
     "nationality": "法国",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1985,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "iorek",
-    "real_name": "",
     "nationality": "法国",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1989,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "taz",
-    "real_name": "",
     "nationality": "波兰",
     "region": "欧洲",
     "team": "BC.Game",
     "birth_year": 1986,
     "role": "Coach",
+    "major_championships": 1,
     "major_appearances": 12,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "neo",
-    "real_name": "",
     "nationality": "波兰",
     "region": "欧洲",
     "team": "Faze",
     "birth_year": 1987,
     "role": "Coach",
+    "major_championships": 1,
     "major_appearances": 14,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "n0thing",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "未签约/已下放",
     "birth_year": 1990,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 10,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "jackz",
-    "real_name": "",
     "nationality": "法国",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1992,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "ceh9",
-    "real_name": "",
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1989,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "kucheR",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "退役",
     "birth_year": 1988,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 5,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "starix",
-    "real_name": "",
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1987,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 5,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "pashabiceps",
-    "real_name": "",
     "nationality": "波兰",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1988,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 13,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "adren（哈萨克斯坦）",
-    "real_name": "",
     "nationality": "哈萨克斯坦",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 1990,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 12,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "markeloff",
-    "real_name": "",
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1988,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 12,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "ange1",
-    "real_name": "",
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1989,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 9,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "karrigan",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "Falcons",
     "birth_year": 1990,
     "role": "Rifler",
+    "major_championships": 2,
     "major_appearances": 22,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "pita",
-    "real_name": "",
     "nationality": "波黑",
     "region": "欧洲",
     "team": "EYEBALLERS",
     "birth_year": 1990,
     "role": "Coach",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "delpan",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1989,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "b1ad3",
-    "real_name": "",
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "Natus Vincere",
     "birth_year": 1986,
     "role": "Coach",
+    "major_championships": 0,
     "major_appearances": 9,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "edward",
-    "real_name": "",
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1987,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 13,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "zeus",
-    "real_name": "",
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1987,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 15,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "hooch",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 1987,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "colon",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1991,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "moddii",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1989,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "fnx",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "退役",
     "birth_year": 1990,
     "role": "Rifler",
+    "major_championships": 2,
     "major_appearances": 3,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "fox",
-    "real_name": "",
     "nationality": "葡萄牙",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1986,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 5,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "MUTiRiS",
-    "real_name": "",
     "nationality": "葡萄牙",
     "region": "欧洲",
     "team": "SAW",
     "birth_year": 1992,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "allu",
-    "real_name": "",
     "nationality": "芬兰",
     "region": "欧洲",
     "team": "Universe",
     "birth_year": 1992,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 7,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "natu",
-    "real_name": "",
     "nationality": "芬兰",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1985,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "dosia",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "退役",
     "birth_year": 1988,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 11,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "oskar",
-    "real_name": "",
     "nationality": "捷克",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1991,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "maniac",
-    "real_name": "",
     "nationality": "瑞士",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1990,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 5,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "xizt",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "Ninjas in Pyjamas",
     "birth_year": 1991,
     "role": "Coach",
+    "major_championships": 1,
     "major_appearances": 11,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "olofmeister",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1992,
     "role": "Rifler",
+    "major_championships": 2,
     "major_appearances": 16,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "snappi",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "Ninjas in Pyjamas",
     "birth_year": 1990,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 6,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "mou",
-    "real_name": "",
     "nationality": "哈萨克斯坦",
     "region": "独联体",
     "team": "HOTU",
     "birth_year": 1991,
     "role": "Coach",
+    "major_championships": 1,
     "major_appearances": 6,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "khrn",
-    "real_name": "",
     "nationality": "芬兰",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1989,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "szpero",
-    "real_name": "",
     "nationality": "波兰",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1991,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "prb",
-    "real_name": "",
     "nationality": "挪威",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1987,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "maikelele",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1991,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 5,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "dennis",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1991,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 10,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "shox",
-    "real_name": "",
     "nationality": "法国",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1992,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 17,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "zehn",
-    "real_name": "",
     "nationality": "芬兰",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1991,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "rubino",
-    "real_name": "",
     "nationality": "挪威",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "shara",
-    "real_name": "",
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "ALGO",
     "birth_year": 1992,
     "role": "Coach",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "lomme",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1993,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "semphis",
-    "real_name": "",
     "nationality": "加拿大",
     "region": "北美",
     "team": "Voca",
     "birth_year": 1989,
     "role": "Coach",
+    "major_championships": 0,
     "major_appearances": 5,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "seangres",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "未签约/已下放",
     "birth_year": 1988,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 8,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "tonyblack",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "Nuclear TigeRES",
     "birth_year": 1992,
     "role": "Coach",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "Fallen",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "FURIA",
     "birth_year": 1991,
     "role": "Rifler",
+    "major_championships": 2,
     "major_appearances": 19,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "rix",
-    "real_name": "",
     "nationality": "印度",
     "region": "亚洲",
     "team": "未签约/已下放",
     "birth_year": 1989,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "bondik",
-    "real_name": "",
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "FAVBET",
     "birth_year": 1993,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 7,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "roman",
-    "real_name": "",
     "nationality": "葡萄牙",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1992,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "skytten",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1992,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "cajunb",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1989,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 13,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "Snax",
-    "real_name": "",
     "nationality": "波兰",
     "region": "欧洲",
     "team": "GamerLegion",
     "birth_year": 1993,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 17,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "yam",
-    "real_name": "",
     "nationality": "澳大利亚",
     "region": "大洋洲",
     "team": "未签约/已下放",
     "birth_year": 1988,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "ritz",
-    "real_name": "",
     "nationality": "印度",
     "region": "亚洲",
     "team": "未签约/已下放",
     "birth_year": 1988,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "hiko",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "退役",
     "birth_year": 1990,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 9,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "chrisj",
-    "real_name": "",
     "nationality": "荷兰",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1990,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 10,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "guardian",
-    "real_name": "",
     "nationality": "斯洛伐克",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1991,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 14,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "minise",
-    "real_name": "",
     "nationality": "波兰",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1994,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "exr",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1993,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "raalz",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "9INE",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "zEVES",
-    "real_name": "",
     "nationality": "挪威",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1991,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "hardstyle",
-    "real_name": "",
     "nationality": "土耳其",
     "region": "亚洲",
     "team": "Fire Flux",
     "birth_year": 1983,
     "role": "Coach",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "flusha",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1993,
     "role": "Rifler",
+    "major_championships": 3,
     "major_appearances": 14,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "legija",
-    "real_name": "",
     "nationality": "德国",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1990,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "seized",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "退役",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 12,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "kinqie",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "TPuDCATb TPu",
     "birth_year": 1991,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "polly",
-    "real_name": "",
     "nationality": "挪威",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1991,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "innocent",
-    "real_name": "",
     "nationality": "波兰",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1993,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "NiKo（波黑）",
-    "real_name": "",
     "nationality": "波黑",
     "region": "欧洲",
     "team": "Falcons",
     "birth_year": 1997,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 17,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "znajder",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1993,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 3,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "JW",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "EYEBALLERS",
     "birth_year": 1995,
     "role": "AWPer",
+    "major_championships": 3,
     "major_appearances": 14,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "ultra",
-    "real_name": "",
     "nationality": "挪威",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1992,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "hunter",
-    "real_name": "",
     "nationality": "波黑",
     "region": "欧洲",
     "team": "G2",
     "birth_year": 1996,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 8,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "lowel",
-    "real_name": "",
     "nationality": "西班牙",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1996,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "aerial",
-    "real_name": "",
     "nationality": "芬兰",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1993,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "letn1",
-    "real_name": "",
     "nationality": "塞尔维亚",
     "region": "欧洲",
     "team": "G2 Ares",
     "birth_year": 1992,
     "role": "Coach",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "jks",
-    "real_name": "",
     "nationality": "澳大利亚",
     "region": "大洋洲",
     "team": "FlyQuest",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 11,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "mynio",
-    "real_name": "",
     "nationality": "波兰",
     "region": "欧洲",
     "team": "Phantom",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "xyp9x",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 4,
     "major_appearances": 17,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "kioshima",
-    "real_name": "",
     "nationality": "法国",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 2,
     "major_appearances": 11,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "swag",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "退役",
     "birth_year": 1996,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "skurk",
-    "real_name": "",
     "nationality": "挪威",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1992,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "zende",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "CaptainMo",
-    "real_name": "",
     "nationality": "中国",
     "region": "亚洲",
     "team": "Steel Helmet",
     "birth_year": 1989,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "tenzki",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "NIP Impact",
     "birth_year": 1994,
     "role": "Coach",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "xelos",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1993,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "byali",
-    "real_name": "",
     "nationality": "波兰",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 13,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "rallen",
-    "real_name": "",
     "nationality": "波兰",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "sunny",
-    "real_name": "",
     "nationality": "芬兰",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "kngv",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "未签约/已下放",
     "birth_year": 1992,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "tabsen",
-    "real_name": "",
     "nationality": "德国",
     "region": "欧洲",
     "team": "BIG",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 10,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "tizian",
-    "real_name": "",
     "nationality": "德国",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1996,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 5,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "keev",
-    "real_name": "",
     "nationality": "德国",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1991,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "FNS",
-    "real_name": "",
     "nationality": "加拿大",
     "region": "北美",
     "team": "退役",
     "birth_year": 1992,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "arya",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "退役",
     "birth_year": 1992,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "PKL",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "Fake do Biru",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "zews",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "未签约/已下放",
     "birth_year": 1987,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "styko",
-    "real_name": "",
     "nationality": "斯洛伐克",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1996,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 5,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "DD",
-    "real_name": "",
     "nationality": "中国",
     "region": "亚洲",
     "team": "Steel Helmet",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "summer",
-    "real_name": "",
     "nationality": "中国",
     "region": "亚洲",
     "team": "Rare Atom",
     "birth_year": 1997,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 6,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "bnTeT",
-    "real_name": "",
     "nationality": "印度尼西亚",
     "region": "亚洲",
     "team": "Alter Ego",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "fifflaren",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1987,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 3,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "friberg",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1991,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 9,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "pimp",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 6,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "MSL",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 9,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "ex6tenz",
-    "real_name": "",
     "nationality": "比利时",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1990,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 8,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "kennys",
-    "real_name": "",
     "nationality": "法国",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1995,
     "role": "AWPer",
+    "major_championships": 1,
     "major_appearances": 14,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "nbk",
-    "real_name": "",
     "nationality": "法国",
     "region": "欧洲",
     "team": "GenOne",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 2,
     "major_appearances": 14,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "rpk",
-    "real_name": "",
     "nationality": "法国",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1989,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 9,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "smithzz",
-    "real_name": "",
     "nationality": "法国",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1988,
     "role": "AWPer",
+    "major_championships": 1,
     "major_appearances": 11,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "strux1",
-    "real_name": "",
     "nationality": "德国",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1991,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "krystal",
-    "real_name": "",
     "nationality": "德国",
     "region": "欧洲",
     "team": "MINLATE",
     "birth_year": 1993,
     "role": "Coach",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "r0bs3n",
-    "real_name": "",
     "nationality": "德国",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1992,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "disturbed",
-    "real_name": "",
     "nationality": "芬兰",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1993,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "stonde",
-    "real_name": "",
     "nationality": "芬兰",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1993,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "stavros",
-    "real_name": "",
     "nationality": "德国",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1992,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "xseven",
-    "real_name": "",
     "nationality": "芬兰",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "steel(加拿大)",
-    "real_name": "",
     "nationality": "加拿大",
     "region": "北美",
     "team": "未签约/已下放",
     "birth_year": 1989,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "nex",
-    "real_name": "",
     "nationality": "德国",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1992,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 10,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "centeks",
-    "real_name": "",
     "nationality": "挪威",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1996,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "syrson",
-    "real_name": "",
     "nationality": "德国",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1996,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "apex",
-    "real_name": "",
     "nationality": "法国",
     "region": "欧洲",
     "team": "Vitality",
     "birth_year": 1993,
     "role": "Rifler",
+    "major_championships": 4,
     "major_appearances": 22,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "fel1x",
-    "real_name": "",
     "nationality": "德国",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1987,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "dazed",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "退役",
     "birth_year": 1989,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "michu",
-    "real_name": "",
     "nationality": "波兰",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1996,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "hyper",
-    "real_name": "",
     "nationality": "波兰",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1990,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "peet",
-    "real_name": "",
     "nationality": "波兰",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1991,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "devilwalk",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1991,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 2,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "steel（巴西）",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "退役",
     "birth_year": 1993,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "zqks",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "未签约/已下放",
     "birth_year": 1992,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "scream",
-    "real_name": "",
     "nationality": "比利时",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 9,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "uzzziii",
-    "real_name": "",
     "nationality": "法国",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1990,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "dupreeh",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1993,
     "role": "Rifler",
+    "major_championships": 5,
     "major_appearances": 19,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "worldedit",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 1991,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 10,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "ub1que",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "退役",
     "birth_year": 1992,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "gla1ve",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "100 Thieves",
     "birth_year": 1995,
     "role": "Coach",
+    "major_championships": 4,
     "major_appearances": 14,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "nico",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1991,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "smf",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1992,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "hunden",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "Sashi",
     "birth_year": 1991,
     "role": "Coach",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "happy",
-    "real_name": "",
     "nationality": "法国",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1991,
     "role": "Rifler",
+    "major_championships": 2,
     "major_appearances": 11,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "adren（美国）",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "未签约/已下放",
     "birth_year": 1990,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "azk",
-    "real_name": "",
     "nationality": "加拿大",
     "region": "北美",
     "team": "退役",
     "birth_year": 1991,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "anger",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "退役",
     "birth_year": 1986,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "skadoodle",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "退役",
     "birth_year": 1993,
     "role": "AWPer",
+    "major_championships": 1,
     "major_appearances": 10,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "berg",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "twist",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "Alliance",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 5,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "spiidi",
-    "real_name": "",
     "nationality": "德国",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 7,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "alexrr",
-    "real_name": "",
     "nationality": "德国",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1994,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "denis",
-    "real_name": "",
     "nationality": "德国",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 9,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "pyth",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1993,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "krimz",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "EYEBALLERS",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 2,
     "major_appearances": 18,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "xarte",
-    "real_name": "",
     "nationality": "芬兰",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1991,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "gmx",
-    "real_name": "",
     "nationality": "法国",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1992,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "fetish",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1986,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "sf",
-    "real_name": "",
     "nationality": "法国",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1991,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "device",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "100 Thieves",
     "birth_year": 1995,
     "role": "AWPer",
+    "major_championships": 4,
     "major_appearances": 17,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "flamie",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 1997,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 12,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "nitr0",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "NRG",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 14,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "robiin",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "fxy0",
-    "real_name": "",
     "nationality": "法国",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1992,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "chopper",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 1997,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 11,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "waylander",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "退役",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 6,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "rush",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "退役",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 5,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "freakazoid",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "未签约/已下放",
     "birth_year": 1992,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "shahzam",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "退役",
     "birth_year": 1993,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 5,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "astarr",
-    "real_name": "",
     "nationality": "印度",
     "region": "亚洲",
     "team": "退役",
     "birth_year": 1992,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "ace",
-    "real_name": "",
     "nationality": "印度",
     "region": "亚洲",
     "team": "退役",
     "birth_year": 1992,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "mithilf",
-    "real_name": "",
     "nationality": "印度",
     "region": "亚洲",
     "team": "退役",
     "birth_year": 1991,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "kqly",
-    "real_name": "",
     "nationality": "法国",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1990,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "dephh",
-    "real_name": "",
     "nationality": "英国",
     "region": "欧洲",
     "team": "M80",
     "birth_year": 1991,
     "role": "Coach",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "xantares",
-    "real_name": "",
     "nationality": "土耳其",
     "region": "亚洲",
     "team": "Aurora",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 8,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "dumz",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "cadian",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "OG",
     "birth_year": 1995,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 8,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "cent",
-    "real_name": "",
     "nationality": "南非",
     "region": "非洲与以色列",
     "team": "退役",
     "birth_year": 1987,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "blackpoison",
-    "real_name": "",
     "nationality": "南非",
     "region": "非洲与以色列",
     "team": "退役",
     "birth_year": 1991,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "detrony",
-    "real_name": "",
     "nationality": "南非",
     "region": "非洲与以色列",
     "team": "退役",
     "birth_year": 1989,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "deviant",
-    "real_name": "",
     "nationality": "南非",
     "region": "非洲与以色列",
     "team": "退役",
     "birth_year": 1988,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "racno",
-    "real_name": "",
     "nationality": "南非",
     "region": "非洲与以色列",
     "team": "退役",
     "birth_year": 1986,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "cruc1al",
-    "real_name": "",
     "nationality": "荷兰",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1997,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "s1mple",
-    "real_name": "",
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "BC.Game",
     "birth_year": 1997,
     "role": "AWPer",
+    "major_championships": 1,
     "major_appearances": 14,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "azr",
-    "real_name": "",
     "nationality": "澳大利亚",
     "region": "大洋洲",
     "team": "FlyQuest",
     "birth_year": 1992,
     "role": "Coach",
+    "major_championships": 0,
     "major_appearances": 8,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "havoc",
-    "real_name": "",
     "nationality": "澳大利亚",
     "region": "大洋洲",
     "team": "退役",
     "birth_year": 1989,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "snyper",
-    "real_name": "",
     "nationality": "澳大利亚",
     "region": "大洋洲",
     "team": "未签约/已下放",
     "birth_year": 1986,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "spunj",
-    "real_name": "",
     "nationality": "澳大利亚",
     "region": "大洋洲",
     "team": "退役",
     "birth_year": 1989,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "topgun",
-    "real_name": "",
     "nationality": "澳大利亚",
     "region": "大洋洲",
     "team": "未签约/已下放",
     "birth_year": 1988,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "aizy",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "Preasy",
     "birth_year": 1996,
     "role": "Coach",
+    "major_championships": 0,
     "major_appearances": 11,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "davcost",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 1995,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 5,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "dimaoneshot",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "退役",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "reltuc",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "退役",
     "birth_year": 1987,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 5,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "acilion",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "Preasy",
     "birth_year": 1996,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "rain",
-    "real_name": "",
     "nationality": "挪威",
     "region": "欧洲",
     "team": "100 Thieves",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 19,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "ALEX（英国）",
-    "real_name": "",
     "nationality": "英国",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "jkaem",
-    "real_name": "",
     "nationality": "挪威",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 9,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "balblna",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "K27",
     "birth_year": 1995,
     "role": "Coach",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "mouz",
-    "real_name": "",
     "nationality": "波兰",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "furlan",
-    "real_name": "",
     "nationality": "波兰",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "spaze",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 1997,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "Jdm64",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "退役",
     "birth_year": 1990,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 6,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "hazed",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "退役",
     "birth_year": 1989,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 5,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "shroud",
-    "real_name": "",
     "nationality": "加拿大",
     "region": "北美",
     "team": "退役",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 7,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "desi",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "退役",
     "birth_year": 1991,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "jmqa",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 1997,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "mixwell",
-    "real_name": "",
     "nationality": "西班牙",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1995,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "alex（西班牙）",
-    "real_name": "",
     "nationality": "西班牙",
     "region": "欧洲",
     "team": "Gentle Mates",
     "birth_year": 1996,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "bodyy",
-    "real_name": "",
     "nationality": "法国",
     "region": "欧洲",
     "team": "3DMAX",
     "birth_year": 1997,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 9,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "kjaerbye",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 7,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "bendji",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1994,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "Zero（斯洛伐克）",
-    "real_name": "",
     "nationality": "斯洛伐克",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "kvik",
-    "real_name": "",
     "nationality": "立陶宛",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "abe",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "未签约/已下放",
     "birth_year": 1992,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "stanislaw",
-    "real_name": "",
     "nationality": "加拿大",
     "region": "北美",
     "team": "BOSS",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 8,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "davey",
-    "real_name": "",
     "nationality": "加拿大",
     "region": "北美",
     "team": "退役",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "yay",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "退役",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "NAF",
-    "real_name": "",
     "nationality": "加拿大",
     "region": "北美",
     "team": "Liquid",
     "birth_year": 1997,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 14,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "daps",
-    "real_name": "",
     "nationality": "加拿大",
     "region": "北美",
     "team": "NRG",
     "birth_year": 1993,
     "role": "Coach",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "fugly",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "退役",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "tarik",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "未签约/已下放",
     "birth_year": 1996,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 9,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "hobbit",
-    "real_name": "",
     "nationality": "哈萨克斯坦",
     "region": "独联体",
     "team": "PARIVISION",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 9,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "Attacker",
-    "real_name": "",
     "nationality": "中国",
     "region": "亚洲",
     "team": "未签约/已下放",
     "birth_year": 1997,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 6,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "fer",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "未签约/已下放",
     "birth_year": 1991,
     "role": "Rifler",
+    "major_championships": 2,
     "major_appearances": 14,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "hen1",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "未签约/已下放",
     "birth_year": 1995,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "lucas1",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "未签约/已下放",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "boltz",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "未签约/已下放",
     "birth_year": 1997,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 6,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "devil",
-    "real_name": "",
     "nationality": "法国",
     "region": "欧洲",
     "team": "未签约/工作/已下放",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "gruby",
-    "real_name": "",
     "nationality": "波兰",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "woxic",
-    "real_name": "",
     "nationality": "土耳其",
     "region": "亚洲",
     "team": "Aurora",
     "birth_year": 1998,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 8,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "calyx",
-    "real_name": "",
     "nationality": "土耳其",
     "region": "亚洲",
     "team": "Eternal Fire",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "marek",
-    "real_name": "",
     "nationality": "中国台湾",
     "region": "亚洲",
     "team": "Rare Atom",
     "birth_year": 1993,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "karsa",
-    "real_name": "",
     "nationality": "中国",
     "region": "亚洲",
     "team": "未签约/已下放",
     "birth_year": 1992,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "advent",
-    "real_name": "",
     "nationality": "中国",
     "region": "亚洲",
     "team": "退役",
     "birth_year": 1992,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "zhoking",
-    "real_name": "",
     "nationality": "中国",
     "region": "亚洲",
     "team": "TYLOO",
     "birth_year": 1993,
     "role": "Coach",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "auman",
-    "real_name": "",
     "nationality": "中国",
     "region": "亚洲",
     "team": "未签约/已下放",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "somebody",
-    "real_name": "",
     "nationality": "中国",
     "region": "亚洲",
     "team": "未签约/已下放",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 5,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "es3tag",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 5,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "ptr",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "退役",
     "birth_year": 1990,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "sonic",
-    "real_name": "",
     "nationality": "南非",
     "region": "非洲与以色列",
     "team": "NRG",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "deadfox",
-    "real_name": "",
     "nationality": "匈牙利",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1995,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "facecrack",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "Storm",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "waterfallz",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "autimatic",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "未签约/已下放",
     "birth_year": 1996,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 5,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "elige",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "Liquid",
     "birth_year": 1997,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 17,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "emagine",
-    "real_name": "",
     "nationality": "澳大利亚",
     "region": "大洋洲",
     "team": "退役",
     "birth_year": 1991,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "rickeh",
-    "real_name": "",
     "nationality": "澳大利亚",
     "region": "大洋洲",
     "team": "退役",
     "birth_year": 1991,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "james",
-    "real_name": "",
     "nationality": "澳大利亚",
     "region": "大洋洲",
     "team": "未签约/已下放",
     "birth_year": 1993,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "ustilo",
-    "real_name": "",
     "nationality": "澳大利亚",
     "region": "大洋洲",
     "team": "未签约/已下放",
     "birth_year": 1993,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "jugi",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1997,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "jR",
-    "real_name": "",
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "Inner Circle",
     "birth_year": 1993,
     "role": "Coach",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "keshandr",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "退役",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "mir",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 1996,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 5,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "hutji",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "退役",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "jasonR",
-    "real_name": "",
     "nationality": "加拿大",
     "region": "北美",
     "team": "退役",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "stewie2k",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "未签约/已下放",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 7,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "gade",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "nodios",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "professor-chaos",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "退役",
     "birth_year": 1989,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "electronic",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "BC.Game",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 13,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "kaze",
-    "real_name": "",
     "nationality": "马来西亚",
     "region": "亚洲",
     "team": "未签约/已下放",
     "birth_year": 1994,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "LOVEYY",
-    "real_name": "",
     "nationality": "中国",
     "region": "亚洲",
     "team": "未签约/已下放",
     "birth_year": 1989,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "HS",
-    "real_name": "",
     "nationality": "爱沙尼亚",
     "region": "欧洲",
     "team": "Raid",
     "birth_year": 1996,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "just",
-    "real_name": "",
     "nationality": "葡萄牙",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1996,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "valde",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "Magisk",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "BC.Game",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 4,
     "major_appearances": 11,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "android",
-    "real_name": "",
     "nationality": "加拿大",
     "region": "北美",
     "team": "退役",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "koosta",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "退役",
     "birth_year": 1996,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "nifty",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "退役",
     "birth_year": 1997,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "k0nfig",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1997,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 7,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "s0tf1k",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "Spirit Academy",
     "birth_year": 1994,
     "role": "Coach",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "coldyy1",
-    "real_name": "",
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1992,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "sico",
-    "real_name": "",
     "nationality": "新西兰",
     "region": "大洋洲",
     "team": "未签约/已下放",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 5,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "dexter",
-    "real_name": "",
     "nationality": "澳大利亚",
     "region": "大洋洲",
     "team": "THUNDER dOWNUNDER",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 7,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "brehze",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "未签约/已下放",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "coldzera",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "未签约/已下放",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 2,
     "major_appearances": 11,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "taco",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "未签约/已下放",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 2,
     "major_appearances": 10,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "xand",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "退役",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "felps",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "Gaimin Gladiators",
     "birth_year": 1996,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 7,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "mopoz",
-    "real_name": "",
     "nationality": "西班牙",
     "region": "欧洲",
     "team": "Gentle Mates",
     "birth_year": 1996,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "draken",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "Johnny Speeds",
     "birth_year": 1995,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "disco-doplan",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "sick",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "退役",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "vice",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "退役",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "lekr0",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1993,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 5,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "rez",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "GamerLegion",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 9,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "crush",
-    "real_name": "",
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "paz",
-    "real_name": "",
     "nationality": "土耳其",
     "region": "亚洲",
     "team": "Fire Flux",
     "birth_year": 1997,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "t0rick",
-    "real_name": "",
     "nationality": "阿塞拜疆",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "NertZ",
-    "real_name": "",
     "nationality": "以色列",
     "region": "非洲与以色列",
     "team": "G2",
     "birth_year": 1999,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 6,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "nekiz",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "Gaimin Gladiators",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "destiny",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "Galorys",
     "birth_year": 1997,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "xms",
-    "real_name": "",
     "nationality": "法国",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1997,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "snatchie",
-    "real_name": "",
     "nationality": "波兰",
     "region": "欧洲",
     "team": "NAVI Junior",
     "birth_year": 1998,
     "role": "Coach",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "amanek",
-    "real_name": "",
     "nationality": "法国",
     "region": "欧洲",
     "team": "MINLATE",
     "birth_year": 1993,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "nexa",
-    "real_name": "",
     "nationality": "塞尔维亚",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1997,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "gratisfaction",
-    "real_name": "",
     "nationality": "新西兰",
     "region": "大洋洲",
     "team": "Alter Ego",
     "birth_year": 1996,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "hampus",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "ex-500",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "aleksib",
-    "real_name": "",
     "nationality": "芬兰",
     "region": "欧洲",
     "team": "Natus Vincere",
     "birth_year": 1997,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 10,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "doto",
-    "real_name": "",
     "nationality": "芬兰",
     "region": "欧洲",
     "team": "HEROIC",
     "birth_year": 1996,
     "role": "Coach",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "ngin",
-    "real_name": "",
     "nationality": "土耳其",
     "region": "亚洲",
     "team": "未签约/已下放",
     "birth_year": 1993,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "frozen",
-    "real_name": "",
     "nationality": "斯洛伐克",
     "region": "欧洲",
     "team": "FaZe",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 8,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "fitch",
-    "real_name": "",
     "nationality": "哈萨克斯坦",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 1992,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "hooxi",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "Astralis",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 6,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "xccurate",
-    "real_name": "",
     "nationality": "印度尼西亚",
     "region": "亚洲",
     "team": "退役",
     "birth_year": 1998,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "niko(丹麦)",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "Millennium",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "acor",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1997,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "twistzz",
-    "real_name": "",
     "nationality": "加拿大",
     "region": "北美",
     "team": "FaZe",
     "birth_year": 1999,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 11,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "iSSAA",
-    "real_name": "",
     "nationality": "约旦",
     "region": "亚洲",
     "team": "未签约/已下放",
     "birth_year": 1996,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "yel",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "退役",
     "birth_year": 1992,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "chelo",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "Imperial",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 5,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "devoduvek",
-    "real_name": "",
     "nationality": "法国",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "liazz",
-    "real_name": "",
     "nationality": "澳大利亚",
     "region": "大洋洲",
     "team": "THUNDER dOWNUNDER",
     "birth_year": 1997,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 8,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "refrezh",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "ethan",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "退役",
     "birth_year": 2000,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "freeman",
-    "real_name": "",
     "nationality": "中国香港",
     "region": "亚洲",
     "team": "未签约/已下放",
     "birth_year": 1999,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "kabal",
-    "real_name": "",
     "nationality": "蒙古",
     "region": "亚洲",
     "team": "未签约/已下放",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "stavn",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "Ninjas in Pyjamas",
     "birth_year": 2002,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "golden",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "alistair",
-    "real_name": "",
     "nationality": "澳大利亚",
     "region": "大洋洲",
     "team": "THUNDER dOWNUNDER",
     "birth_year": 1998,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 6,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "ins",
-    "real_name": "",
     "nationality": "澳大利亚",
     "region": "大洋洲",
     "team": "FlyQuest",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 8,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "erkast",
-    "real_name": "",
     "nationality": "蒙古",
     "region": "亚洲",
     "team": "退役",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "exit",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "未签约/已下放",
     "birth_year": 1996,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "hatz",
-    "real_name": "",
     "nationality": "澳大利亚",
     "region": "大洋洲",
     "team": "未签约/已下放",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "beastik",
-    "real_name": "",
     "nationality": "捷克",
     "region": "欧洲",
     "team": "SINNERS",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "stadodo",
-    "real_name": "",
     "nationality": "葡萄牙",
     "region": "欧洲",
     "team": "Rebels",
     "birth_year": 1996,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "cerq",
-    "real_name": "",
     "nationality": "保加利亚",
     "region": "欧洲",
     "team": "ex-500",
     "birth_year": 1999,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "smooya",
-    "real_name": "",
     "nationality": "英国",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1999,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "ottond",
-    "real_name": "",
     "nationality": "芬兰",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1997,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "malta",
-    "real_name": "",
     "nationality": "澳大利亚",
     "region": "大洋洲",
     "team": "退役",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "nickelback",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 1997,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "malbsmd",
-    "real_name": "",
     "nationality": "危地马拉",
     "region": "北美",
     "team": "Liquid",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "JT",
-    "real_name": "",
     "nationality": "南非",
     "region": "非洲与以色列",
     "team": "Liquid",
     "birth_year": 1999,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 6,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "almazer",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "sanji",
-    "real_name": "",
     "nationality": "乌兹别克斯坦",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "jnt",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "未签约/已下放",
     "birth_year": 1994,
     "role": "Coach",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "maden",
-    "real_name": "",
     "nationality": "黑山",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "ropz",
-    "real_name": "",
     "nationality": "爱沙尼亚",
     "region": "欧洲",
     "team": "Vitality",
     "birth_year": 1999,
     "role": "Rifler",
+    "major_championships": 3,
     "major_appearances": 13,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "boombl4",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "BetBoom",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 10,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "ramz1kbo",
-    "real_name": "",
     "nationality": "哈萨克斯坦",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 1999,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "ZywOo",
-    "real_name": "",
     "nationality": "法国",
     "region": "欧洲",
     "team": "Vitality",
     "birth_year": 2000,
     "role": "AWPer",
+    "major_championships": 3,
     "major_appearances": 11,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "sergej",
-    "real_name": "",
     "nationality": "芬兰",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "nealan",
-    "real_name": "",
     "nationality": "哈萨克斯坦",
     "region": "独联体",
     "team": "NOVAQ",
     "birth_year": 1996,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "buster",
-    "real_name": "",
     "nationality": "哈萨克斯坦",
     "region": "独联体",
     "team": "DEPO",
     "birth_year": 1999,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 5,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "fashr",
-    "real_name": "",
     "nationality": "荷兰",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1996,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "svyat",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 1993,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "TeSeS",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "Falcons",
     "birth_year": 2001,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 9,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "krad",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "espiranto",
-    "real_name": "",
     "nationality": "立陶宛",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 2001,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "max",
-    "real_name": "",
     "nationality": "乌拉圭",
     "region": "南美",
     "team": "9z",
     "birth_year": 1999,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "krizzen",
-    "real_name": "",
     "nationality": "哈萨克斯坦",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "arT",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "Legacy",
     "birth_year": 1996,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 10,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "yuurih",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "FURIA",
     "birth_year": 1999,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 11,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "sterling",
-    "real_name": "",
     "nationality": "新西兰",
     "region": "大洋洲",
     "team": "未签约/已下放",
     "birth_year": 1997,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "rigoN",
-    "real_name": "",
     "nationality": "瑞士",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1999,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "floppy",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "未签约/已下放",
     "birth_year": 1999,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "sdy",
-    "real_name": "",
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1997,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 5,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "FL1T",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 2000,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 7,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "xsepower",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 1998,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "k1to",
-    "real_name": "",
     "nationality": "德国",
     "region": "欧洲",
     "team": "AM",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "SHOCK",
-    "real_name": "",
     "nationality": "捷克",
     "region": "欧洲",
     "team": "SINNERS",
     "birth_year": 2000,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "VINI",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "Imperial",
     "birth_year": 1999,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 9,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "hallzerk",
-    "real_name": "",
     "nationality": "挪威",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 2000,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "dickstacy",
-    "real_name": "",
     "nationality": "澳大利亚",
     "region": "大洋洲",
     "team": "退役",
     "birth_year": 1997,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "hasteka",
-    "real_name": "",
     "nationality": "蒙古",
     "region": "亚洲",
     "team": "NomadS",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "thomas",
-    "real_name": "",
     "nationality": "英国",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "Patti",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "WOPA",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "DeathZz",
-    "real_name": "",
     "nationality": "西班牙",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "MaKa",
-    "real_name": "",
     "nationality": "法国",
     "region": "欧洲",
     "team": "3DMAX",
     "birth_year": 1997,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "speed4k",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 1995,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "Jerry",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "Zellsis",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "退役",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "Qikert",
-    "real_name": "",
     "nationality": "哈萨克斯坦",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 1999,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 7,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "lack1",
-    "real_name": "",
     "nationality": "哈萨克斯坦",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 1999,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "oSee",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "NRG",
     "birth_year": 1999,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 5,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "el1an",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 1999,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "Farlig",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1999,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "Lucky（法国）",
-    "real_name": "",
     "nationality": "法国",
     "region": "欧洲",
     "team": "3DMAX",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 5,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "Grim",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "NRG",
     "birth_year": 2000,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 8,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "nicoodoz",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "ECSTATIC",
     "birth_year": 2000,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 6,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "Brollan",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "HEROIC",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 9,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "nawwk",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1997,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "nukkye",
-    "real_name": "",
     "nationality": "立陶宛",
     "region": "欧洲",
     "team": "ALGO",
     "birth_year": 1997,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "Queenix",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1999,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "Jame",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "PARIVISION",
     "birth_year": 1998,
     "role": "AWPer",
+    "major_championships": 1,
     "major_appearances": 10,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "dimasick",
-    "real_name": "",
     "nationality": "哈萨克斯坦",
     "region": "独联体",
     "team": "退役",
     "birth_year": 1996,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "Lucky（丹麦）",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 2003,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "YEKINDAR",
-    "real_name": "",
     "nationality": "拉脱维亚",
     "region": "欧洲",
     "team": "FURIA",
     "birth_year": 1999,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 8,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "forester",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 2000,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "xotic",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "未签约/已下放",
     "birth_year": 2001,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "sjuush",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "Ninjas in Pyjamas",
     "birth_year": 1999,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 7,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "misutaaa",
-    "real_name": "",
     "nationality": "法国",
     "region": "欧洲",
     "team": "3DMAX",
     "birth_year": 2003,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "plopski",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "Metizport",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "wood7",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "ODDIK",
     "birth_year": 1995,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "tuurtle",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "未签约/已下放",
     "birth_year": 1997,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "roeJ",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "退役",
     "birth_year": 1993,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "junior",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "SkinRave",
     "birth_year": 2000,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "obo",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "未签约/已下放",
     "birth_year": 2003,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "dgt",
-    "real_name": "",
     "nationality": "阿根廷",
     "region": "南美",
     "team": "9z",
     "birth_year": 1999,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 5,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "meyern",
-    "real_name": "",
     "nationality": "阿根廷",
     "region": "南美",
     "team": "9z",
     "birth_year": 2002,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "iM",
-    "real_name": "",
     "nationality": "罗马尼亚",
     "region": "欧洲",
     "team": "Natus Vincere",
     "birth_year": 1999,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 7,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "JDC",
-    "real_name": "",
     "nationality": "德国",
     "region": "欧洲",
     "team": "BIG",
     "birth_year": 2000,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "faveN",
-    "real_name": "",
     "nationality": "德国",
     "region": "欧洲",
     "team": "BIG",
     "birth_year": 2000,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "interz",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "1win",
     "birth_year": 2000,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "nin9",
-    "real_name": "",
     "nationality": "蒙古",
     "region": "亚洲",
     "team": "The Huns",
     "birth_year": 1997,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "Keoz",
-    "real_name": "",
     "nationality": "比利时",
     "region": "欧洲",
     "team": "kONO",
     "birth_year": 2000,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "blameF",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "BIG",
     "birth_year": 1997,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "maLek",
-    "real_name": "",
     "nationality": "法国",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1986,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "slaxz-",
-    "real_name": "",
     "nationality": "德国",
     "region": "欧洲",
     "team": "M80",
     "birth_year": 1998,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "Goofy",
-    "real_name": "",
     "nationality": "波兰",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 2000,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "KSCERATO",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "FURIA",
     "birth_year": 1999,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 11,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "zorte",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "BetBoom",
     "birth_year": 1998,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "SLOWLY",
-    "real_name": "",
     "nationality": "中国",
     "region": "亚洲",
     "team": "退役",
     "birth_year": 1999,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": true
   },
   {
     "nickname": "dumau",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "Legacy",
     "birth_year": 2003,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 6,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "sener1",
-    "real_name": "",
     "nationality": "塞尔维亚科索沃",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1997,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "neofrag",
-    "real_name": "",
     "nationality": "捷克",
     "region": "欧洲",
     "team": "UNiTY",
     "birth_year": 2001,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "imoRR",
-    "real_name": "",
     "nationality": "土耳其",
     "region": "亚洲",
     "team": "未签约/已下放",
     "birth_year": 1999,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "luken",
-    "real_name": "",
     "nationality": "阿根廷",
     "region": "南美",
     "team": "Gaimin Gladiators",
     "birth_year": 1997,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "rox",
-    "real_name": "",
     "nationality": "阿根廷",
     "region": "南美",
     "team": "未签约/已下放",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "dycha",
-    "real_name": "",
     "nationality": "波兰",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1997,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 5,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "dank1ng",
-    "real_name": "",
     "nationality": "中国",
     "region": "亚洲",
     "team": "未签约/已下放",
     "birth_year": 1999,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "pancc",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "未签约/已下放",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "ztr",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "FOKUS",
     "birth_year": 2003,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "Westmelon",
-    "real_name": "",
     "nationality": "中国",
     "region": "亚洲",
     "team": "Lynn Vision",
     "birth_year": 2001,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "Ax1le",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "TDK",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 6,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "swisher",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "M80",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "n0rb3r7",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "HOTU",
     "birth_year": 2001,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "flameZ",
-    "real_name": "",
     "nationality": "以色列",
     "region": "非洲与以色列",
     "team": "Vitality",
     "birth_year": 2003,
     "role": "Rifler",
+    "major_championships": 2,
     "major_appearances": 7,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "br0",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "Eternal Fire",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "phzy",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "Astralis",
     "birth_year": 2002,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "realz1n",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "退役",
     "birth_year": 1994,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "ablej",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "退役",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": false
+    "is_active": false,
+    "is_easy": false
   },
   {
     "nickname": "vsm",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "paiN",
     "birth_year": 1999,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "hardzao",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "Fake do Biru",
     "birth_year": 2001,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "siuhy",
-    "real_name": "",
     "nationality": "波兰",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 7,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "hades",
-    "real_name": "",
     "nationality": "波兰",
     "region": "欧洲",
     "team": "Betclic",
     "birth_year": 2000,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 5,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "woro2k",
-    "real_name": "",
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 2001,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "sh1ro",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "Spirit",
     "birth_year": 2001,
     "role": "AWPer",
+    "major_championships": 1,
     "major_appearances": 8,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "nafany",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 2001,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "perfecto",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 1999,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 6,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "travis",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 1997,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "shalfey",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "9BOOMPRO",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "Rainwaker",
-    "real_name": "",
     "nationality": "保加利亚",
     "region": "欧洲",
     "team": "Luminosity",
     "birth_year": 2001,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "juanflatroo",
-    "real_name": "",
     "nationality": "塞尔维亚科索沃",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1996,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "degster",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 2001,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 5,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "Cxzi",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "Wildcard",
     "birth_year": 2000,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "FaNg",
-    "real_name": "",
     "nationality": "加拿大",
     "region": "北美",
     "team": "BOSS",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "reck",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "Wildcard",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "Vexite",
-    "real_name": "",
     "nationality": "澳大利亚",
     "region": "大洋洲",
     "team": "FlyQuest",
     "birth_year": 2004,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 6,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "sense",
-    "real_name": "",
     "nationality": "挪威",
     "region": "欧洲",
     "team": "Nordix",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "KEi",
-    "real_name": "",
     "nationality": "波兰",
     "region": "欧洲",
     "team": "Phantom",
     "birth_year": 2001,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "b4rtin",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "未签约/已下放",
     "birth_year": 2001,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "fEAR",
-    "real_name": "",
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "fnatic",
     "birth_year": 1999,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "JOTA",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "未签约/已下放",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "isak",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "Metizport",
     "birth_year": 2001,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "jabbi",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "Astralis",
     "birth_year": 2003,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 6,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "broky",
-    "real_name": "",
     "nationality": "拉脱维亚",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 2001,
     "role": "AWPer",
+    "major_championships": 1,
     "major_appearances": 7,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "torzsi",
-    "real_name": "",
     "nationality": "匈牙利",
     "region": "欧洲",
     "team": "MOUZ",
     "birth_year": 2002,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 7,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "sinnopsyy",
-    "real_name": "",
     "nationality": "塞尔维亚科索沃",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1995,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "biguzera",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "paiN",
     "birth_year": 1997,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 7,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "nettik",
-    "real_name": "",
     "nationality": "新西兰",
     "region": "大洋洲",
     "team": "FlyQuest",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "spinx",
-    "real_name": "",
     "nationality": "以色列",
     "region": "非洲与以色列",
     "team": "MOUZ",
     "birth_year": 2000,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 9,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "magixx",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "Spirit",
     "birth_year": 2003,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 7,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "mezii",
-    "real_name": "",
     "nationality": "英国",
     "region": "欧洲",
     "team": "Vitality",
     "birth_year": 1998,
     "role": "Rifler",
+    "major_championships": 2,
     "major_appearances": 7,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "S1ren",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "BetBoom",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "asap",
-    "real_name": "",
     "nationality": "澳大利亚",
     "region": "大洋洲",
     "team": "THUNDER dOWNUNDER",
     "birth_year": 2003,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "cypher",
-    "real_name": "",
     "nationality": "英国",
     "region": "欧洲",
     "team": "ex-500",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "sk0r",
-    "real_name": "",
     "nationality": "蒙古",
     "region": "亚洲",
     "team": "The Huns",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "skullz",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "Imperial",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "annihilation",
-    "real_name": "",
     "nationality": "蒙古",
     "region": "亚洲",
     "team": "未签约/已下放",
     "birth_year": 1999,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "piriajr",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "paiN",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "lucaozy",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "Fluxo",
     "birth_year": 2001,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 5,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "z4kr",
-    "real_name": "",
     "nationality": "中国",
     "region": "亚洲",
     "team": "Lynn Vision",
     "birth_year": 2001,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "cacanito",
-    "real_name": "",
     "nationality": "北马其顿",
     "region": "欧洲",
     "team": "JiJieHao",
     "birth_year": 2000,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "saffee",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "paiN",
     "birth_year": 1994,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 7,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "HexT",
-    "real_name": "",
     "nationality": "加拿大",
     "region": "北美",
     "team": "未签约/已下放",
     "birth_year": 2001,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "Jimpphat",
-    "real_name": "",
     "nationality": "芬兰",
     "region": "欧洲",
     "team": "Aurora",
     "birth_year": 2006,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "dav1deus",
-    "real_name": "",
     "nationality": "智利",
     "region": "南美",
     "team": "未签约/已下放",
     "birth_year": 2000,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "b1t",
-    "real_name": "",
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "Natus Vincere",
     "birth_year": 2003,
     "role": "Rifler",
+    "major_championships": 2,
     "major_appearances": 9,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "bymas",
-    "real_name": "",
     "nationality": "立陶宛",
     "region": "欧洲",
     "team": "Luminosity",
     "birth_year": 2003,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "F1KU",
-    "real_name": "",
     "nationality": "波兰",
     "region": "欧洲",
     "team": "Metizport",
     "birth_year": 2003,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "latto",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "Legacy",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 6,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "spooke",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "OG",
     "birth_year": 2001,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "kylar",
-    "real_name": "",
     "nationality": "波兰",
     "region": "欧洲",
     "team": "Phantom",
     "birth_year": 1999,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "sunpayus",
-    "real_name": "",
     "nationality": "西班牙",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1998,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 6,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "xfl0ud",
-    "real_name": "",
     "nationality": "土耳其",
     "region": "亚洲",
     "team": "FUT",
     "birth_year": 2003,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "jL",
-    "real_name": "",
     "nationality": "立陶宛",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1999,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "ROUX",
-    "real_name": "",
     "nationality": "蒙古",
     "region": "亚洲",
     "team": "Chinggis Warriors",
     "birth_year": 1999,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "m0nesy",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "Falcons",
     "birth_year": 2005,
     "role": "AWPer",
+    "major_championships": 1,
     "major_appearances": 7,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "belchonokk",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 2003,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "kensi",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 2001,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "LNZ",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "MIBR",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "dav1g",
-    "real_name": "",
     "nationality": "西班牙",
     "region": "欧洲",
     "team": "Gentle Mates",
     "birth_year": 2000,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "cool4st",
-    "real_name": "",
     "nationality": "蒙古",
     "region": "亚洲",
     "team": "Chinggis Warriors",
     "birth_year": 2002,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "headtr1ck",
-    "real_name": "",
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 2004,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "Jamyoung",
-    "real_name": "",
     "nationality": "中国",
     "region": "亚洲",
     "team": "TYLOO",
     "birth_year": 2001,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "kyojin",
-    "real_name": "",
     "nationality": "法国",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1999,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "patsi",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "Sangal",
     "birth_year": 2003,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "kyxsan",
-    "real_name": "",
     "nationality": "北马其顿",
     "region": "欧洲",
     "team": "Aurora",
     "birth_year": 2000,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 5,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "childking",
-    "real_name": "",
     "nationality": "中国",
     "region": "亚洲",
     "team": "未签约/已下放",
     "birth_year": 2000,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "n1ssim",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "未签约/已下放",
     "birth_year": 2001,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "zevy",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "Fluxo",
     "birth_year": 2001,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "nqz",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "MIBR",
     "birth_year": 2005,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 5,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "adams",
-    "real_name": "",
     "nationality": "罗马尼亚",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 2001,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "gxx",
-    "real_name": "",
     "nationality": "塞尔维亚科索沃",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 1999,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "DemQQ",
-    "real_name": "",
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 2001,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "Djoko",
-    "real_name": "",
     "nationality": "法国",
     "region": "欧洲",
     "team": "GenOne",
     "birth_year": 1997,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "ex3rcice",
-    "real_name": "",
     "nationality": "法国",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 2000,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "drop",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "RED Canids",
     "birth_year": 2004,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 6,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "boros",
-    "real_name": "",
     "nationality": "约旦",
     "region": "亚洲",
     "team": "Alter Ego",
     "birth_year": 2004,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "tN1R",
-    "real_name": "",
     "nationality": "白俄罗斯",
     "region": "独联体",
     "team": "Spirit",
     "birth_year": 2001,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "try",
-    "real_name": "",
     "nationality": "阿根廷",
     "region": "南美",
     "team": "Passion UA",
     "birth_year": 2004,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "norwi",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "Sangal",
     "birth_year": 2001,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "krimbo",
-    "real_name": "",
     "nationality": "德国",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "afro",
-    "real_name": "",
     "nationality": "法国",
     "region": "欧洲",
     "team": "Luminosity",
     "birth_year": 1999,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "bart4k",
-    "real_name": "",
     "nationality": "蒙古",
     "region": "亚洲",
     "team": "The Huns",
     "birth_year": 2004,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "chayjesus",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "RED Canids",
     "birth_year": 2001,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "kauez",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "RED Canids",
     "birth_year": 2003,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "zyphon",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "Sashi",
     "birth_year": 2004,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "fame",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 2003,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "s1n",
-    "real_name": "",
     "nationality": "德国",
     "region": "欧洲",
     "team": "M80",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "alex666",
-    "real_name": "",
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "B8",
     "birth_year": 2001,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "nilo",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "HEROIC",
     "birth_year": 2005,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "regali",
-    "real_name": "",
     "nationality": "罗马尼亚",
     "region": "欧洲",
     "team": "Eternal Fire",
     "birth_year": 2002,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "w0nderful",
-    "real_name": "",
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "Natus Vincere",
     "birth_year": 2004,
     "role": "AWPer",
+    "major_championships": 1,
     "major_appearances": 6,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "snow",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "paiN",
     "birth_year": 2007,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "decenty",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "Fluxo",
     "birth_year": 2004,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "blitz",
-    "real_name": "",
     "nationality": "蒙古",
     "region": "亚洲",
     "team": "The MongolZ",
     "birth_year": 2001,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 8,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "starry",
-    "real_name": "",
     "nationality": "中国",
     "region": "亚洲",
     "team": "Lynn Vision",
     "birth_year": 2005,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "techno",
-    "real_name": "",
     "nationality": "蒙古",
     "region": "亚洲",
     "team": "The MongolZ",
     "birth_year": 2005,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 8,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "krasnal",
-    "real_name": "",
     "nationality": "波兰",
     "region": "欧洲",
     "team": "ENCE",
     "birth_year": 2003,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "kraghen",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "9INE",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "tauson",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "GamerLegion",
     "birth_year": 2005,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "staehr",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "Astralis",
     "birth_year": 2004,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "xertion",
-    "real_name": "",
     "nationality": "以色列",
     "region": "非洲与以色列",
     "team": "MOUZ",
     "birth_year": 2004,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 7,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "Jeorge",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "NRG",
     "birth_year": 2003,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "d1Ledez",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "BetBoom",
     "birth_year": 2003,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "volt",
-    "real_name": "",
     "nationality": "罗马尼亚",
     "region": "欧洲",
     "team": "ex-500",
     "birth_year": 2001,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "kye",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "Fluxo",
     "birth_year": 2004,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "xant3r",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 2004,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "luchov",
-    "real_name": "",
     "nationality": "阿根廷",
     "region": "南美",
     "team": "9z",
     "birth_year": 2001,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "zont1x",
-    "real_name": "",
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "Spirit",
     "birth_year": 2005,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "r1nkle",
-    "real_name": "",
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "G2",
     "birth_year": 2004,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "heavygod",
-    "real_name": "",
     "nationality": "以色列",
     "region": "非洲与以色列",
     "team": "G2",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "story",
-    "real_name": "",
     "nationality": "葡萄牙",
     "region": "欧洲",
     "team": "SAW",
     "birth_year": 2002,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "ewjerkz",
-    "real_name": "",
     "nationality": "葡萄牙",
     "region": "欧洲",
     "team": "SAW",
     "birth_year": 2000,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "arrozdoce",
-    "real_name": "",
     "nationality": "葡萄牙",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "TjP",
-    "real_name": "",
     "nationality": "澳大利亚",
     "region": "大洋洲",
     "team": "THUNDER dOWNUNDER",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "gafolo",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "Sharks",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "lux",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "Luminosity",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "dem0n",
-    "real_name": "",
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "FUT",
     "birth_year": 2007,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "buda",
-    "real_name": "",
     "nationality": "阿根廷",
     "region": "南美",
     "team": "BESTIA",
     "birth_year": 2003,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "jee",
-    "real_name": "",
     "nationality": "中国",
     "region": "亚洲",
     "team": "TYLOO",
     "birth_year": 2004,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "xerolte",
-    "real_name": "",
     "nationality": "蒙古",
     "region": "亚洲",
     "team": "The Huns",
     "birth_year": 2003,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "r3salt",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 2005,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "launx",
-    "real_name": "",
     "nationality": "罗马尼亚",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 2005,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "tiger",
-    "real_name": "",
     "nationality": "中国",
     "region": "亚洲",
     "team": "未签约/已下放",
     "birth_year": 2003,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "sl3nd",
-    "real_name": "",
     "nationality": "匈牙利",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 2004,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "adamb",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "OG",
     "birth_year": 2005,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "mercury",
-    "real_name": "",
     "nationality": "中国",
     "region": "亚洲",
     "team": "TYLOO",
     "birth_year": 2000,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "senzu",
-    "real_name": "",
     "nationality": "蒙古",
     "region": "亚洲",
     "team": "BC.Game",
     "birth_year": 2006,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "history",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "Patins da Ferrari",
     "birth_year": 2003,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "buzz",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "ECSTATIC",
     "birth_year": 2003,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "soulfly",
-    "real_name": "",
     "nationality": "土耳其",
     "region": "亚洲",
     "team": "未签约/已下放",
     "birth_year": 2004,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "brnz4n",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "MIBR",
     "birth_year": 2003,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "fl4mus",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 2004,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "mzinho",
-    "real_name": "",
     "nationality": "蒙古",
     "region": "亚洲",
     "team": "BC.Game",
     "birth_year": 2007,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 5,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "insani",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "MIBR",
     "birth_year": 2004,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "MATYS",
-    "real_name": "",
     "nationality": "斯洛伐克",
     "region": "欧洲",
     "team": "G2",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "MoDo",
-    "real_name": "",
     "nationality": "罗马尼亚",
     "region": "欧洲",
     "team": "SINNERS",
     "birth_year": 2003,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "susp",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "HEROIC",
     "birth_year": 2005,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "l00m1",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 2001,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "donk",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "Spirit",
     "birth_year": 2007,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 5,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "koala",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "Sharks",
     "birth_year": 2005,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "ryu",
-    "real_name": "",
     "nationality": "立陶宛",
     "region": "欧洲",
     "team": "Astralis",
     "birth_year": 2004,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "maxxkor",
-    "real_name": "",
     "nationality": "阿根廷",
     "region": "南美",
     "team": "Sharks",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "wicadia",
-    "real_name": "",
     "nationality": "土耳其",
     "region": "亚洲",
     "team": "Aurora",
     "birth_year": 2005,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "1eer",
-    "real_name": "",
     "nationality": "白俄罗斯",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "mlhzin",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "未签约/已下放",
     "birth_year": 2005,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "venomzera",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "MIBR",
     "birth_year": 2004,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "salazar",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "Tricked",
     "birth_year": 2004,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "ariucle",
-    "real_name": "",
     "nationality": "蒙古",
     "region": "亚洲",
     "team": "未签约/已下放",
     "birth_year": 2004,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "controlez",
-    "real_name": "",
     "nationality": "蒙古",
     "region": "亚洲",
     "team": "The Huns",
     "birth_year": 1997,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "icy",
-    "real_name": "",
     "nationality": "哈萨克斯坦",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 2005,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "kvem",
-    "real_name": "",
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "Eternal Fire",
     "birth_year": 2001,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "nicx",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "Passion UA",
     "birth_year": 2004,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "moseyuh",
-    "real_name": "",
     "nationality": "中国",
     "region": "亚洲",
     "team": "TYLOO",
     "birth_year": 2005,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "JBa",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "M80",
     "birth_year": 2004,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "magnojez",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "BetBoom",
     "birth_year": 2004,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "npl",
-    "real_name": "",
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "B8",
     "birth_year": 2005,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "ultimate",
-    "real_name": "",
     "nationality": "波兰",
     "region": "欧洲",
     "team": "Liquid",
     "birth_year": 2003,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "910",
-    "real_name": "",
     "nationality": "蒙古",
     "region": "亚洲",
     "team": "The MongolZ",
     "birth_year": 2002,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 5,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "Gizmy",
-    "real_name": "",
     "nationality": "英国",
     "region": "欧洲",
     "team": "100 Thieves",
     "birth_year": 2004,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "L1hang",
-    "real_name": "",
     "nationality": "中国",
     "region": "亚洲",
     "team": "Rare Atom",
     "birth_year": 2003,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "rdnzao",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "Sharks",
     "birth_year": 2003,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "Graviti",
-    "real_name": "",
     "nationality": "法国",
     "region": "欧洲",
     "team": "3DMAX",
     "birth_year": 2003,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "chr1zn",
-    "real_name": "",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "HEROIC",
     "birth_year": 2006,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "yxngstxr",
-    "real_name": "",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 2004,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "AW",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 2006,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "AZUWU",
-    "real_name": "",
     "nationality": "英国",
     "region": "欧洲",
     "team": "Luminosity",
     "birth_year": 2003,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "Krabeni",
-    "real_name": "",
     "nationality": "塞尔维亚科索沃",
     "region": "欧洲",
     "team": "FUT",
     "birth_year": 2005,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "PR",
-    "real_name": "",
     "nationality": "捷克",
     "region": "欧洲",
     "team": "GamerLegion",
     "birth_year": 2007,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "jottAAA",
-    "real_name": "",
     "nationality": "土耳其",
     "region": "亚洲",
     "team": "Eternal Fire",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "jcobbb",
-    "real_name": "",
     "nationality": "波兰",
     "region": "欧洲",
     "team": "FaZe",
     "birth_year": 2004,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "Efire",
-    "real_name": "",
     "nationality": "蒙古",
     "region": "亚洲",
     "team": "Chinggis Warriors",
     "birth_year": 2005,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "riskyb0b",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "Nemiga",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "xielo",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "PARIVISION",
     "birth_year": 2006,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "noway",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "Imperial",
     "birth_year": 2005,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "HUASOPEEK",
-    "real_name": "",
     "nationality": "智利",
     "region": "南美",
     "team": "9z",
     "birth_year": 2003,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "makazze",
-    "real_name": "",
     "nationality": "塞尔维亚科索沃",
     "region": "欧洲",
     "team": "Natus Vincere",
     "birth_year": 2007,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "cmtry",
-    "real_name": "",
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "FUT",
     "birth_year": 2007,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "kensizor",
-    "real_name": "",
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "B8",
     "birth_year": 2006,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "gr1ks",
-    "real_name": "",
     "nationality": "白俄罗斯",
     "region": "独联体",
     "team": "BIG",
     "birth_year": 2005,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "doc",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "Sharks",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "lake",
-    "real_name": "",
     "nationality": "美国",
     "region": "北美",
     "team": "M80",
     "birth_year": 2004,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "EmiliaQAQ",
-    "real_name": "",
     "nationality": "中国",
     "region": "亚洲",
     "team": "Lynn Vision",
     "birth_year": 2004,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 4,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "nota",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 2007,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "saadzin",
-    "real_name": "",
     "nationality": "巴西",
     "region": "南美",
     "team": "Legacy",
     "birth_year": 2004,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "jambo",
-    "real_name": "",
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "fnatic",
     "birth_year": 2004,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "C4LLM3SU3",
-    "real_name": "",
     "nationality": "中国",
     "region": "亚洲",
     "team": "Lynn Vision",
     "birth_year": 2004,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "kl1m",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "未签约/已下放",
     "birth_year": 2005,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "kisserek",
-    "real_name": "",
     "nationality": "波兰",
     "region": "欧洲",
     "team": "SINNERS",
     "birth_year": 2003,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "khan",
-    "real_name": "",
     "nationality": "哈萨克斯坦",
     "region": "独联体",
     "team": "Nemiga",
     "birth_year": 2003,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "xkacpersky",
-    "real_name": "",
     "nationality": "波兰",
     "region": "欧洲",
     "team": "Ninjas in Pyjamas",
     "birth_year": 2006,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "cobrazera",
-    "real_name": "",
     "nationality": "蒙古",
     "region": "亚洲",
     "team": "The MongolZ",
     "birth_year": 2005,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "s-chilla",
-    "real_name": "",
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "未签约/已下放",
     "birth_year": 2005,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "jackasmo",
-    "real_name": "",
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "fnatic",
     "birth_year": 2007,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "zerrofix",
-    "real_name": "",
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "Inner Circle",
     "birth_year": 2007,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "stressarN",
-    "real_name": "",
     "nationality": "北马其顿",
     "region": "欧洲",
     "team": "SINNERS",
     "birth_year": 2002,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "dziugss",
-    "real_name": "",
     "nationality": "立陶宛",
     "region": "欧洲",
     "team": "FUT",
     "birth_year": 2008,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": false
   },
   {
     "nickname": "esenthial",
-    "real_name": "",
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "B8",
     "birth_year": 2006,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "zweih",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "PARIVISION",
     "birth_year": 2007,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "hypex",
-    "real_name": "",
     "nationality": "波兰",
     "region": "欧洲",
     "team": "GamerLegion",
     "birth_year": 2004,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "molodoy",
-    "real_name": "",
     "nationality": "哈萨克斯坦",
     "region": "独联体",
     "team": "FURIA",
     "birth_year": 2005,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 3,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "kyousuke",
-    "real_name": "",
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "Falcons",
     "birth_year": 2008,
     "role": "Rifler",
+    "major_championships": 1,
     "major_appearances": 2,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "xelex",
-    "real_name": "",
     "nationality": "匈牙利",
     "region": "欧洲",
     "team": "MOUZ",
     "birth_year": 2008,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "Zero（中国）",
-    "real_name": "",
     "nationality": "中国",
     "region": "亚洲",
     "team": "TYLOO",
     "birth_year": 2005,
     "role": "Rifler",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   },
   {
     "nickname": "s1zzi",
-    "real_name": "",
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "B8",
     "birth_year": 2009,
     "role": "AWPer",
+    "major_championships": 0,
     "major_appearances": 1,
-    "is_active": true
+    "is_active": true,
+    "is_easy": true
   }
 ]

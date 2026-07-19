@@ -4,10 +4,19 @@ import {
   HiddenAttributeFeedback,
   MultiplayerGuessFeedback,
 } from '../types';
+import { playerRoleLabel } from '../utils/playerRoles';
 
-const COLUMNS = ['昵称', '队伍', '国家或地区', '年龄', '位置', 'Major 次数', '状态'];
+const COLUMNS = ['昵称', '队伍', '国家或地区', '年龄', '位置', 'Major 冠军', 'Major 次数', '状态'];
 
-function Cell({ attr, bool }: { attr: AttributeFeedback | HiddenAttributeFeedback; bool?: boolean }) {
+function Cell({
+  attr,
+  bool,
+  format,
+}: {
+  attr: AttributeFeedback | HiddenAttributeFeedback;
+  bool?: boolean;
+  format?: (value: string) => string;
+}) {
   if (!('value' in attr)) {
     return (
       <td className={`${attr.level} masked-cell`}>
@@ -24,7 +33,9 @@ function Cell({ attr, bool }: { attr: AttributeFeedback | HiddenAttributeFeedbac
       ? attr.value
         ? '现役'
         : '退役'
-      : String(attr.value);
+      : format
+        ? format(String(attr.value))
+        : String(attr.value);
   return (
     <td className={attr.level}>
       {text}
@@ -58,7 +69,8 @@ export default function GuessBoard({ guesses }: { guesses: MultiplayerGuessFeedb
               <Cell attr={g.attributes.team} />
               <Cell attr={g.attributes.nationality} />
               <Cell attr={g.attributes.age} />
-              <Cell attr={g.attributes.role} />
+              <Cell attr={g.attributes.role} format={playerRoleLabel} />
+              <Cell attr={g.attributes.majorChampionships} />
               <Cell attr={g.attributes.majorAppearances} />
               <Cell attr={g.attributes.isActive} bool />
             </tr>

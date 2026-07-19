@@ -1,27 +1,31 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useId, useRef, useState } from 'react';
+import { X } from 'lucide-react';
+import { PLAYER_ROLE_OPTIONS } from '../../utils/playerRoles';
 
 export interface PlayerForm {
   id?: number;
   nickname: string;
-  real_name: string;
   nationality: string;
   region: string;
   team: string;
   birth_year: number;
   role: string;
+  major_championships: number;
   major_appearances: number;
+  is_easy: boolean;
   is_active: boolean;
 }
 
 export const emptyPlayer: PlayerForm = {
   nickname: '',
-  real_name: '',
   nationality: '',
   region: '',
   team: '',
   birth_year: 2000,
   role: 'Rifler',
+  major_championships: 0,
   major_appearances: 0,
+  is_easy: false,
   is_active: true,
 };
 
@@ -31,38 +35,110 @@ interface Props {
   onCancel: () => void;
 }
 
-/** 选手新增/编辑表单 */
 export default function PlayerEditForm({ initial, onSubmit, onCancel }: Props) {
   const [form, setForm] = useState<PlayerForm>(initial);
-  const set = (patch: Partial<PlayerForm>) => setForm((f) => ({ ...f, ...patch }));
+  const [saving, setSaving] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const titleId = useId();
+  const firstInputRef = useRef<HTMLInputElement>(null);
+  const set = (patch: Partial<PlayerForm>) => setForm((current) => ({ ...current, ...patch }));
 
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    await onSubmit(form);
+  useEffect(() => {
+    const oldOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    firstInputRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !saving) onCancel();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = oldOverflow;
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [onCancel, saving]);
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setSubmitError('');
+    setSaving(true);
+    try {
+      await onSubmit(form);
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : '保存失败，请稍后重试');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
-    <form onSubmit={submit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-      <input className="input" placeholder="昵称*" value={form.nickname} onChange={(e) => set({ nickname: e.target.value })} required />
-      <input className="input" placeholder="真名" value={form.real_name} onChange={(e) => set({ real_name: e.target.value })} />
-      <input className="input" placeholder="国籍*" value={form.nationality} onChange={(e) => set({ nationality: e.target.value })} required />
-      <input className="input" placeholder="赛区(欧洲/独联体/北美/南美/亚洲)" value={form.region} onChange={(e) => set({ region: e.target.value })} />
-      <input className="input" placeholder="队伍" value={form.team} onChange={(e) => set({ team: e.target.value })} />
-      <input className="input" type="number" placeholder="出生年份*" value={form.birth_year} onChange={(e) => set({ birth_year: Number(e.target.value) })} required />
-      <select className="input" value={form.role} onChange={(e) => set({ role: e.target.value })}>
-        {['Rifler', 'AWPer', 'IGL', 'Entry', 'Lurker', 'Support'].map((r) => (
-          <option key={r} value={r}>{r}</option>
-        ))}
-      </select>
-      <input className="input" type="number" placeholder="Major 次数" value={form.major_appearances} onChange={(e) => set({ major_appearances: Number(e.target.value) })} />
-      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14 }}>
-        <input type="checkbox" checked={form.is_active} onChange={(e) => set({ is_active: e.target.checked })} />
-        现役
-      </label>
-      <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 8 }}>
-        <button className="btn btn-green">{form.id ? '保存修改' : '新增选手'}</button>
-        <button type="button" className="btn btn-ghost" onClick={onCancel}>取消</button>
+    <div
+      className="admin-player-backdrop"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !saving) onCancel();
+      }}
+    >
+      <div className="admin-player-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+        <div className="admin-player-dialog-heading">
+          <div>
+            <h2 id={titleId}>{form.id ? `修改选手: ${form.nickname}` : '新增选手'}</h2>
+            <p>完整填写选手属性，带星号的字段为必填项。</p>
+          </div>
+          <button className="confirm-close" type="button" aria-label="关闭" onClick={onCancel} disabled={saving}>
+            <X size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={submit}>
+          <div className="admin-player-form-grid">
+            <label className="admin-player-field">
+              <span>选手昵称 *</span>
+              <input ref={firstInputRef} className="input" value={form.nickname} onChange={(event) => set({ nickname: event.target.value })} required />
+            </label>
+            <label className="admin-player-field">
+              <span>国籍 *</span>
+              <input className="input" value={form.nationality} onChange={(event) => set({ nationality: event.target.value })} required />
+            </label>
+            <label className="admin-player-field">
+              <span>赛区</span>
+              <input className="input" value={form.region} onChange={(event) => set({ region: event.target.value })} placeholder="欧洲、独联体、北美等" />
+            </label>
+            <label className="admin-player-field">
+              <span>当前队伍</span>
+              <input className="input" value={form.team} onChange={(event) => set({ team: event.target.value })} />
+            </label>
+            <label className="admin-player-field">
+              <span>出生年份 *</span>
+              <input className="input" type="number" min="1970" max="2015" value={form.birth_year} onChange={(event) => set({ birth_year: Number(event.target.value) })} required />
+            </label>
+            <label className="admin-player-field">
+              <span>选手位置</span>
+              <select className="input" value={form.role} onChange={(event) => set({ role: event.target.value })}>
+                {PLAYER_ROLE_OPTIONS.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
+              </select>
+            </label>
+            <label className="admin-player-field">
+              <span>Major 冠军数</span>
+              <input className="input" type="number" min="0" value={form.major_championships} onChange={(event) => set({ major_championships: Number(event.target.value) })} />
+            </label>
+            <label className="admin-player-field">
+              <span>Major 参赛次数</span>
+              <input className="input" type="number" min="0" value={form.major_appearances} onChange={(event) => set({ major_appearances: Number(event.target.value) })} />
+            </label>
+          </div>
+
+          <div className="admin-player-flags">
+            <label><input type="checkbox" checked={form.is_easy} onChange={(event) => set({ is_easy: event.target.checked })} />加入简单版选手池</label>
+            <label><input type="checkbox" checked={form.is_active} onChange={(event) => set({ is_active: event.target.checked })} />现役选手</label>
+          </div>
+
+          {submitError && <p className="error admin-player-submit-error">{submitError}</p>}
+
+          <div className="admin-player-dialog-actions">
+            <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={saving}>取消</button>
+            <button className="btn btn-green" disabled={saving}>{saving ? '保存中...' : form.id ? '保存修改' : '新增选手'}</button>
+          </div>
+        </form>
       </div>
-    </form>
+    </div>
   );
 }

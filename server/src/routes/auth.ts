@@ -12,7 +12,8 @@ import {
 } from '../middleware/auth';
 import { validateBody, asyncHandler, HttpError } from '../middleware/common';
 import { User } from '../types';
-import { rateLimit } from '../middleware/rateLimit';
+import { rateLimit, requestIdentity } from '../middleware/rateLimit';
+import { invalidateCached } from '../services/queryCache';
 
 const router = Router();
 
@@ -46,6 +47,7 @@ router.post(
       .then((rows) => rows.map((r: any) => (typeof r === 'object' ? r.id : r)));
 
     const user = { id, username, role, token_version: 0 };
+    await invalidateCached('stats:global');
     setAuthCookie(res, user);
     res.json({ user: { id, username, role } });
   })
@@ -72,13 +74,19 @@ router.post(
   })
 );
 
-router.get('/me', requireAuth, (req, res) => {
+router.get('/me', requireAuth, rateLimit({
+  name: 'auth-me',
+  limit: 60,
+  windowSeconds: 60,
+  key: requestIdentity,
+  failClosed: true,
+}), (req, res) => {
   res.json({ user: req.user });
 });
 
 router.post(
   '/session',
-  rateLimit({ name: 'session', limit: 60, windowSeconds: 60 }),
+  rateLimit({ name: 'session', limit: 60, windowSeconds: 60, failClosed: true }),
   asyncHandler(async (req, res) => {
     const user = await authenticateCookie(req.headers.cookie);
     if (user) return res.json({ authenticated: true, user });
@@ -89,8 +97,14 @@ router.post(
 
 router.post(
   '/logout',
-  rateLimit({ name: 'logout', limit: 30, windowSeconds: 60 }),
   requireAuth,
+  rateLimit({
+    name: 'logout',
+    limit: 30,
+    windowSeconds: 60,
+    key: requestIdentity,
+    failClosed: true,
+  }),
   asyncHandler(async (req, res) => {
     await db('users').where({ id: req.user!.id }).increment('token_version', 1);
     await invalidateAuthUser(req.user!.id);
@@ -104,12 +118,20 @@ router.post(
 router.post(
   '/claim',
   requireAuth,
+  rateLimit({
+    name: 'claim',
+    limit: 5,
+    windowSeconds: 3600,
+    key: requestIdentity,
+    failClosed: true,
+  }),
   asyncHandler(async (req, res) => {
     if (!req.guestKey) throw new HttpError(400, 'GUEST_KEY_REQUIRED');
     const claimed = await db('games')
       .where({ guest_key: req.guestKey })
       .whereNull('user_id')
       .update({ user_id: req.user!.id, guest_key: null });
+    await invalidateCached('leaderboard');
     res.json({ claimed });
   })
 );

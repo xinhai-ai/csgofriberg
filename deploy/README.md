@@ -1,8 +1,9 @@
 # systemd production deployment
 
-This deployment runs one Node process behind Nginx. PostgreSQL and Redis are
-required in production. The systemd unit runs the compiled database migration
-before every application start; if migration fails, the service is not started.
+This deployment runs one Node process with PostgreSQL and Redis. Reverse proxy,
+TLS and domain routing are intentionally outside the scope of this systemd
+setup. The unit runs the compiled database migration before every application
+start; if migration fails, the service is not started.
 
 ## 1. Install prerequisites
 
@@ -10,13 +11,18 @@ Example for Debian/Ubuntu:
 
 ```bash
 sudo apt update
-sudo apt install -y nginx postgresql redis-server build-essential pkg-config libssl-dev
+sudo apt install -y postgresql redis-server build-essential pkg-config libssl-dev
 sudo corepack enable
-rustup target add wasm32-unknown-unknown
 ```
 
-Install a current Node.js LTS release and Rust before building. `node` must be
-available at `/usr/bin/node`; adjust the systemd unit if the path differs.
+Install a current Node.js LTS release before building. `node` must be available
+at `/usr/bin/node`; adjust the systemd unit if the path differs. Rust is
+optional when the tracked precompiled PoW WASM matches the current source. To
+rebuild that module, install Rust and run:
+
+```bash
+rustup target add wasm32-unknown-unknown
+```
 
 ## 2. Create PostgreSQL database
 
@@ -46,11 +52,14 @@ corepack pnpm install --frozen-lockfile
 corepack pnpm build
 ```
 
-Do not run `pnpm install --prod` before building: TypeScript, Vite and the Rust
-WASM build are build-time requirements. The compiled service itself starts with
-plain Node and does not require `tsx`. Keep the repository owned by the
-deployment user; the restricted `csgofriberg` service account only needs read
-access to the built files.
+Do not run `pnpm install --prod` before building: TypeScript and Vite are
+build-time requirements. The compiled service itself starts with plain Node and
+does not require `tsx`. Keep the repository owned by the deployment user; the
+restricted `csgofriberg` service account only needs read access to the built
+files. When Rust is unavailable, `pnpm build` uses the tracked precompiled
+`client/public/pow/csgofriberg_pow.wasm`; the build only falls back when its
+recorded source hash matches the current Rust source. This prevents an outdated
+PoW module from being silently reused after source changes.
 
 ## 4. Configure environment
 
@@ -68,24 +77,32 @@ openssl rand -base64 48
 ```
 
 Set `CORS_ORIGINS` to the exact public origin, for example
-`https://game.example.com`, without a trailing slash.
+`https://game.example.com`, without a trailing slash. Keep `TRUST_PROXY=true`
+when the service is reached through your existing trusted ingress; set it to
+`false` only when clients connect directly to the Node process. The Node port
+must not be publicly reachable when this is enabled. Your ingress must replace
+or append the standard real-IP headers, for example in Nginx:
 
-## 5. Enable systemd and Nginx
+```nginx
+proxy_set_header Host $host;
+proxy_set_header X-Real-IP $remote_addr;
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+```
+
+HTTP and Socket.IO rate limits both use the nearest trusted proxy hop from
+these headers. The current setting is intentionally limited to one trusted
+proxy layer.
+
+## 5. Enable systemd
 
 ```bash
 sudo cp deploy/systemd/csgofriberg.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now redis-server postgresql csgofriberg
-
-sudo cp deploy/nginx/csgofriberg.conf /etc/nginx/sites-available/csgofriberg
-sudo ln -s /etc/nginx/sites-available/csgofriberg /etc/nginx/sites-enabled/csgofriberg
-sudo nginx -t
-sudo systemctl reload nginx
 ```
 
-Replace `example.com` in the Nginx configuration and add TLS with Certbot or
-your existing certificate workflow. The proxy configuration preserves
-Socket.IO WebSocket upgrades.
+Configure your existing ingress separately to forward HTTP and Socket.IO
+WebSocket traffic to the application port defined by `PORT`.
 
 ## 6. Create the administrator
 

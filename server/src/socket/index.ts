@@ -1,7 +1,8 @@
 import { Server, Socket } from 'socket.io';
+import { isIP } from 'net';
 import { authenticateCookie, getGuestFromCookie } from '../middleware/auth';
 import { consumeRateLimit } from '../middleware/rateLimit';
-import { compareGuess, MAX_GUESSES } from '../services/gameService';
+import { compareGuess, completeGuessFeedback, MAX_GUESSES } from '../services/gameService';
 import { getPlayer, pickCachedTarget } from '../services/playerCache';
 import {
   BoType,
@@ -28,6 +29,7 @@ import { enqueueMatchResult } from '../services/matchResultQueue';
 import { verifyPowCookie } from '../services/pow';
 import { getPresenceStats, ONLINE_STALE_MS, PresenceStats } from '../services/presence';
 import { GuessFeedback } from '../types';
+import { config } from '../config';
 
 const DISCONNECT_FORFEIT_MS = 30_000;
 const NEXT_ROUND_DELAY_MS = 6_000;
@@ -39,6 +41,31 @@ const MAX_CONNECTIONS_PER_IP = 20;
 const ROOM_ID_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const localQueue = new Map<DbType, QueuedIdentity[]>();
 const timers = new Map<string, NodeJS.Timeout>();
+
+function validForwardedIp(value: string | undefined): string | null {
+  const candidate = value?.trim();
+  return candidate && isIP(candidate) ? candidate : null;
+}
+
+/** Match Express `trust proxy = 1`: trust only the address appended by the nearest proxy. */
+export function resolveSocketIp(
+  remoteAddress: string | undefined,
+  forwardedFor: string | string[] | undefined,
+  realIp: string | string[] | undefined,
+  trustProxy: boolean
+): string {
+  if (trustProxy) {
+    const forwarded = Array.isArray(forwardedFor) ? forwardedFor.join(',') : forwardedFor;
+    const nearestForwarded = forwarded?.split(',').at(-1);
+    const fromForwarded = validForwardedIp(nearestForwarded);
+    if (fromForwarded) return fromForwarded;
+
+    const real = Array.isArray(realIp) ? realIp.at(-1) : realIp;
+    const fromRealIp = validForwardedIp(real);
+    if (fromRealIp) return fromRealIp;
+  }
+  return validForwardedIp(remoteAddress) ?? 'unknown';
+}
 
 function winsNeeded(bo: BoType): number {
   return Math.ceil(bo / 2);
@@ -62,6 +89,7 @@ function hiddenGuess(feedback: GuessFeedback) {
       team: hideAttribute(feedback.attributes.team),
       age: hideAttribute(feedback.attributes.age),
       role: hideAttribute(feedback.attributes.role),
+      majorChampionships: hideAttribute(feedback.attributes.majorChampionships),
       majorAppearances: hideAttribute(feedback.attributes.majorAppearances),
       isActive: hideAttribute(feedback.attributes.isActive),
     },
@@ -70,6 +98,7 @@ function hiddenGuess(feedback: GuessFeedback) {
 
 function publicRoom(room: StoredRoom, viewerKey: string) {
   const viewerIsSpectator = room.spectators.some((spectator) => spectator.key === viewerKey);
+  const target = room.targetPlayerId ? getPlayer(room.targetPlayerId) : undefined;
   return {
     id: room.id,
     hostKey: room.hostKey,
@@ -83,17 +112,23 @@ function publicRoom(room: StoredRoom, viewerKey: string) {
     roundEndsAt: room.roundEndsAt,
     roundId: room.round,
     spectators: room.spectators.map((s) => ({ key: s.key, name: s.name })),
-    players: room.players.map((p) => ({
-      key: p.key,
-      name: p.name,
-      ready: p.ready,
-      connected: p.connected,
-      score: p.score,
-      guessCount: p.guesses.length,
-      guesses: viewerIsSpectator || p.key === viewerKey
-        ? p.guesses
-        : p.guesses.map(hiddenGuess),
-    })),
+    players: room.players.map((p) => {
+      const guesses = p.guesses.map((feedback) => {
+        const guess = getPlayer(feedback.playerId);
+        return completeGuessFeedback(feedback, guess, target);
+      });
+      return {
+        key: p.key,
+        name: p.name,
+        ready: p.ready,
+        connected: p.connected,
+        score: p.score,
+        guessCount: guesses.length,
+        guesses: viewerIsSpectator || p.key === viewerKey
+          ? guesses
+          : guesses.map(hiddenGuess),
+      };
+    }),
   };
 }
 
@@ -121,10 +156,10 @@ function answerView(targetPlayerId: number | null) {
   return target
     ? {
         nickname: target.nickname,
-        realName: target.real_name,
         team: target.team,
         nationality: target.nationality,
         role: target.role,
+        majorChampionships: target.major_championships,
         majorAppearances: target.major_appearances,
       }
     : null;
@@ -444,7 +479,12 @@ export function setupSocket(io: Server) {
       };
     }
     if (!identity) return next(new Error('IDENTITY_REQUIRED'));
-    const ip = socket.handshake.address || 'unknown';
+    const ip = resolveSocketIp(
+      socket.handshake.address,
+      socket.handshake.headers['x-forwarded-for'],
+      socket.handshake.headers['x-real-ip'],
+      config.trustProxy
+    );
     if (!(await consumeRateLimit('socket:connect', `${ip}:${identity.key}`, 30, 60))) {
       return next(new Error('RATE_LIMITED'));
     }

@@ -46,6 +46,11 @@ export function compareGuess(guess: Player, target: Player): GuessFeedback {
       team: textAttr(guess.team, target.team),
       age: numberAttr(ageOf(guess), ageOf(target), 2),
       role: textAttr(guess.role, target.role),
+      majorChampionships: numberAttr(
+        guess.major_championships,
+        target.major_championships,
+        1
+      ),
       majorAppearances: numberAttr(
         guess.major_appearances,
         target.major_appearances,
@@ -59,7 +64,22 @@ export function compareGuess(guess: Player, target: Player): GuessFeedback {
   };
 }
 
-export const MAX_GUESSES = 8;
+/** Upgrade Redis game snapshots created before a feedback attribute was added. */
+export function completeGuessFeedback(
+  feedback: GuessFeedback,
+  guess?: Player,
+  target?: Player
+): GuessFeedback {
+  if (feedback.attributes.majorChampionships) return feedback;
+  return {
+    ...feedback,
+    attributes: {
+      ...feedback.attributes,
+      majorChampionships: guess && target
+        ? numberAttr(guess.major_championships, target.major_championships, 1)
+        : { value: '-', level: 'wrong' },
+    },
+  };
+}
 
-/** 简单版只从 Major 出场次数较多的知名选手中抽题 */
-export const EASY_MIN_MAJORS = 8;
+export const MAX_GUESSES = 8;

@@ -1,8 +1,12 @@
 {
-  "source": "origin/弗一把Web/弗一把Web/data/全信息major选手总名单.txt",
-  "generated_at": "2026-07-19T01:53:19.619Z",
+  "sources": {
+    "full": "origin/弗一把Web/弗一把Web/data/全信息major选手总名单.txt",
+    "easy": "origin/弗一把Web/弗一把Web/data/全信息major选手总名单简单版.txt"
+  },
+  "generated_at": "2026-07-19T03:01:55.081Z",
   "player_count": 646,
-  "easy_mode_count_at_major_appearances_gte_8": 99,
+  "source_easy_player_count": 352,
+  "easy_player_count": 352,
   "inactive_count": 129,
   "inferred_birth_years": [
     {
@@ -27,13 +31,11 @@
     }
   ],
   "rules": {
-    "real_name": "原始数据不包含真名，统一使用空字符串。",
     "birth_year": "优先读取生日年份；缺失时使用 2026 - 原始年龄。",
-    "role": {
-      "步枪手": "Rifler",
-      "狙击手": "AWPer",
-      "教练": "Coach"
-    },
+    "major_championships": "按表头读取 major冠军数 列。",
+    "major_appearances": "按表头读取 参加major次数 列。",
+    "role": "仅保留 Rifler、AWPer、Coach 三种英文值，前端统一映射为中文。",
+    "is_easy": "按原始简单版表回填一次，后续由管理员手动维护。",
     "is_active": "战队字段严格等于“退役”时为 false，其他状态为 true。",
     "region": "按照原始国家赛区对照文件转换为当前项目使用的短赛区名称。"
   }

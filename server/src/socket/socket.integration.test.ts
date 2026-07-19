@@ -7,7 +7,7 @@ import { initDb } from '../db/init';
 import { db } from '../db/knex';
 import { initRedis, redis } from '../redis';
 import { initPlayerCache } from '../services/playerCache';
-import { setupSocket } from './index';
+import { resolveSocketIp, setupSocket } from './index';
 import { browserFingerprint, POW_COOKIE } from '../services/pow';
 import jwt from 'jsonwebtoken';
 import { config } from '../config';
@@ -69,6 +69,27 @@ describe('multiplayer socket integration', () => {
     stopSocket = setupSocket(io);
     await new Promise<void>((resolve) => server.listen(0, resolve));
     baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  });
+
+  it('uses only trusted proxy headers for socket IP limits', () => {
+    expect(resolveSocketIp(
+      '127.0.0.1',
+      '198.51.100.10, 203.0.113.20',
+      '198.51.100.10',
+      true
+    )).toBe('203.0.113.20');
+    expect(resolveSocketIp(
+      '127.0.0.1',
+      '198.51.100.10',
+      '198.51.100.10',
+      false
+    )).toBe('127.0.0.1');
+    expect(resolveSocketIp(
+      '127.0.0.1',
+      'not-an-ip',
+      '198.51.100.11',
+      true
+    )).toBe('198.51.100.11');
   });
 
   afterAll(async () => {

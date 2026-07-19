@@ -10,13 +10,14 @@ export interface User {
 export interface Player {
   id: number;
   nickname: string;
-  real_name: string;
   nationality: string;
   region: string;
   team: string;
   birth_year: number;
   role: string;
+  major_championships: number;
   major_appearances: number;
+  is_easy: boolean | number;
   is_active: boolean | number;
   created_at: string;
 }
@@ -40,6 +41,7 @@ export interface GuessFeedback {
     team: AttributeFeedback;
     age: AttributeFeedback;
     role: AttributeFeedback;
+    majorChampionships: AttributeFeedback;
     majorAppearances: AttributeFeedback;
     isActive: AttributeFeedback;
   };

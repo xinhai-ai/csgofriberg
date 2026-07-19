@@ -12,13 +12,14 @@ async function run() {
     .filter((p) => !existing.has(p.nickname))
     .map((p) => ({
       nickname: p.nickname,
-      real_name: p.real_name ?? '',
       nationality: p.nationality,
       region: p.region ?? '',
       team: p.team ?? '',
       birth_year: p.birth_year,
       role: p.role ?? 'Rifler',
+      major_championships: p.major_championships ?? 0,
       major_appearances: p.major_appearances ?? 0,
+      is_easy: p.is_easy ?? false,
       is_active: p.is_active ?? true,
     }));
   if (rows.length) await db.batchInsert('players', rows, 50);

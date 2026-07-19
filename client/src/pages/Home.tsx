@@ -133,7 +133,7 @@ export default function Home() {
         <div className="bottom-bar">
           <Link to="/stats" className="btn">
             <BarChart3 size={15} />
-            生涯记录
+            统计
           </Link>
           <Link to="/leaderboard" className="btn btn-warning">
             <Trophy size={15} />

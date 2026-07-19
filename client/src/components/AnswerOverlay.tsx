@@ -1,22 +1,23 @@
 import { ReactNode } from 'react';
-import { Globe, Crosshair, Calendar, Shield, User } from 'lucide-react';
+import { Globe, Crosshair, Calendar, Shield, Trophy } from 'lucide-react';
+import { playerRoleLabel } from '../utils/playerRoles';
 
 export interface AnswerInfo {
   nickname: string;
-  realName?: string;
   team: string;
   nationality: string;
   role?: string;
+  majorChampionships?: number;
   majorAppearances?: number;
 }
 
 /** 选手信息表(答案卡片/查询结果共用) */
 export function PlayerInfoTable({ answer }: { answer: AnswerInfo }) {
   const rows: [ReactNode, string, ReactNode][] = [
-    [<User size={14} key="i" />, '真名', answer.realName || '-'],
     [<Shield size={14} key="i" />, '战队', answer.team || '-'],
     [<Globe size={14} key="i" />, '国籍', answer.nationality],
-    [<Crosshair size={14} key="i" />, '位置', answer.role ?? '-'],
+    [<Crosshair size={14} key="i" />, '位置', answer.role ? playerRoleLabel(answer.role) : '-'],
+    [<Trophy size={14} key="i" />, 'Major 冠军数', answer.majorChampionships ?? 0],
     [<Calendar size={14} key="i" />, 'Major 次数', answer.majorAppearances ?? '-'],
   ];
   return (

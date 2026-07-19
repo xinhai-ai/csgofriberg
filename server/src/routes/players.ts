@@ -22,12 +22,17 @@ router.get(
 
 /**
  * 查选手 / 自动补全。
- * - ?search=xxx 模糊搜索昵称/真名/队伍
+ * - ?search=xxx 模糊搜索昵称/队伍
  * - ?suggest=1 仅返回 id+nickname(猜测输入补全用,不泄露属性)
  */
 router.get(
   '/',
-  rateLimit({ name: 'player-search', limit: 120, windowSeconds: 60 }),
+  rateLimit({
+    name: 'player-search',
+    limit: 60,
+    windowSeconds: 60,
+    failClosed: true,
+  }),
   asyncHandler(async (req, res) => {
     const search = String(req.query.search ?? '').trim();
     const suggest = req.query.suggest === '1';
@@ -36,7 +41,6 @@ router.get(
     if (search) {
       query = query.where((b) => {
         b.whereILike('nickname', `%${search}%`)
-          .orWhereILike('real_name', `%${search}%`)
           .orWhereILike('team', `%${search}%`);
       });
     }
@@ -49,12 +53,12 @@ router.get(
       players.map((p) => ({
         id: p.id,
         nickname: p.nickname,
-        realName: p.real_name,
         nationality: p.nationality,
         region: p.region,
         team: p.team,
         age: ageOf(p),
         role: p.role,
+        majorChampionships: p.major_championships,
         majorAppearances: p.major_appearances,
         isActive: Boolean(p.is_active),
       }))

@@ -38,6 +38,13 @@ function remoteIp(req: Request): string {
   return req.ip || req.socket.remoteAddress || 'unknown';
 }
 
+/** Prefer an authenticated/guest identity so users behind one NAT do not share a bucket. */
+export function requestIdentity(req: Request): string {
+  if (req.user) return `u:${req.user.id}`;
+  if (req.guestKey) return `g:${req.guestKey}`;
+  return remoteIp(req);
+}
+
 export function rateLimit(options: RateLimitOptions) {
   return async (req: Request, res: Response, next: NextFunction) => {
     const identity = options.key?.(req) || remoteIp(req);

@@ -3,10 +3,10 @@ import { z } from 'zod';
 import { db } from '../db/knex';
 import { optionalAuth } from '../middleware/auth';
 import { validateBody, asyncHandler, HttpError } from '../middleware/common';
-import { Player } from '../types';
-import { compareGuess, MAX_GUESSES } from '../services/gameService';
+import { GuessFeedback, Player } from '../types';
+import { compareGuess, completeGuessFeedback, MAX_GUESSES } from '../services/gameService';
 import { getPlayer, pickCachedTarget } from '../services/playerCache';
-import { rateLimit } from '../middleware/rateLimit';
+import { rateLimit, requestIdentity } from '../middleware/rateLimit';
 import { withKeyLock } from '../services/keyLock';
 import { invalidateCached } from '../services/queryCache';
 import {
@@ -35,17 +35,26 @@ function answerView(target: Player) {
   return {
     id: target.id,
     nickname: target.nickname,
-    realName: target.real_name,
     team: target.team,
     nationality: target.nationality,
     role: target.role,
+    majorChampionships: target.major_championships,
     majorAppearances: target.major_appearances,
   };
+}
+
+function publicGuesses(game: SingleGameState): GuessFeedback[] {
+  const target = getPlayer(game.targetPlayerId);
+  return game.guesses.map((feedback) => {
+    const guess = getPlayer(feedback.playerId);
+    return completeGuessFeedback(feedback, guess, target);
+  });
 }
 
 async function loadOwnedGame(id: string, identityKey: string): Promise<SingleGameState> {
   const game = await loadSingleGame(id, identityKey);
   if (!game) throw new HttpError(404, 'GAME_NOT_FOUND');
+  game.guesses = publicGuesses(game);
   return game;
 }
 
@@ -66,12 +75,18 @@ async function settleGame(game: SingleGameState, status: 'won' | 'lost'): Promis
     .onConflict('session_id')
     .ignore();
   await deleteSingleGame(game);
-  await invalidateCached('leaderboard');
+  await invalidateCached('leaderboard', 'stats:global');
 }
 
 router.post(
   '/start',
-  rateLimit({ name: 'game-start', limit: 30, windowSeconds: 60 }),
+  rateLimit({
+    name: 'game-start',
+    limit: 10,
+    windowSeconds: 60,
+    key: requestIdentity,
+    failClosed: true,
+  }),
   validateBody(z.object({ mode: z.enum(['easy', 'normal']).default('easy') })),
   asyncHandler(async (req, res) => {
     const owner = identity(req);
@@ -89,7 +104,7 @@ router.post(
         gameId: game.id,
         mode: game.mode,
         maxGuesses: MAX_GUESSES,
-        guesses: game.guesses,
+        guesses: publicGuesses(game),
       };
     });
     res.json(response);
@@ -102,7 +117,8 @@ router.post(
     name: 'game-guess',
     limit: 30,
     windowSeconds: 10,
-    key: (req) => req.user ? `u:${req.user.id}` : `g:${req.guestKey ?? req.ip}`,
+    key: requestIdentity,
+    failClosed: true,
   }),
   validateBody(z.object({ playerId: z.number().int().positive() })),
   asyncHandler(async (req, res) => {
@@ -140,6 +156,13 @@ router.post(
 
 router.post(
   '/:id/giveup',
+  rateLimit({
+    name: 'game-giveup',
+    limit: 15,
+    windowSeconds: 60,
+    key: requestIdentity,
+    failClosed: true,
+  }),
   asyncHandler(async (req, res) => {
     const owner = identity(req);
     if (!owner) throw new HttpError(400, 'GUEST_KEY_REQUIRED');

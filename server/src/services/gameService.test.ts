@@ -1,18 +1,19 @@
 import { describe, it, expect } from 'vitest';
-import { compareGuess, ageOf } from './gameService';
+import { compareGuess, completeGuessFeedback, ageOf } from './gameService';
 import { Player } from '../types';
 
 function makePlayer(overrides: Partial<Player>): Player {
   return {
     id: 1,
     nickname: 'test',
-    real_name: '',
     nationality: '瑞典',
     region: '欧洲',
     team: 'NIP',
     birth_year: 1991,
-    role: 'Entry',
+    role: 'Rifler',
+    major_championships: 1,
     major_appearances: 12,
+    is_easy: true,
     is_active: true,
     created_at: '',
     ...overrides,
@@ -53,6 +54,27 @@ describe('compareGuess', () => {
     const fb = compareGuess(guess, target);
     expect(fb.attributes.majorAppearances.level).toBe('wrong');
     expect(fb.attributes.majorAppearances.hint).toBe('higher');
+  });
+
+  it('Major 冠军数相差 1 给 close 并带方向提示', () => {
+    const guess = makePlayer({ id: 2, major_championships: 0 });
+    const fb = compareGuess(guess, target);
+    expect(fb.attributes.majorChampionships.level).toBe('close');
+    expect(fb.attributes.majorChampionships.hint).toBe('higher');
+  });
+
+  it('位置不同时给 wrong', () => {
+    const guess = makePlayer({ id: 2, role: 'AWPer' });
+    expect(compareGuess(guess, target).attributes.role.level).toBe('wrong');
+  });
+
+  it('旧反馈缺少选手数据时使用未知冠军数占位', () => {
+    const legacy = compareGuess(target, target);
+    delete (legacy.attributes as Partial<typeof legacy.attributes>).majorChampionships;
+    expect(completeGuessFeedback(legacy).attributes.majorChampionships).toEqual({
+      value: '-',
+      level: 'wrong',
+    });
   });
 
   it('现役状态不同给 wrong', () => {

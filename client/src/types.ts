@@ -16,6 +16,7 @@ export interface GuessFeedback {
     team: AttributeFeedback;
     age: AttributeFeedback;
     role: AttributeFeedback;
+    majorChampionships: AttributeFeedback;
     majorAppearances: AttributeFeedback;
     isActive: AttributeFeedback;
   };
@@ -32,6 +33,7 @@ export interface HiddenGuessFeedback {
     team: HiddenAttributeFeedback;
     age: HiddenAttributeFeedback;
     role: HiddenAttributeFeedback;
+    majorChampionships: HiddenAttributeFeedback;
     majorAppearances: HiddenAttributeFeedback;
     isActive: HiddenAttributeFeedback;
   };
@@ -48,12 +50,12 @@ export interface UserInfo {
 export interface PlayerInfo {
   id: number;
   nickname: string;
-  realName: string;
   nationality: string;
   region: string;
   team: string;
   age: number;
   role: string;
+  majorChampionships: number;
   majorAppearances: number;
   isActive: boolean;
 }

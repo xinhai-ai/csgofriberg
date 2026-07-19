@@ -1,7 +1,6 @@
 import { db } from '../db/knex';
 import { redis, redisKey, redisPublisher, redisSubscriber } from '../redis';
 import { Player } from '../types';
-import { EASY_MIN_MAJORS } from './gameService';
 
 const INVALIDATE_CHANNEL = redisKey('players:invalidate');
 const VERSION_KEY = redisKey('players:version');
@@ -18,7 +17,7 @@ export async function refreshPlayerCache(): Promise<void> {
   refreshPromise = (async () => {
     const rows = await db<Player>('players').orderBy('nickname');
     allPlayers = rows;
-    easyPlayers = rows.filter((p) => p.major_appearances >= EASY_MIN_MAJORS);
+    easyPlayers = rows.filter((p) => Boolean(p.is_easy));
     playersById = new Map(rows.map((p) => [p.id, p]));
 
     const client = redis();

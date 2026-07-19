@@ -16,28 +16,49 @@ export async function ensureSchema(instance: Knex = db): Promise<void> {
     await instance.schema.alterTable('users', (t) => t.integer('token_version').notNullable().defaultTo(0));
   }
 
+  if (!(await instance.schema.hasTable('app_migrations'))) {
+    await instance.schema.createTable('app_migrations', (t) => {
+      t.string('name', 128).primary();
+      t.timestamp('applied_at').notNullable().defaultTo(instance.fn.now());
+    });
+  }
+
   if (!(await instance.schema.hasTable('players'))) {
     await instance.schema.createTable('players', (t) => {
       t.increments('id').primary();
       t.string('nickname', 64).notNullable().unique();
-      t.string('real_name', 128).notNullable().defaultTo('');
       t.string('nationality', 64).notNullable();
       t.string('region', 32).notNullable().defaultTo('');
       t.string('team', 64).notNullable().defaultTo('');
       t.integer('birth_year').notNullable();
       t.string('role', 32).notNullable().defaultTo('Rifler');
+      t.integer('major_championships').notNullable().defaultTo(0);
       t.integer('major_appearances').notNullable().defaultTo(0);
+      t.boolean('is_easy').notNullable().defaultTo(false);
       t.boolean('is_active').notNullable().defaultTo(true);
       t.timestamp('created_at').notNullable().defaultTo(instance.fn.now());
     });
+  }
+  if (!(await instance.schema.hasColumn('players', 'major_championships'))) {
+    await instance.schema.alterTable('players', (t) => {
+      t.integer('major_championships').notNullable().defaultTo(0);
+    });
+  }
+  if (!(await instance.schema.hasColumn('players', 'is_easy'))) {
+    await instance.schema.alterTable('players', (t) => {
+      t.boolean('is_easy').notNullable().defaultTo(false);
+    });
+  }
+  if (await instance.schema.hasColumn('players', 'real_name')) {
+    if (instance.client.config.client === 'pg') {
+      await instance.raw('drop index if exists "players_real_name_trgm_idx"');
+    }
+    await instance.schema.alterTable('players', (t) => t.dropColumn('real_name'));
   }
   if (instance.client.config.client === 'pg') {
     await instance.raw('create extension if not exists pg_trgm');
     await instance.raw(
       'create index if not exists "players_nickname_trgm_idx" on "players" using gin ("nickname" gin_trgm_ops)'
-    );
-    await instance.raw(
-      'create index if not exists "players_real_name_trgm_idx" on "players" using gin ("real_name" gin_trgm_ops)'
     );
     await instance.raw(
       'create index if not exists "players_team_trgm_idx" on "players" using gin ("team" gin_trgm_ops)'

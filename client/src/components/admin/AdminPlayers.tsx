@@ -4,6 +4,7 @@ import DataTable, { Column } from '../DataTable';
 import PlayerEditForm, { PlayerForm, emptyPlayer } from './PlayerEditForm';
 import { api, errMsg } from '../../api/client';
 import { useConfirm } from '../ConfirmDialog';
+import { playerRoleLabel } from '../../utils/playerRoles';
 
 interface AdminPlayer extends PlayerForm {
   id: number;
@@ -41,7 +42,11 @@ export default function AdminPlayers() {
         params: { page, pageSize, search: search || undefined },
       });
       if (currentRequest !== requestId.current) return;
-      setPlayers(res.data.players.map((p) => ({ ...p, is_active: Boolean(p.is_active) })));
+      setPlayers(res.data.players.map((p) => ({
+        ...p,
+        is_easy: Boolean(p.is_easy),
+        is_active: Boolean(p.is_active),
+      })));
       setTotal(res.data.total);
       if (res.data.page !== page) setPage(res.data.page);
     } catch (err) {
@@ -78,7 +83,9 @@ export default function AdminPlayers() {
       if (!id && page !== 1) setPage(1);
       else await load();
     } catch (err) {
-      setError(errMsg(err));
+      const message = errMsg(err);
+      setError(message);
+      throw new Error(message);
     }
   };
 
@@ -121,8 +128,10 @@ export default function AdminPlayers() {
     { key: 'region', title: '赛区' },
     { key: 'team', title: '队伍' },
     { key: 'birth_year', title: '出生年' },
-    { key: 'role', title: '位置' },
+    { key: 'role', title: '位置', render: (p) => playerRoleLabel(p.role) },
+    { key: 'major_championships', title: 'Major 冠军' },
     { key: 'major_appearances', title: 'Major' },
+    { key: 'is_easy', title: '简单版', render: (p) => (p.is_easy ? '是' : '否') },
     { key: 'is_active', title: '状态', render: (p) => (p.is_active ? '现役' : '退役') },
     {
       key: 'actions',
@@ -142,11 +151,7 @@ export default function AdminPlayers() {
         <h3>选手管理(共 {total} 名)</h3>
         {message && <p className="muted">{message}</p>}
         {error && <p className="error">{error}</p>}
-        {editing ? (
-          <PlayerEditForm key={editing.id ?? 'new'} initial={editing} onSubmit={save} onCancel={() => setEditing(null)} />
-        ) : (
-          <button className="btn btn-green" onClick={() => setEditing(emptyPlayer)}>+ 新增选手</button>
-        )}
+        <button className="btn btn-green" onClick={() => setEditing({ ...emptyPlayer })}>+ 新增选手</button>
         <div className="admin-list-toolbar">
           <label className="admin-search">
             <Search size={16} />
@@ -154,7 +159,7 @@ export default function AdminPlayers() {
               className="input"
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="搜索昵称、真名、国家、赛区、队伍或位置"
+              placeholder="搜索昵称、国家、赛区或队伍"
             />
           </label>
           <label className="admin-page-size">
@@ -209,20 +214,28 @@ export default function AdminPlayers() {
       <div className="card">
         <h3>JSON 批量导入</h3>
         <p className="muted">
-          粘贴选手数组,字段: nickname, real_name, nationality, region, team, birth_year, role,
-          major_appearances, is_active。按昵称去重,已存在则更新。
+          粘贴选手数组,字段: nickname, nationality, region, team, birth_year, role,
+          major_championships, major_appearances, is_easy, is_active。按昵称去重,已存在则更新。
         </p>
         <textarea
           className="input"
           rows={6}
           value={importText}
           onChange={(e) => setImportText(e.target.value)}
-          placeholder='[{"nickname":"s1mple","nationality":"乌克兰","region":"欧洲","team":"NAVI","birth_year":1997,"role":"AWPer","major_appearances":12,"is_active":true}]'
+          placeholder='[{"nickname":"s1mple","nationality":"乌克兰","region":"欧洲","team":"NAVI","birth_year":1997,"role":"AWPer","major_championships":1,"major_appearances":12,"is_easy":true,"is_active":true}]'
         />
         <button className="btn" style={{ marginTop: 8 }} onClick={() => void doImport()} disabled={!importText.trim()}>
           导入
         </button>
       </div>
+      {editing && (
+        <PlayerEditForm
+          key={editing.id ?? 'new'}
+          initial={editing}
+          onSubmit={save}
+          onCancel={() => setEditing(null)}
+        />
+      )}
     </>
   );
 }
