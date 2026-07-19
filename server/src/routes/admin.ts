@@ -21,10 +21,38 @@ const playerSchema = z.object({
   is_active: z.boolean().default(true),
 });
 
+const playerListQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(10).max(100).default(50),
+  search: z.string().trim().max(100).default(''),
+});
+
 router.get(
   '/players',
-  asyncHandler(async (_req, res) => {
-    res.json(await db('players').orderBy('nickname'));
+  asyncHandler(async (req, res) => {
+    const parsed = playerListQuerySchema.safeParse(req.query);
+    if (!parsed.success) throw new HttpError(400, 'VALIDATION_FAILED');
+    const { pageSize, search } = parsed.data;
+    const query = db('players');
+    if (search) {
+      query.where((builder) => {
+        builder.whereILike('nickname', `%${search}%`)
+          .orWhereILike('real_name', `%${search}%`)
+          .orWhereILike('nationality', `%${search}%`)
+          .orWhereILike('region', `%${search}%`)
+          .orWhereILike('team', `%${search}%`)
+          .orWhereILike('role', `%${search}%`);
+      });
+    }
+    const countRow = await query.clone().count({ count: 'id' }).first();
+    const total = Number(countRow?.count ?? 0);
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const page = Math.min(parsed.data.page, totalPages);
+    const players = await query.clone()
+      .orderBy('nickname')
+      .limit(pageSize)
+      .offset((page - 1) * pageSize);
+    res.json({ players, total, page, pageSize, totalPages });
   })
 );
 

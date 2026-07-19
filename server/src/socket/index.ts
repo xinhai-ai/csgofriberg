@@ -27,6 +27,7 @@ import { isRedisAvailable, redis, redisKey } from '../redis';
 import { enqueueMatchResult } from '../services/matchResultQueue';
 import { verifyPowCookie } from '../services/pow';
 import { getPresenceStats, ONLINE_STALE_MS, PresenceStats } from '../services/presence';
+import { GuessFeedback } from '../types';
 
 const DISCONNECT_FORFEIT_MS = 30_000;
 const NEXT_ROUND_DELAY_MS = 6_000;
@@ -47,13 +48,35 @@ function identityChannel(key: string): string {
   return `identity:${key}`;
 }
 
-function publicRoom(room: StoredRoom) {
+function hiddenGuess(feedback: GuessFeedback) {
+  const hideAttribute = ({ level, hint }: GuessFeedback['attributes']['team']) => ({
+    level,
+    ...(hint ? { hint } : {}),
+  });
+  return {
+    hidden: true as const,
+    correct: feedback.correct,
+    attributes: {
+      nationality: hideAttribute(feedback.attributes.nationality),
+      region: hideAttribute(feedback.attributes.region),
+      team: hideAttribute(feedback.attributes.team),
+      age: hideAttribute(feedback.attributes.age),
+      role: hideAttribute(feedback.attributes.role),
+      majorAppearances: hideAttribute(feedback.attributes.majorAppearances),
+      isActive: hideAttribute(feedback.attributes.isActive),
+    },
+  };
+}
+
+function publicRoom(room: StoredRoom, viewerKey: string) {
+  const viewerIsSpectator = room.spectators.some((spectator) => spectator.key === viewerKey);
   return {
     id: room.id,
     hostKey: room.hostKey,
     status: room.status === 'starting' ? 'waiting' : room.status,
     dbType: room.dbType,
     boType: room.boType,
+    allowSpectators: room.allowSpectators,
     round: room.round,
     winsNeeded: winsNeeded(room.boType),
     maxGuesses: MAX_GUESSES,
@@ -67,9 +90,30 @@ function publicRoom(room: StoredRoom) {
       connected: p.connected,
       score: p.score,
       guessCount: p.guesses.length,
-      guesses: p.guesses,
+      guesses: viewerIsSpectator || p.key === viewerKey
+        ? p.guesses
+        : p.guesses.map(hiddenGuess),
     })),
   };
+}
+
+function roomViewers(room: StoredRoom): string[] {
+  return [...new Set([...room.players, ...room.spectators].map((member) => member.key))];
+}
+
+function emitRoomViews<T>(
+  io: Server,
+  room: StoredRoom,
+  event: string,
+  payload: (viewerKey: string) => T
+): void {
+  for (const viewerKey of roomViewers(room)) {
+    io.to(identityChannel(viewerKey)).emit(event, payload(viewerKey));
+  }
+}
+
+function emitRoomState(io: Server, room: StoredRoom): void {
+  emitRoomViews(io, room, 'room:state', (viewerKey) => publicRoom(room, viewerKey));
 }
 
 function answerView(targetPlayerId: number | null) {
@@ -150,12 +194,12 @@ async function finishMatch(
   });
   if (!result) return;
   await persistMatch(result, winnerKey);
-  io.to(roomId).emit('match:over', {
+  emitRoomViews(io, result, 'match:over', (viewerKey) => ({
     winnerKey,
     reason,
     answer: answerView(result.targetPlayerId),
-    room: publicRoom(result),
-  });
+    room: publicRoom(result, viewerKey),
+  }));
   await schedule('cleanup', roomId, '0', Date.now() + FINISHED_ROOM_TTL_MS);
   setLocalTimer(`cleanup:${roomId}`, FINISHED_ROOM_TTL_MS, () => {
     void cleanupRoom(roomId);
@@ -183,7 +227,9 @@ async function startRound(io: Server, roomId: string) {
     return false;
   }
   const room = result.room;
-  io.to(roomId).emit('round:start', { room: publicRoom(room) });
+  emitRoomViews(io, room, 'round:start', (viewerKey) => ({
+    room: publicRoom(room, viewerKey),
+  }));
   await schedule('round', roomId, String(room.round), room.roundEndsAt!);
   setLocalTimer(`round:${roomId}`, ROUND_TIME_MS, () => {
     void finishRound(io, roomId, null, 'timeout', room.round);
@@ -213,22 +259,22 @@ async function finishRound(
   });
   if (!result) return;
   const { room, matchOver } = result;
-  io.to(roomId).emit('round:over', {
+  emitRoomViews(io, room, 'round:over', (viewerKey) => ({
     winnerKey,
     reason,
     answer: answerView(room.targetPlayerId),
     matchOver,
     nextRoundInMs: matchOver ? undefined : NEXT_ROUND_DELAY_MS,
-    room: publicRoom(room),
-  });
+    room: publicRoom(room, viewerKey),
+  }));
   if (matchOver) {
     await persistMatch(room, winnerKey);
-    io.to(roomId).emit('match:over', {
+    emitRoomViews(io, room, 'match:over', (viewerKey) => ({
       winnerKey,
       reason: 'score',
       answer: answerView(room.targetPlayerId),
-      room: publicRoom(room),
-    });
+      room: publicRoom(room, viewerKey),
+    }));
     await schedule('cleanup', roomId, '0', Date.now() + FINISHED_ROOM_TTL_MS);
     return;
   }
@@ -434,7 +480,7 @@ export function setupSocket(io: Server) {
       });
       socket.join(existing.id);
       const refreshed = await getRoom(existing.id);
-      if (refreshed) io.to(existing.id).emit('room:state', publicRoom(refreshed));
+      if (refreshed) emitRoomState(io, refreshed);
     }).catch((err) => console.error('[socket:reconnect]', err));
 
     safeOn(socket, 'room:sync', async (_payload, ack) => {
@@ -443,7 +489,7 @@ export function setupSocket(io: Server) {
       if (!room) return ack?.({ code: 'NOT_IN_ROOM' });
       socket.join(room.id);
       ack?.({
-        room: publicRoom(room),
+        room: publicRoom(room, me.key),
         role: room.players.some((p) => p.key === me.key) ? 'player' : 'spectator',
         selfKey: me.key,
       });
@@ -479,6 +525,7 @@ export function setupSocket(io: Server) {
         status: 'waiting',
         dbType: payload?.dbType === 'normal' ? 'normal' : 'easy',
         boType,
+        allowSpectators: payload?.allowSpectators === true,
         round: 0,
         players: [makePlayer(me, socket.id, true)],
         spectators: [],
@@ -496,7 +543,7 @@ export function setupSocket(io: Server) {
         throw err;
       }
       socket.join(room.id);
-      ack?.({ room: publicRoom(room) });
+      ack?.({ room: publicRoom(room, me.key) });
     });
 
     safeOn(socket, 'room:join', async (payload, ack) => {
@@ -513,11 +560,14 @@ export function setupSocket(io: Server) {
           player.disconnectDeadline = null;
           return { role: 'player' as const };
         }
-        const asSpectator = payload?.spectate || room.status !== 'waiting' || room.players.length >= 2;
+        const existingSpectator = room.spectators.find((p) => p.key === me.key);
+        const asSpectator = Boolean(
+          existingSpectator || payload?.spectate || room.status !== 'waiting' || room.players.length >= 2
+        );
         if (asSpectator) {
-          let spectator = room.spectators.find((p) => p.key === me.key);
-          if (!spectator && room.spectators.length >= MAX_SPECTATORS) return { code: 'ROOM_FULL' };
-          if (spectator) spectator.socketId = socket.id;
+          if (!existingSpectator && !room.allowSpectators) return { code: 'SPECTATING_DISABLED' };
+          if (!existingSpectator && room.spectators.length >= MAX_SPECTATORS) return { code: 'ROOM_FULL' };
+          if (existingSpectator) existingSpectator.socketId = socket.id;
           else room.spectators.push({ ...me, socketId: socket.id });
           return { role: 'spectator' as const };
         }
@@ -529,8 +579,8 @@ export function setupSocket(io: Server) {
       socket.join(roomId);
       const room = await getRoom(roomId);
       if (!room) return ack?.({ code: 'ROOM_NOT_FOUND' });
-      io.to(roomId).emit('room:state', publicRoom(room));
-      ack?.({ room: publicRoom(room), role: role.role });
+      emitRoomState(io, room);
+      ack?.({ room: publicRoom(room, me.key), role: role.role });
     });
 
     safeOn(socket, 'room:ready', async (_payload, ack) => {
@@ -545,7 +595,7 @@ export function setupSocket(io: Server) {
       });
       if (!changed) return ack?.({ code: 'NOT_IN_WAITING_ROOM' });
       const refreshed = await getRoom(room.id);
-      if (refreshed) io.to(room.id).emit('room:state', publicRoom(refreshed));
+      if (refreshed) emitRoomState(io, refreshed);
       ack?.({ ok: true });
     });
 
@@ -620,31 +670,35 @@ export function setupSocket(io: Server) {
       if (!result || 'code' in result) return ack?.({ code: result?.code ?? 'NO_ACTIVE_ROUND' });
       ack?.({ feedback: result.feedback });
       if (!('duplicate' in result)) {
-        io.to(room.id).emit('game:guess:applied', {
+        emitRoomViews(io, result.room, 'game:guess:applied', (viewerKey) => ({
           roundId: result.round,
           key: me.key,
-          feedback: result.feedback,
-        });
+          feedback: viewerKey === me.key || result.room.spectators.some(
+            (spectator) => spectator.key === viewerKey
+          )
+            ? result.feedback
+            : hiddenGuess(result.feedback),
+        }));
       }
       if (result.shouldFinish) {
         const winnerKey = result.correct ? me.key : null;
         const reason = result.correct ? 'guessed' : 'exhausted';
-        io.to(room.id).emit('round:over', {
+        emitRoomViews(io, result.room, 'round:over', (viewerKey) => ({
           winnerKey,
           reason,
           answer: answerView(result.room.targetPlayerId),
           matchOver: result.matchOver,
           nextRoundInMs: result.matchOver ? undefined : NEXT_ROUND_DELAY_MS,
-          room: publicRoom(result.room),
-        });
+          room: publicRoom(result.room, viewerKey),
+        }));
         if (result.matchOver) {
           await persistMatch(result.room, winnerKey);
-          io.to(room.id).emit('match:over', {
+          emitRoomViews(io, result.room, 'match:over', (viewerKey) => ({
             winnerKey,
             reason: 'score',
             answer: answerView(result.room.targetPlayerId),
-            room: publicRoom(result.room),
-          });
+            room: publicRoom(result.room, viewerKey),
+          }));
           await schedule('cleanup', room.id, '0', Date.now() + FINISHED_ROOM_TTL_MS);
         } else {
           await schedule('next', room.id, String(result.round), result.room.nextRoundAt!);
@@ -670,7 +724,7 @@ export function setupSocket(io: Server) {
         await clearIdentityRoom(me.key);
         const refreshed = await getRoom(room.id);
         if (refreshed && !refreshed.players.length && !refreshed.spectators.length) await deleteRoom(refreshed);
-        else if (refreshed) io.to(room.id).emit('room:state', publicRoom(refreshed));
+        else if (refreshed) emitRoomState(io, refreshed);
       }
       socket.leave(room.id);
       ack?.({ ok: true });
@@ -706,6 +760,7 @@ export function setupSocket(io: Server) {
         status: 'starting',
         dbType,
         boType: 3,
+        allowSpectators: false,
         round: 0,
         players: [makePlayer(opponent, opponent.socketId, true), makePlayer(me, socket.id, true)],
         spectators: [],
@@ -725,9 +780,9 @@ export function setupSocket(io: Server) {
       await io.in(identityChannel(opponent.key)).socketsJoin(room.id);
       socket.join(room.id);
       ack?.({ queued: false });
-      io.to([identityChannel(opponent.key), identityChannel(me.key)]).emit('match:found', {
-        room: publicRoom(room),
-      });
+      emitRoomViews(io, room, 'match:found', (viewerKey) => ({
+        room: publicRoom(room, viewerKey),
+      }));
       await startRound(io, room.id);
     });
 
@@ -775,12 +830,10 @@ export function setupSocket(io: Server) {
           const refreshed = await getRoom(room.id);
           if (refreshed && !refreshed.players.length && !refreshed.spectators.length) {
             await deleteRoom(refreshed);
-          } else if (refreshed) {
-            io.to(room.id).emit('room:state', publicRoom(refreshed));
-          }
+          } else if (refreshed) emitRoomState(io, refreshed);
           return;
         }
-        io.to(room.id).emit('room:state', publicRoom(result.room));
+        emitRoomState(io, result.room);
         io.to(room.id).emit('player:offline', {
           key: me.key,
           name: me.name,

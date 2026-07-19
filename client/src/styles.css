@@ -175,6 +175,38 @@ body {
 table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
 .table th, .table td { padding: 11px 12px; border-bottom: 1px solid var(--border); text-align: left; }
 .table th { color: var(--text-light); font-weight: 600; font-size: 0.85rem; }
+.admin-list-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+}
+.admin-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  max-width: 520px;
+}
+.admin-search svg {
+  position: absolute;
+  left: 12px;
+  color: var(--text-light);
+  pointer-events: none;
+}
+.admin-search .input { padding-left: 38px; }
+.admin-page-size { display: flex; align-items: center; gap: 8px; color: var(--text-sec); white-space: nowrap; }
+.admin-page-size .input { width: 82px; padding: 9px 10px; }
+.admin-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+}
+.admin-pagination-actions { display: flex; align-items: center; gap: 8px; }
+.admin-pagination-actions .btn { width: 34px; height: 34px; }
 
 /* ===== 猜测表格 ===== */
 .game-table-wrap { overflow: auto; }
@@ -205,6 +237,15 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
 .game-table td.close { background: var(--close); border-color: var(--close); color: #fff; }
 .game-table td.wrong { background: var(--wrong); border-color: var(--wrong); color: #fff; }
 .game-table td .dir { display: inline-flex; vertical-align: -2px; margin-left: 3px; }
+.game-table td.masked-cell:empty::after {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.55;
+}
 
 /* ===== 底部输入栏 + 自动补全 ===== */
 .input-dock {
@@ -445,6 +486,23 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
   color: #fff;
   font-weight: 600;
 }
+.spectator-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 36px;
+  margin: 8px 0 0 92px;
+  color: var(--text-sec);
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+.spectator-option input {
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
 .room-code-display {
   font-family: Consolas, 'JetBrains Mono', monospace;
   font-size: clamp(2rem, 6vw, 2.8rem);
@@ -455,6 +513,32 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
   background: var(--bg);
   border-radius: var(--radius);
   user-select: all;
+}
+.room-actions { display: flex; align-items: center; gap: 8px; }
+.room-code-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 106px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--text-sec);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.room-code-toggle:hover { border-color: var(--primary); color: var(--primary); }
+.room-code-toggle span {
+  width: 54px;
+  overflow: hidden;
+  font-family: Consolas, 'JetBrains Mono', monospace;
+  font-weight: 700;
+  letter-spacing: 1px;
+  white-space: nowrap;
 }
 .spinner {
   width: 32px;
@@ -563,8 +647,17 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
   .menu-grid { gap: 12px; }
   .header-bar .btns .btn-text { display: none; } /* 窄屏只留图标 */
   .opt-label { min-width: 100%; }
+  .spectator-option { margin-left: 0; }
+  .room-actions { gap: 6px; }
+  .room-code-toggle { width: 92px; padding: 0 7px; }
+  .room-code-toggle span { width: 46px; }
   .score-bar .score { font-size: 1.6rem; }
   .presence-grid { grid-template-columns: 1fr; }
+  .admin-list-toolbar { align-items: stretch; flex-direction: column; }
+  .admin-search { max-width: none; }
+  .admin-page-size { justify-content: space-between; }
+  .admin-pagination { align-items: flex-start; flex-direction: column; }
+  .admin-pagination-actions { width: 100%; justify-content: space-between; }
 }
 @media (max-width: 400px) {
   .game-table { font-size: 0.72rem; }

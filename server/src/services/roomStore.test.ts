@@ -10,6 +10,7 @@ function makeRoom(id: string): StoredRoom {
     status: 'waiting',
     dbType: 'normal',
     boType: 3,
+    allowSpectators: false,
     round: 0,
     players: [{
       key: 'u:1', userId: 1, name: 'one', socketId: 's1', ready: true,

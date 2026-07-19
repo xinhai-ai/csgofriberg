@@ -36,6 +36,7 @@ export interface StoredRoom {
   status: RoomStatus;
   dbType: DbType;
   boType: BoType;
+  allowSpectators: boolean;
   round: number;
   players: StoredPlayer[];
   spectators: StoredSpectator[];
@@ -64,9 +65,16 @@ function identityKey(identity: string) {
 
 export async function getRoom(id: string): Promise<StoredRoom | null> {
   const client = redis();
-  if (!client) return localRooms.get(id) ?? null;
+  if (!client) {
+    const room = localRooms.get(id);
+    if (room && typeof room.allowSpectators !== 'boolean') room.allowSpectators = false;
+    return room ?? null;
+  }
   const raw = await client.get(roomKey(id));
-  return raw ? JSON.parse(raw) as StoredRoom : null;
+  if (!raw) return null;
+  const room = JSON.parse(raw) as StoredRoom;
+  if (typeof room.allowSpectators !== 'boolean') room.allowSpectators = false;
+  return room;
 }
 
 export async function getRoomForIdentity(identity: string): Promise<StoredRoom | null> {

@@ -21,6 +21,24 @@ export interface GuessFeedback {
   };
 }
 
+export type HiddenAttributeFeedback = Pick<AttributeFeedback, 'level' | 'hint'>;
+
+export interface HiddenGuessFeedback {
+  hidden: true;
+  correct: boolean;
+  attributes: {
+    nationality: HiddenAttributeFeedback;
+    region: HiddenAttributeFeedback;
+    team: HiddenAttributeFeedback;
+    age: HiddenAttributeFeedback;
+    role: HiddenAttributeFeedback;
+    majorAppearances: HiddenAttributeFeedback;
+    isActive: HiddenAttributeFeedback;
+  };
+}
+
+export type MultiplayerGuessFeedback = GuessFeedback | HiddenGuessFeedback;
+
 export interface UserInfo {
   id: number;
   username: string;
@@ -47,7 +65,7 @@ export interface RoomPlayer {
   connected: boolean;
   score: number;
   guessCount: number;
-  guesses: GuessFeedback[];
+  guesses: MultiplayerGuessFeedback[];
 }
 
 export interface RoomState {
@@ -56,6 +74,7 @@ export interface RoomState {
   status: 'waiting' | 'playing' | 'round_over' | 'finished';
   dbType: 'easy' | 'normal';
   boType: number;
+  allowSpectators: boolean;
   round: number;
   roundId: number;
   winsNeeded: number;

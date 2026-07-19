@@ -1,0 +1,40 @@
+{
+  "source": "origin/弗一把Web/弗一把Web/data/全信息major选手总名单.txt",
+  "generated_at": "2026-07-19T01:53:19.619Z",
+  "player_count": 646,
+  "easy_mode_count_at_major_appearances_gte_8": 99,
+  "inactive_count": 129,
+  "inferred_birth_years": [
+    {
+      "nickname": "iorek",
+      "age": 37,
+      "birth_year": 1989
+    },
+    {
+      "nickname": "centeks",
+      "age": 30,
+      "birth_year": 1996
+    },
+    {
+      "nickname": "peet",
+      "age": 35,
+      "birth_year": 1991
+    },
+    {
+      "nickname": "astarr",
+      "age": 34,
+      "birth_year": 1992
+    }
+  ],
+  "rules": {
+    "real_name": "原始数据不包含真名，统一使用空字符串。",
+    "birth_year": "优先读取生日年份；缺失时使用 2026 - 原始年龄。",
+    "role": {
+      "步枪手": "Rifler",
+      "狙击手": "AWPer",
+      "教练": "Coach"
+    },
+    "is_active": "战队字段严格等于“退役”时为 false，其他状态为 true。",
+    "region": "按照原始国家赛区对照文件转换为当前项目使用的短赛区名称。"
+  }
+}

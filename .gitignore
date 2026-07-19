@@ -6,3 +6,4 @@ pow-wasm/target/
 .env
 .DS_Store
 target/
+origin/

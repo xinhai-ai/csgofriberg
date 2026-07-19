@@ -67,6 +67,12 @@ ADMIN_USERNAME=admin ADMIN_PASSWORD='至少12位强密码' pnpm create-admin
 | `pnpm create-admin` | 显式创建或重置管理员 |
 | `pnpm loadtest` | 运行 HTTP 缓存接口与多人建房负载测试 |
 
+## systemd 生产部署
+
+Linux + PostgreSQL + Redis + Nginx 的完整部署模板位于
+[`deploy/README.md`](deploy/README.md)。systemd 会在每次启动应用前自动执行
+编译后的数据库迁移；迁移失败时应用不会启动。
+
 ## Redis 用途
 
 - HTTP 与 Socket.IO 分布式限流

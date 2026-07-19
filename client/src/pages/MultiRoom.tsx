@@ -10,6 +10,7 @@ import {
   DoorOpen,
   Play,
   Eye,
+  EyeOff,
   Timer,
 } from 'lucide-react';
 import Page from '../components/Page';
@@ -18,7 +19,7 @@ import GuessInputBar from '../components/GuessInputBar';
 import AnswerOverlay, { AnswerInfo } from '../components/AnswerOverlay';
 import { getSocket } from '../api/socket';
 import { translate } from '../i18n/messages';
-import { RoomState, RoomPlayer } from '../types';
+import { MultiplayerGuessFeedback, RoomState, RoomPlayer } from '../types';
 import { useConfirm } from '../components/ConfirmDialog';
 
 interface RoundOver {
@@ -106,6 +107,7 @@ export default function MultiRoom() {
   const [matchOver, setMatchOver] = useState<MatchOver | null>(null);
   const [offlineNote, setOfflineNote] = useState('');
   const [error, setError] = useState('');
+  const [showRoomCode, setShowRoomCode] = useState(false);
   const [myKey, setMyKey] = useState('');
   const navigate = useNavigate();
   const confirm = useConfirm();
@@ -140,24 +142,29 @@ export default function MultiRoom() {
     };
     const onRoomError = (p: { code: string }) => setError(translate(p.code));
     const onIdentity = (p: { key: string }) => setMyKey(p.key);
-    const onGuessApplied = (p: { roundId: number; key: string; feedback: any }) => {
+    const onGuessApplied = (p: {
+      roundId: number;
+      key: string;
+      feedback: MultiplayerGuessFeedback;
+    }) => {
       setRoom((current) => {
         if (!current || current.roundId !== p.roundId) return current;
+        const feedback = p.feedback;
         return {
           ...current,
-          players: current.players.map((player) =>
-            player.key === p.key
-              ? {
+          players: current.players.map((player) => {
+            if (player.key !== p.key) return player;
+            const duplicate = !('hidden' in feedback) && player.guesses.some(
+              (guess) => !('hidden' in guess) && guess.playerId === feedback.playerId
+            );
+            return duplicate
+              ? player
+              : {
                   ...player,
-                  guesses: player.guesses.some((guess) => guess.playerId === p.feedback.playerId)
-                    ? player.guesses
-                    : [...player.guesses, p.feedback],
-                  guessCount: player.guesses.some((guess) => guess.playerId === p.feedback.playerId)
-                    ? player.guessCount
-                    : player.guessCount + 1,
-                }
-              : player
-          ),
+                  guesses: [...player.guesses, feedback],
+                  guessCount: player.guessCount + 1,
+                };
+          }),
         };
       });
     };
@@ -259,16 +266,29 @@ export default function MultiRoom() {
 
   return (
     <Page
-      title={`房间 ${room.id} · BO${room.boType}`}
+      title={`多人房间 · BO${room.boType}`}
       icon={<Globe size={17} />}
       actions={
-        <button
-          className="btn btn-danger btn-sm"
-          onClick={() => void leaveRoom()}
-        >
-          <DoorOpen size={15} />
-          <span className="btn-text">{isSpectator ? '退出观战' : '离开房间'}</span>
-        </button>
+        <div className="room-actions">
+          <button
+            type="button"
+            className="room-code-toggle"
+            onClick={() => setShowRoomCode((visible) => !visible)}
+            title={showRoomCode ? '隐藏房间码' : '显示房间码'}
+            aria-label={showRoomCode ? '隐藏房间码' : '显示房间码'}
+            aria-pressed={showRoomCode}
+          >
+            {showRoomCode ? <EyeOff size={15} /> : <Eye size={15} />}
+            <span>{showRoomCode ? room.id : '•••••'}</span>
+          </button>
+          <button
+            className="btn btn-danger btn-sm"
+            onClick={() => void leaveRoom()}
+          >
+            <DoorOpen size={15} />
+            <span className="btn-text">{isSpectator ? '退出观战' : '离开房间'}</span>
+          </button>
+        </div>
       }
       statusBar={
         <>
@@ -350,7 +370,7 @@ export default function MultiRoom() {
             </div>
           ))}
           {room.players.length < 2 && (
-            <p className="muted">等待对手加入,房间码 {room.id}</p>
+            <p className="muted">等待对手加入</p>
           )}
           {!isSpectator && (
             <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>

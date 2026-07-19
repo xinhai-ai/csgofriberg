@@ -49,6 +49,16 @@ function emit(socket: ClientSocket, event: string, payload: unknown = {}): Promi
   return new Promise((resolve) => socket.emit(event, payload, resolve));
 }
 
+function onceEvent(socket: ClientSocket, event: string): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`EVENT_TIMEOUT:${event}`)), 2_000);
+    socket.once(event, (payload) => {
+      clearTimeout(timer);
+      resolve(payload);
+    });
+  });
+}
+
 describe('multiplayer socket integration', () => {
   beforeAll(async () => {
     await initDb();
@@ -118,6 +128,123 @@ describe('multiplayer socket integration', () => {
     } finally {
       a.disconnect();
       b.disconnect();
+    }
+  });
+
+  it('hides opponent guess details from players but not spectators', async () => {
+    const stamp = Date.now();
+    const keyA = `hidden-a-${stamp}`;
+    const keyB = `hidden-b-${stamp}`;
+    const keySpectator = `hidden-spectator-${stamp}`;
+    const tokenA = jwt.sign({ key: keyA, typ: 'guest' }, config.jwtSecret, { expiresIn: '1h' });
+    const tokenB = jwt.sign({ key: keyB, typ: 'guest' }, config.jwtSecret, { expiresIn: '1h' });
+    const spectatorToken = jwt.sign(
+      { key: keySpectator, typ: 'guest' },
+      config.jwtSecret,
+      { expiresIn: '1h' }
+    );
+    const a = await connect(withPowCookie(`csgofriberg_guest=${tokenA}`));
+    const b = await connect(withPowCookie(`csgofriberg_guest=${tokenB}`));
+    const spectator = await connect(withPowCookie(`csgofriberg_guest=${spectatorToken}`));
+    try {
+      const created = await emit(a, 'room:create', {
+        dbType: 'normal',
+        boType: 3,
+        allowSpectators: true,
+      });
+      createdRoomIds.push(created.room.id);
+      await emit(b, 'room:join', { roomId: created.room.id });
+      await emit(spectator, 'room:join', { roomId: created.room.id, spectate: true });
+      await emit(b, 'room:ready');
+      expect((await emit(a, 'game:start')).ok).toBe(true);
+
+      const syncedA = await emit(a, 'room:sync');
+      const stored = JSON.parse(
+        (await redis()!.get(`csgofriberg:room:${created.room.id}`))!
+      );
+      const [wrongGuess] = await db('players')
+        .whereNot({ id: stored.targetPlayerId })
+        .select('id')
+        .limit(1);
+      const opponentEvent = onceEvent(b, 'game:guess:applied');
+      const spectatorEvent = onceEvent(spectator, 'game:guess:applied');
+      const guessed = await emit(a, 'game:guess', {
+        playerId: wrongGuess.id,
+        roundId: syncedA.room.roundId,
+        eventId: `hidden-${stamp}-0001`,
+      });
+      expect(guessed.feedback.playerId).toBe(wrongGuess.id);
+
+      const hiddenUpdate = await opponentEvent;
+      expect(hiddenUpdate.feedback).toMatchObject({ hidden: true, correct: false });
+      expect(hiddenUpdate.feedback).not.toHaveProperty('playerId');
+      expect(hiddenUpdate.feedback).not.toHaveProperty('nickname');
+      expect(hiddenUpdate.feedback.attributes.team).not.toHaveProperty('value');
+
+      const spectatorUpdate = await spectatorEvent;
+      expect(spectatorUpdate.feedback.playerId).toBe(wrongGuess.id);
+      expect(spectatorUpdate.feedback.nickname).toEqual(expect.any(String));
+      expect(spectatorUpdate.feedback.attributes.team).toHaveProperty('value');
+
+      const syncedB = await emit(b, 'room:sync');
+      const opponentView = syncedB.room.players.find((player: any) => player.key === `g:${keyA}`);
+      expect(opponentView.guesses[0]).toMatchObject({ hidden: true, correct: false });
+      expect(opponentView.guesses[0]).not.toHaveProperty('playerId');
+      expect(opponentView.guesses[0]).not.toHaveProperty('nickname');
+      expect(opponentView.guesses[0].attributes.nationality).not.toHaveProperty('value');
+
+      const spectatorSync = await emit(spectator, 'room:sync');
+      const spectatorView = spectatorSync.room.players.find(
+        (player: any) => player.key === `g:${keyA}`
+      );
+      expect(spectatorView.guesses[0].playerId).toBe(wrongGuess.id);
+      expect(spectatorView.guesses[0].nickname).toEqual(expect.any(String));
+      expect(spectatorView.guesses[0].attributes.nationality).toHaveProperty('value');
+    } finally {
+      a.disconnect();
+      b.disconnect();
+      spectator.disconnect();
+    }
+  });
+
+  it('disables spectating by default', async () => {
+    const stamp = Date.now();
+    const tokenA = jwt.sign(
+      { key: `private-a-${stamp}`, typ: 'guest' },
+      config.jwtSecret,
+      { expiresIn: '1h' }
+    );
+    const tokenB = jwt.sign(
+      { key: `private-b-${stamp}`, typ: 'guest' },
+      config.jwtSecret,
+      { expiresIn: '1h' }
+    );
+    const tokenC = jwt.sign(
+      { key: `private-c-${stamp}`, typ: 'guest' },
+      config.jwtSecret,
+      { expiresIn: '1h' }
+    );
+    const a = await connect(withPowCookie(`csgofriberg_guest=${tokenA}`));
+    const b = await connect(withPowCookie(`csgofriberg_guest=${tokenB}`));
+    const spectator = await connect(withPowCookie(`csgofriberg_guest=${tokenC}`));
+    try {
+      const created = await emit(a, 'room:create', { dbType: 'normal', boType: 3 });
+      createdRoomIds.push(created.room.id);
+      expect(created.room.allowSpectators).toBe(false);
+      await emit(b, 'room:join', { roomId: created.room.id });
+
+      const rejected = await emit(spectator, 'room:join', {
+        roomId: created.room.id,
+        spectate: true,
+      });
+      expect(rejected.code).toBe('SPECTATING_DISABLED');
+
+      const synced = await emit(a, 'room:sync');
+      expect(synced.room.spectators).toHaveLength(0);
+    } finally {
+      a.disconnect();
+      b.disconnect();
+      spectator.disconnect();
     }
   });
 

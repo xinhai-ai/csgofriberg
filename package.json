@@ -11,7 +11,7 @@
     "migrate": "pnpm --filter server migrate",
     "seed": "pnpm --filter server seed",
     "create-admin": "pnpm --filter server create-admin",
-    "build:pow": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-pow.ps1",
+    "build:pow": "node scripts/build-pow.mjs",
     "loadtest": "pnpm --filter server loadtest"
   },
   "devDependencies": {

@@ -53,6 +53,7 @@ function OptionGroup<T extends string | number>({
 export default function MultiLobby() {
   const [dbType, setDbType] = useState<DbType>('normal');
   const [boType, setBoType] = useState(3);
+  const [allowSpectators, setAllowSpectators] = useState(false);
   const [mmDbType, setMmDbType] = useState<DbType>('normal');
   const [joinCode, setJoinCode] = useState('');
   const [createdRoom, setCreatedRoom] = useState<RoomState | null>(null);
@@ -104,7 +105,7 @@ export default function MultiLobby() {
 
   const create = () => {
     setError('');
-    getSocket().emit('room:create', { dbType, boType }, (res: any) => {
+    getSocket().emit('room:create', { dbType, boType, allowSpectators }, (res: any) => {
       if (res?.code) return setError(translate(res.code));
       setCreatedRoom(res.room);
     });
@@ -207,7 +208,7 @@ export default function MultiLobby() {
           </button>
           <p className="muted" style={{ margin: '10px 0' }}>
             数据库:{createdRoom.dbType === 'normal' ? '完整版' : '简单版'} · 赛制:BO
-            {createdRoom.boType}
+            {createdRoom.boType} · {createdRoom.allowSpectators ? '允许观战' : '禁止观战'}
           </p>
           <button className="btn btn-lg" onClick={() => navigate('/multi/room')}>
             <Rocket size={16} />
@@ -235,6 +236,14 @@ export default function MultiLobby() {
               onChange={setBoType}
               format={(v) => `BO${v}`}
             />
+            <label className="spectator-option">
+              <input
+                type="checkbox"
+                checked={allowSpectators}
+                onChange={(event) => setAllowSpectators(event.target.checked)}
+              />
+              <span>允许观战</span>
+            </label>
             <div style={{ textAlign: 'center', marginTop: 14 }}>
               <button className="btn btn-lg" onClick={create}>
                 <Zap size={16} />

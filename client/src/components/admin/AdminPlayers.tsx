@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import DataTable, { Column } from '../DataTable';
 import PlayerEditForm, { PlayerForm, emptyPlayer } from './PlayerEditForm';
 import { api, errMsg } from '../../api/client';
@@ -8,27 +9,59 @@ interface AdminPlayer extends PlayerForm {
   id: number;
 }
 
+interface PlayerPage {
+  players: AdminPlayer[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 /** 管理后台 - 选手管理(列表/新增/编辑/删除/JSON 导入) */
 export default function AdminPlayers() {
   const confirm = useConfirm();
   const [players, setPlayers] = useState<AdminPlayer[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState<PlayerForm | null>(null);
   const [importText, setImportText] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const requestId = useRef(0);
 
   const load = useCallback(async () => {
+    const currentRequest = ++requestId.current;
+    setLoading(true);
     try {
-      const res = await api.get<AdminPlayer[]>('/admin/players');
-      setPlayers(res.data.map((p: any) => ({ ...p, is_active: Boolean(p.is_active) })));
+      const res = await api.get<PlayerPage>('/admin/players', {
+        params: { page, pageSize, search: search || undefined },
+      });
+      if (currentRequest !== requestId.current) return;
+      setPlayers(res.data.players.map((p) => ({ ...p, is_active: Boolean(p.is_active) })));
+      setTotal(res.data.total);
+      if (res.data.page !== page) setPage(res.data.page);
     } catch (err) {
-      setError(errMsg(err));
+      if (currentRequest === requestId.current) setError(errMsg(err));
+    } finally {
+      if (currentRequest === requestId.current) setLoading(false);
     }
-  }, []);
+  }, [page, pageSize, search]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setPage(1);
+      setSearch(searchInput.trim());
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
 
   const save = async (form: PlayerForm) => {
     setError('');
@@ -42,7 +75,8 @@ export default function AdminPlayers() {
       }
       setEditing(null);
       setMessage(id ? '修改已保存' : '新增成功');
-      await load();
+      if (!id && page !== 1) setPage(1);
+      else await load();
     } catch (err) {
       setError(errMsg(err));
     }
@@ -74,7 +108,8 @@ export default function AdminPlayers() {
       const res = await api.post('/admin/players/import', { players: list });
       setMessage(`导入完成:新增 ${res.data.created},更新 ${res.data.updated}`);
       setImportText('');
-      await load();
+      if (page !== 1) setPage(1);
+      else await load();
     } catch (err) {
       setError(err instanceof SyntaxError ? 'JSON 格式错误' : errMsg(err));
     }
@@ -104,7 +139,7 @@ export default function AdminPlayers() {
   return (
     <>
       <div className="card">
-        <h3>选手管理(共 {players.length} 名)</h3>
+        <h3>选手管理(共 {total} 名)</h3>
         {message && <p className="muted">{message}</p>}
         {error && <p className="error">{error}</p>}
         {editing ? (
@@ -112,8 +147,63 @@ export default function AdminPlayers() {
         ) : (
           <button className="btn btn-green" onClick={() => setEditing(emptyPlayer)}>+ 新增选手</button>
         )}
+        <div className="admin-list-toolbar">
+          <label className="admin-search">
+            <Search size={16} />
+            <input
+              className="input"
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder="搜索昵称、真名、国家、赛区、队伍或位置"
+            />
+          </label>
+          <label className="admin-page-size">
+            每页
+            <select
+              className="input"
+              value={pageSize}
+              onChange={(event) => {
+                setPage(1);
+                setPageSize(Number(event.target.value));
+              }}
+            >
+              {[20, 50, 100].map((size) => <option key={size} value={size}>{size}</option>)}
+            </select>
+          </label>
+        </div>
         <div style={{ marginTop: 12, overflowX: 'auto' }}>
-          <DataTable columns={columns} rows={players} rowKey={(p) => p.id} />
+          <DataTable
+            columns={columns}
+            rows={players}
+            rowKey={(p) => p.id}
+            empty={loading ? '正在加载...' : search ? '没有匹配的选手' : '暂无选手'}
+          />
+        </div>
+        <div className="admin-pagination">
+          <span className="muted">
+            {total ? `${(page - 1) * pageSize + 1}-${Math.min(page * pageSize, total)} / ${total}` : '0 条'}
+          </span>
+          <div className="admin-pagination-actions">
+            <button
+              className="btn btn-ghost"
+              aria-label="上一页"
+              title="上一页"
+              disabled={loading || page <= 1}
+              onClick={() => setPage((current) => Math.max(1, current - 1))}
+            >
+              <ChevronLeft size={17} />
+            </button>
+            <span>第 {page} / {Math.max(1, Math.ceil(total / pageSize))} 页</span>
+            <button
+              className="btn btn-ghost"
+              aria-label="下一页"
+              title="下一页"
+              disabled={loading || page >= Math.max(1, Math.ceil(total / pageSize))}
+              onClick={() => setPage((current) => current + 1)}
+            >
+              <ChevronRight size={17} />
+            </button>
+          </div>
         </div>
       </div>
       <div className="card">
