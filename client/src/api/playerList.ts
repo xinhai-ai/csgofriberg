@@ -12,6 +12,7 @@ interface CachedPlayerList {
 }
 
 const STORAGE_KEY = 'player-list-v1';
+const REVALIDATE_INTERVAL_MS = 30_000;
 let memory: CachedPlayerList | null = null;
 let loading: Promise<PlayerSuggestion[]> | null = null;
 
@@ -26,8 +27,17 @@ function readStored(): CachedPlayerList | null {
   return memory;
 }
 
-async function refresh(): Promise<PlayerSuggestion[]> {
-  const response = await api.get('/players/list');
+async function refresh(cached: CachedPlayerList | null): Promise<PlayerSuggestion[]> {
+  const response = await api.get('/players/list', {
+    headers: cached ? { 'If-None-Match': `\"players-${cached.version}\"` } : undefined,
+    validateStatus: (status) => (status >= 200 && status < 300) || status === 304,
+  });
+  if (response.status === 304 && cached) {
+    const next = { ...cached, fetchedAt: Date.now() };
+    memory = next;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    return next.players;
+  }
   const next: CachedPlayerList = {
     version: String(response.data.version),
     players: response.data.players,
@@ -41,14 +51,23 @@ async function refresh(): Promise<PlayerSuggestion[]> {
 export async function getPlayerList(): Promise<PlayerSuggestion[]> {
   const cached = readStored();
   if (cached) {
-    if (Date.now() - cached.fetchedAt > 5 * 60_000 && !loading) {
-      loading = refresh().finally(() => { loading = null; });
-      void loading.catch(() => undefined);
+    if (Date.now() - cached.fetchedAt > REVALIDATE_INTERVAL_MS) {
+      loading ??= refresh(cached).finally(() => { loading = null; });
+      try {
+        return await loading;
+      } catch {
+        return cached.players;
+      }
     }
     return cached.players;
   }
-  loading ??= refresh().finally(() => { loading = null; });
+  loading ??= refresh(null).finally(() => { loading = null; });
   return loading;
+}
+
+export function clearPlayerListCache(): void {
+  memory = null;
+  localStorage.removeItem(STORAGE_KEY);
 }
 
 export function searchPlayerList(players: PlayerSuggestion[], query: string): PlayerSuggestion[] {

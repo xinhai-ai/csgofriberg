@@ -106,20 +106,21 @@ function publicRoom(room: StoredRoom, viewerKey: string) {
     dbType: room.dbType,
     boType: room.boType,
     allowSpectators: room.allowSpectators,
+    anonymous: room.anonymous,
     round: room.round,
     winsNeeded: winsNeeded(room.boType),
     maxGuesses: MAX_GUESSES,
     roundEndsAt: room.roundEndsAt,
     roundId: room.round,
     spectators: room.spectators.map((s) => ({ key: s.key, name: s.name })),
-    players: room.players.map((p) => {
+    players: room.players.map((p, playerIndex) => {
       const guesses = p.guesses.map((feedback) => {
         const guess = getPlayer(feedback.playerId);
         return completeGuessFeedback(feedback, guess, target);
       });
       return {
         key: p.key,
-        name: p.name,
+        name: room.anonymous ? `玩家 ${playerIndex + 1}` : p.name,
         ready: p.ready,
         connected: p.connected,
         score: p.score,
@@ -566,6 +567,7 @@ export function setupSocket(io: Server) {
         dbType: payload?.dbType === 'normal' ? 'normal' : 'easy',
         boType,
         allowSpectators: payload?.allowSpectators === true,
+        anonymous: payload?.anonymous === true,
         round: 0,
         players: [makePlayer(me, socket.id, true)],
         spectators: [],
@@ -801,6 +803,7 @@ export function setupSocket(io: Server) {
         dbType,
         boType: 3,
         allowSpectators: false,
+        anonymous: false,
         round: 0,
         players: [makePlayer(opponent, opponent.socketId, true), makePlayer(me, socket.id, true)],
         spectators: [],
@@ -876,7 +879,6 @@ export function setupSocket(io: Server) {
         emitRoomState(io, result.room);
         io.to(room.id).emit('player:offline', {
           key: me.key,
-          name: me.name,
           graceMs: DISCONNECT_FORFEIT_MS,
         });
         await schedule('disconnect', room.id, me.key, result.deadline);

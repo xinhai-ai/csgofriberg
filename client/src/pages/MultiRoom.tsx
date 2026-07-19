@@ -135,9 +135,10 @@ export default function MultiRoom() {
       setMatchOver(p);
       setRoom(p.room);
     };
-    const onOffline = (p: { key: string; name: string; graceMs: number }) => {
+    const onOffline = (p: { key: string; graceMs: number }) => {
       if (p.key !== myKey) {
-        setOfflineNote(`${p.name} 已离线,${Math.round(p.graceMs / 1000)} 秒内未重连将判负`);
+        const name = roomRef.current?.players.find((player) => player.key === p.key)?.name ?? '对手';
+        setOfflineNote(`${name} 已离线,${Math.round(p.graceMs / 1000)} 秒内未重连将判负`);
       }
     };
     const onRoomError = (p: { code: string }) => setError(translate(p.code));

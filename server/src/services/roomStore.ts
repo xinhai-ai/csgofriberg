@@ -37,6 +37,7 @@ export interface StoredRoom {
   dbType: DbType;
   boType: BoType;
   allowSpectators: boolean;
+  anonymous: boolean;
   round: number;
   players: StoredPlayer[];
   spectators: StoredSpectator[];
@@ -68,12 +69,14 @@ export async function getRoom(id: string): Promise<StoredRoom | null> {
   if (!client) {
     const room = localRooms.get(id);
     if (room && typeof room.allowSpectators !== 'boolean') room.allowSpectators = false;
+    if (room && typeof room.anonymous !== 'boolean') room.anonymous = false;
     return room ?? null;
   }
   const raw = await client.get(roomKey(id));
   if (!raw) return null;
   const room = JSON.parse(raw) as StoredRoom;
   if (typeof room.allowSpectators !== 'boolean') room.allowSpectators = false;
+  if (typeof room.anonymous !== 'boolean') room.anonymous = false;
   return room;
 }
 

@@ -59,4 +59,26 @@ describe('singleGameStore', () => {
     expect(await loadSingleGame(restored.id, identityKey)).toBeNull();
     expect(await redis()!.zScore('csgofriberg:presence:single', restored.id)).toBeNull();
   });
+
+  it('removes legacy games once last activity is older than thirty minutes', async () => {
+    await initRedis();
+    const identityKey = `g:single-stale-${Date.now()}`;
+    const created = await createOrResumeSingleGame({
+      identityKey,
+      userId: null,
+      guestKey: identityKey.slice(2),
+      mode: 'normal',
+      targetPlayerId: 1,
+    });
+    created.lastActiveAt = Date.now() - 1_801_000;
+    await redis()!.set(
+      `csgofriberg:single:game:${created.id}`,
+      JSON.stringify(created),
+      { EX: 1800 }
+    );
+
+    expect(await loadSingleGame(created.id, identityKey)).toBeNull();
+    expect(await redis()!.get(`csgofriberg:single:active:${identityKey}:normal`)).toBeNull();
+    expect(await redis()!.zScore('csgofriberg:presence:single', created.id)).toBeNull();
+  });
 });

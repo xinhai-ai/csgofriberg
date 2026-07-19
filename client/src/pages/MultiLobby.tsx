@@ -54,6 +54,7 @@ export default function MultiLobby() {
   const [dbType, setDbType] = useState<DbType>('normal');
   const [boType, setBoType] = useState(3);
   const [allowSpectators, setAllowSpectators] = useState(false);
+  const [anonymous, setAnonymous] = useState(false);
   const [mmDbType, setMmDbType] = useState<DbType>('normal');
   const [joinCode, setJoinCode] = useState('');
   const [createdRoom, setCreatedRoom] = useState<RoomState | null>(null);
@@ -105,7 +106,7 @@ export default function MultiLobby() {
 
   const create = () => {
     setError('');
-    getSocket().emit('room:create', { dbType, boType, allowSpectators }, (res: any) => {
+    getSocket().emit('room:create', { dbType, boType, allowSpectators, anonymous }, (res: any) => {
       if (res?.code) return setError(translate(res.code));
       setCreatedRoom(res.room);
     });
@@ -209,6 +210,7 @@ export default function MultiLobby() {
           <p className="muted" style={{ margin: '10px 0' }}>
             数据库:{createdRoom.dbType === 'normal' ? '完整版' : '简单版'} · 赛制:BO
             {createdRoom.boType} · {createdRoom.allowSpectators ? '允许观战' : '禁止观战'}
+            {' · '}{createdRoom.anonymous ? '匿名房间' : '显示玩家名'}
           </p>
           <button className="btn btn-lg" onClick={() => navigate('/multi/room')}>
             <Rocket size={16} />
@@ -243,6 +245,14 @@ export default function MultiLobby() {
                 onChange={(event) => setAllowSpectators(event.target.checked)}
               />
               <span>允许观战</span>
+            </label>
+            <label className="spectator-option">
+              <input
+                type="checkbox"
+                checked={anonymous}
+                onChange={(event) => setAnonymous(event.target.checked)}
+              />
+              <span>匿名房间</span>
             </label>
             <div style={{ textAlign: 'center', marginTop: 14 }}>
               <button className="btn btn-lg" onClick={create}>

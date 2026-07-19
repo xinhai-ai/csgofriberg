@@ -185,6 +185,10 @@ Redis stores active games, rooms, queues and caches. PostgreSQL is the durable
 history store. Redis AOF is enabled in Compose so active state can survive a
 container restart.
 
+An unfinished single-player game is kept in Redis for up to 1800 seconds (30
+minutes) after its last activity. A completed game or an explicit exit removes
+it immediately.
+
 ## GitHub Actions publishing
 
 `.github/workflows/docker.yml` runs tests and the complete production build on

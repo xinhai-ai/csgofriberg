@@ -1,6 +1,7 @@
 import { db } from '../db/knex';
 import { redis, redisKey, redisPublisher, redisSubscriber } from '../redis';
 import { Player } from '../types';
+import { createHash } from 'crypto';
 
 const INVALIDATE_CHANNEL = redisKey('players:invalidate');
 const VERSION_KEY = redisKey('players:version');
@@ -19,18 +20,22 @@ export async function refreshPlayerCache(): Promise<void> {
     allPlayers = rows;
     easyPlayers = rows.filter((p) => Boolean(p.is_easy));
     playersById = new Map(rows.map((p) => [p.id, p]));
+    const publicPlayers = rows.map((p) => ({ id: p.id, nickname: p.nickname }));
+    version = createHash('sha256')
+      .update(JSON.stringify(publicPlayers))
+      .digest('hex')
+      .slice(0, 16);
 
     const client = redis();
     if (client) {
-      version = (await client.get(VERSION_KEY)) || version;
-      await client.set(
-        LIST_KEY,
-        JSON.stringify({
-          version,
-          players: rows.map((p) => ({ id: p.id, nickname: p.nickname })),
-        }),
-        { EX: 24 * 60 * 60 }
-      );
+      await Promise.all([
+        client.set(VERSION_KEY, version),
+        client.set(
+          LIST_KEY,
+          JSON.stringify({ version, players: publicPlayers }),
+          { EX: 24 * 60 * 60 }
+        ),
+      ]);
     }
   })().finally(() => {
     refreshPromise = null;
@@ -41,12 +46,9 @@ export async function refreshPlayerCache(): Promise<void> {
 export async function initPlayerCache(): Promise<void> {
   const client = redis();
   if (client) {
-    version = (await client.get(VERSION_KEY)) || '1';
-    await client.set(VERSION_KEY, version, { NX: true });
     const subscriber = redisSubscriber();
     if (subscriber) {
-      await subscriber.subscribe(INVALIDATE_CHANNEL, async (nextVersion) => {
-        version = nextVersion || version;
+      await subscriber.subscribe(INVALIDATE_CHANNEL, async () => {
         await refreshPlayerCache().catch((err) => console.error('[players] refresh failed', err));
       });
     }
@@ -81,11 +83,8 @@ export async function getPublicPlayerList(): Promise<{
 export async function invalidatePlayerCache(): Promise<void> {
   const client = redis();
   if (client) {
-    version = String(await client.incr(VERSION_KEY));
     await client.del(LIST_KEY);
-    await redisPublisher()?.publish(INVALIDATE_CHANNEL, version);
-  } else {
-    version = String(Number(version) + 1);
+    await redisPublisher()?.publish(INVALIDATE_CHANNEL, 'refresh');
   }
   await refreshPlayerCache();
 }
