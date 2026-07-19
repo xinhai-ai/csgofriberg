@@ -31,6 +31,31 @@ describe('json body routing', () => {
     expect(await response.json()).toEqual({ count: 2000 });
   });
 
+  it('accepts a 180 KiB import body while ordinary API bodies stay limited', async () => {
+    const app = express();
+    app.use(
+      '/api/admin/players/import',
+      rejectOversizedBody(2 * 1024 * 1024),
+      parseJsonOnce(`${2 * 1024 * 1024}b`)
+    );
+    app.use('/api', rejectOversizedBody(64 * 1024), parseJsonOnce('64kb'));
+    app.post('/api/admin/players/import', (req, res) =>
+      res.json({ size: Buffer.byteLength(JSON.stringify(req.body)) })
+    );
+    app.use(errorHandler);
+    server = http.createServer(app);
+    await new Promise<void>((resolve) => server!.listen(0, resolve));
+    const port = (server.address() as AddressInfo).port;
+    const body = JSON.stringify({ players: [{ nickname: 'x'.repeat(180 * 1024) }] });
+    const response = await fetch(`http://127.0.0.1:${port}/api/admin/players/import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+    });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ size: Buffer.byteLength(body) });
+  });
+
   it('rejects oversized ordinary API bodies before parsing', async () => {
     const app = express();
     app.use('/api', rejectOversizedBody(32), parseJsonOnce('32b'));

@@ -45,7 +45,12 @@ export function errorHandler(
     return res.status(503).json({ code: 'AUTH_BUSY' });
   }
   if (err instanceof Error && 'type' in err && err.type === 'entity.too.large') {
-    return res.status(413).json({ code: 'PAYLOAD_TOO_LARGE' });
+    const bodyError = err as Error & { limit?: number; length?: number };
+    return res.status(413).json({
+      code: 'PAYLOAD_TOO_LARGE',
+      ...(Number.isFinite(bodyError.limit) ? { maxBytes: bodyError.limit } : {}),
+      ...(Number.isFinite(bodyError.length) ? { receivedBytes: bodyError.length } : {}),
+    });
   }
   if (err instanceof SyntaxError && 'status' in err && err.status === 400) {
     return res.status(400).json({ code: 'INVALID_REQUEST_BODY' });

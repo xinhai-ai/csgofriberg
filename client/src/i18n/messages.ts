@@ -2,6 +2,7 @@
 const MESSAGES: Record<string, string> = {
   VALIDATION_FAILED: '输入格式不正确',
   INVALID_REQUEST_BODY: '请求数据不完整，请重试',
+  PAYLOAD_TOO_LARGE: '导入数据过大，请拆分后重试',
   INTERNAL_ERROR: '服务器开小差了,请稍后再试',
   AUTH_REQUIRED: '请先登录',
   FORBIDDEN: '没有权限执行此操作',

@@ -108,8 +108,8 @@ async function main() {
   app.use('/api/admin/players/import', requireAuth, requireAdmin);
   app.use(
     '/api/admin/players/import',
-    rejectOversizedBody(1024 * 1024),
-    parseJsonOnce('1mb')
+    rejectOversizedBody(config.adminImportBodyLimitBytes),
+    parseJsonOnce(`${config.adminImportBodyLimitBytes}b`)
   );
   app.use('/api', rejectOversizedBody(64 * 1024), parseJsonOnce('64kb'));
 

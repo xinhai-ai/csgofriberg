@@ -17,6 +17,9 @@ const jwtSecret = configuredJwtSecret || crypto.randomBytes(48).toString('base64
 const configuredPasswordWorkers = Number(process.env.PASSWORD_WORKERS || 2);
 const configuredPasswordQueueLimit = Number(process.env.PASSWORD_QUEUE_LIMIT || 64);
 const configuredBcryptRounds = Number(process.env.BCRYPT_ROUNDS || 8);
+const configuredAdminImportBodyLimitBytes = Number(
+  process.env.ADMIN_IMPORT_BODY_LIMIT_BYTES || 2 * 1024 * 1024
+);
 
 export const config = {
   port: Number(process.env.PORT || 3000),
@@ -41,6 +44,10 @@ export const config = {
   bcryptRounds: Number.isInteger(configuredBcryptRounds)
     ? Math.max(8, Math.min(12, configuredBcryptRounds))
     : 8,
+  adminImportBodyLimitBytes:
+    Number.isInteger(configuredAdminImportBodyLimitBytes) && configuredAdminImportBodyLimitBytes >= 64 * 1024
+      ? configuredAdminImportBodyLimitBytes
+      : 2 * 1024 * 1024,
   disconnectForfeitMs: Math.max(100, Number(process.env.DISCONNECT_FORFEIT_MS || 30_000)),
   powDifficulty: Number(process.env.POW_DIFFICULTY || 17),
   powChallengeTtlSeconds: Number(process.env.POW_CHALLENGE_TTL_SECONDS || 120),
