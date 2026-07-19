@@ -52,12 +52,42 @@ describe('roomStore local fallback', () => {
 
   it('does not clear a newer identity mapping when an old room is deleted', async () => {
     const oldRoom = makeRoom(`OLD${Date.now()}`);
+    oldRoom.status = 'finished';
+    oldRoom.matchResult = { winnerKey: 'u:1', reason: 'test' };
     const newRoom = makeRoom(`NEW${Date.now()}`);
     await saveRoom(oldRoom);
     await saveRoom(newRoom);
     await deleteRoom(oldRoom);
     expect((await getRoomForIdentity('u:1'))?.id).toBe(newRoom.id);
     await deleteRoom(newRoom);
+  });
+
+  it('does not let a delayed old-room save reclaim an identity from a new room', async () => {
+    const oldRoom = makeRoom(`LATE${Date.now()}`);
+    oldRoom.status = 'finished';
+    oldRoom.matchResult = { winnerKey: 'u:1', reason: 'test' };
+    const newRoom = makeRoom(`CURRENT${Date.now()}`);
+    await saveRoom(oldRoom);
+    await saveRoom(newRoom);
+
+    await withRoomLock(oldRoom.id, (locked) => {
+      locked.players[0].connected = false;
+      locked.players[0].disconnectDeadline = Date.now() + 1000;
+    });
+
+    expect((await getRoomForIdentity('u:1'))?.id).toBe(newRoom.id);
+    const delayedOldRoom = await import('./roomStore').then(({ getRoom }) => getRoom(oldRoom.id));
+    if (delayedOldRoom) await deleteRoom(delayedOldRoom);
+    await deleteRoom(newRoom);
+  });
+
+  it('rejects creating a second active room for the same identity', async () => {
+    const first = makeRoom(`FIRST${Date.now()}`);
+    const second = makeRoom(`SECOND${Date.now()}`);
+    await saveRoom(first);
+    await expect(saveRoom(second)).rejects.toThrow('ROOM_IDENTITY_CONFLICT');
+    expect((await getRoomForIdentity('u:1'))?.id).toBe(first.id);
+    await deleteRoom(first);
   });
 
   it('rejects an older room snapshot after a newer revision is stored', async () => {

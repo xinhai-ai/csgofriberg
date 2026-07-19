@@ -67,6 +67,7 @@ export default function MultiLobby() {
   const navigate = useNavigate();
   const confirm = useConfirm();
   const searchingRef = useRef(false);
+  const replacingRoomRef = useRef(false);
   const matchOptionsRef = useRef({ dbType: mmDbType, anonymous: mmAnonymous });
   matchOptionsRef.current = { dbType: mmDbType, anonymous: mmAnonymous };
 
@@ -124,18 +125,78 @@ export default function MultiLobby() {
     });
   };
 
-  const create = () => {
+  const leaveCurrentFor = async (
+    room: RoomState,
+    role: 'player' | 'spectator',
+    actionLabel: string
+  ): Promise<boolean> => {
+    if (replacingRoomRef.current) return false;
+    replacingRoomRef.current = true;
+    const matchOngoing =
+      role === 'player' &&
+      (room.status === 'playing' || room.status === 'round_over');
+    const accepted = await confirm({
+      title: `退出当前房间并${actionLabel}?`,
+      message: matchOngoing
+        ? `当前比赛尚未结束，退出会被判负。确认后将自动${actionLabel}。`
+        : `你当前仍在房间 ${room.id} 中，确认后将先退出再${actionLabel}。`,
+      confirmLabel: matchOngoing ? `退出并判负后${actionLabel}` : `退出并${actionLabel}`,
+      tone: matchOngoing ? 'danger' : 'warning',
+    });
+    if (!accepted) {
+      replacingRoomRef.current = false;
+      return false;
+    }
+    return new Promise((resolve) => {
+      getSocket().emit('room:leave', {}, (res: any) => {
+        replacingRoomRef.current = false;
+        if (res?.code) {
+          setError(translate(res.code));
+          resolve(false);
+          return;
+        }
+        setCurrentRoom(null);
+        resolve(true);
+      });
+    });
+  };
+
+  const create = async (replaceExisting = false) => {
     setError('');
+    if (!replaceExisting && currentRoom) {
+      if (!await leaveCurrentFor(currentRoom, currentRole, '创建新房间')) return;
+    }
     getSocket().emit('room:create', { dbType, boType, allowSpectators, anonymous }, (res: any) => {
+      if (res?.code === 'ALREADY_IN_ROOM' && res.room) {
+        setCurrentRoom(res.room);
+        setCurrentRole(res.role ?? 'player');
+        void leaveCurrentFor(res.room, res.role ?? 'player', '创建新房间').then((left) => {
+          if (left) void create(true);
+        });
+        return;
+      }
       if (res?.code) return setError(translate(res.code));
       setCreatedRoom(res.room);
     });
   };
 
-  const join = (code: string, spectate = false) => {
+  const join = async (code: string, spectate = false, replaceExisting = false) => {
     setError('');
     if (!code.trim()) return;
+    if (!replaceExisting && currentRoom && currentRoom.id !== code.trim().toUpperCase()) {
+      const action = spectate ? '加入观战' : '加入新房间';
+      if (!await leaveCurrentFor(currentRoom, currentRole, action)) return;
+    }
     getSocket().emit('room:join', { roomId: code.trim(), spectate }, (res: any) => {
+      if (res?.code === 'ALREADY_IN_ROOM' && res.room) {
+        setCurrentRoom(res.room);
+        setCurrentRole(res.role ?? 'player');
+        const action = spectate ? '加入观战' : '加入新房间';
+        void leaveCurrentFor(res.room, res.role ?? 'player', action).then((left) => {
+          if (left) void join(code, spectate, true);
+        });
+        return;
+      }
       if (res?.code) return setError(translate(res.code));
       navigate('/multi/room');
     });
@@ -283,7 +344,7 @@ export default function MultiLobby() {
               <span>匿名房间</span>
             </label>
             <div style={{ textAlign: 'center', marginTop: 14 }}>
-              <button className="btn btn-lg" onClick={create}>
+              <button className="btn btn-lg" onClick={() => void create()}>
                 <Zap size={16} />
                 创建房间
               </button>

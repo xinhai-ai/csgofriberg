@@ -8,7 +8,7 @@ export async function withKeyLock<T>(key: string, handler: () => Promise<T>): Pr
   if (client) {
     const lockKey = redisKey(`lock:${key}`);
     const token = randomUUID();
-    for (let attempt = 0; attempt < 50; attempt++) {
+    for (let attempt = 0; attempt < 8; attempt++) {
       if (await client.set(lockKey, token, { NX: true, PX: 15_000 })) {
         try {
           return await handler();
@@ -19,7 +19,7 @@ export async function withKeyLock<T>(key: string, handler: () => Promise<T>): Pr
           );
         }
       }
-      await new Promise((resolve) => setTimeout(resolve, 10 + attempt * 2));
+      await new Promise((resolve) => setTimeout(resolve, 8 + Math.floor(Math.random() * 8)));
     }
     throw new Error('RESOURCE_BUSY');
   }

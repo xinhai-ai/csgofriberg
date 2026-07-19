@@ -61,7 +61,7 @@ export async function enqueueMatchResult(payload: MatchResultPayload): Promise<v
   if (!client) return persist(payload);
   try {
     await client.sendCommand([
-      'XADD', STREAM_KEY, 'MAXLEN', '~', '100000', '*', 'payload', JSON.stringify(payload),
+      'XADD', STREAM_KEY, 'MAXLEN', '~', '10000', '*', 'payload', JSON.stringify(payload),
     ]);
   } catch (err) {
     // A timed-out XADD may still have reached Redis. Direct persistence is safe
@@ -97,7 +97,7 @@ async function handleMessages(client: NonNullable<ReturnType<typeof duplicateRed
       const deliveryCount = Number(pending?.[0]?.[3] ?? 1);
       if (deliveryCount >= 10) {
         await client.sendCommand([
-          'XADD', DEAD_LETTER_KEY, 'MAXLEN', '~', '10000', '*',
+          'XADD', DEAD_LETTER_KEY, 'MAXLEN', '~', '2000', '*',
           'sourceId', message.id,
           'payload', JSON.stringify(message.payload),
           'error', err instanceof Error ? err.message.slice(0, 500) : String(err).slice(0, 500),

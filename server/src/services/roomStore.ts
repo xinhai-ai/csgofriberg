@@ -36,7 +36,7 @@ export interface StoredSpectator extends StoredIdentity {
 export interface StoredRoundResult {
   round: number;
   winnerKey: string | null;
-  reason: 'guessed' | 'exhausted' | 'timeout';
+  reason: 'guessed' | 'exhausted' | 'timeout' | 'surrender';
   matchOver: boolean;
   nextRoundAt: number | null;
 }
@@ -61,7 +61,7 @@ export interface StoredRoom {
   targetPlayerId: number | null;
   roundEndsAt: number | null;
   nextRoundAt: number | null;
-  eventResults: Record<string, GuessFeedback>;
+  eventResults: Record<string, number>;
   roundResult: StoredRoundResult | null;
   matchResult: StoredMatchResult | null;
   revision: number;
@@ -95,6 +95,9 @@ function normalizeRoom(room: StoredRoom): StoredRoom {
   if (typeof room.allowSpectators !== 'boolean') room.allowSpectators = false;
   if (typeof room.anonymous !== 'boolean') room.anonymous = false;
   room.eventResults ??= {};
+  if (Object.values(room.eventResults).some((value) => typeof value !== 'number')) {
+    room.eventResults = {};
+  }
   room.roundResult ??= null;
   room.matchResult ??= null;
   room.revision ??= 0;
@@ -127,6 +130,10 @@ export async function getRoomForIdentity(
     await clearIdentityRoom(identity, id);
     return null;
   }
+  if (![...room.players, ...room.spectators].some((member) => member.key === identity)) {
+    await clearIdentityRoom(identity, id);
+    return null;
+  }
   if (room.status === 'finished' && !includeFinished) return null;
   return room;
 }
@@ -149,9 +156,35 @@ export async function saveRoom(room: StoredRoom): Promise<void> {
   if (!client) {
     const current = localRooms.get(room.id);
     if (current && current.revision > previousRevision) throw new Error('STALE_ROOM_WRITE');
+    const currentMembers = new Set(
+      current ? [...current.players, ...current.spectators].map((member) => member.key) : []
+    );
+    for (const member of [...room.players, ...room.spectators]) {
+      const mappedRoomId = localIdentityRooms.get(member.key);
+      const mappedRoom = mappedRoomId ? localRooms.get(mappedRoomId) : null;
+      if (
+        mappedRoomId &&
+        mappedRoomId !== room.id &&
+        mappedRoom &&
+        mappedRoom.status !== 'finished' &&
+        !currentMembers.has(member.key)
+      ) {
+        room.revision = previousRevision;
+        throw new Error('ROOM_IDENTITY_CONFLICT');
+      }
+    }
     localRooms.set(room.id, structuredClone(room));
     for (const member of [...room.players, ...room.spectators]) {
-      localIdentityRooms.set(member.key, room.id);
+      const mappedRoomId = localIdentityRooms.get(member.key);
+      const mappedRoom = mappedRoomId ? localRooms.get(mappedRoomId) : null;
+      if (
+        !mappedRoomId ||
+        mappedRoomId === room.id ||
+        !mappedRoom ||
+        mappedRoom.status === 'finished'
+      ) {
+        localIdentityRooms.set(member.key, room.id);
+      }
     }
     return;
   }
@@ -192,10 +225,32 @@ export async function saveRoom(room: StoredRoom): Promise<void> {
   const result = await client.eval(
     `local incoming = cjson.decode(ARGV[1])
      local currentRaw = redis.call('GET', KEYS[1])
+     local current = nil
+     local currentOk = false
      if currentRaw then
-       local ok, current = pcall(cjson.decode, currentRaw)
-       if ok and tonumber(current.revision or 0) >= tonumber(incoming.revision or 0) then
+       currentOk, current = pcall(cjson.decode, currentRaw)
+       if currentOk and tonumber(current.revision or 0) >= tonumber(incoming.revision or 0) then
          return 0
+       end
+     end
+     local currentMembers = {}
+     if currentOk then
+       for _, member in ipairs(current.players or {}) do currentMembers[member.key] = true end
+       for _, member in ipairs(current.spectators or {}) do currentMembers[member.key] = true end
+     end
+     local incomingMembers = {}
+     for _, member in ipairs(incoming.players or {}) do table.insert(incomingMembers, member) end
+     for _, member in ipairs(incoming.spectators or {}) do table.insert(incomingMembers, member) end
+     for index, member in ipairs(incomingMembers) do
+       local mappedRoomId = redis.call('GET', KEYS[3 + index])
+       if mappedRoomId and mappedRoomId ~= ARGV[2] then
+         local mappedRoomRaw = redis.call('GET', ARGV[8] .. mappedRoomId)
+         if mappedRoomRaw then
+           local mappedOk, mappedRoom = pcall(cjson.decode, mappedRoomRaw)
+           if mappedOk and mappedRoom.status ~= 'finished' and not currentMembers[member.key] then
+             return -1
+           end
+         end
        end
      end
      redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[3])
@@ -206,10 +261,22 @@ export async function saveRoom(room: StoredRoom): Promise<void> {
      end
      local identityCount = tonumber(ARGV[6])
      for index = 1, identityCount do
-       redis.call('SET', KEYS[3 + index], ARGV[2], 'EX', ARGV[3])
+       local identityKey = KEYS[3 + index]
+       local mappedRoomId = redis.call('GET', identityKey)
+       local canClaim = not mappedRoomId or mappedRoomId == ARGV[2]
+       if not canClaim then
+         local mappedRoomRaw = redis.call('GET', ARGV[8] .. mappedRoomId)
+         if not mappedRoomRaw then
+           canClaim = true
+         else
+           local mappedOk, mappedRoom = pcall(cjson.decode, mappedRoomRaw)
+           canClaim = not mappedOk or mappedRoom.status == 'finished'
+         end
+       end
+       if canClaim then redis.call('SET', identityKey, ARGV[2], 'EX', ARGV[3]) end
      end
      local scheduleCount = tonumber(ARGV[7])
-     local argumentIndex = 8
+     local argumentIndex = 9
      for index = 1, scheduleCount do
        redis.call('ZADD', KEYS[3], ARGV[argumentIndex], ARGV[argumentIndex + 1])
        argumentIndex = argumentIndex + 2
@@ -230,10 +297,15 @@ export async function saveRoom(room: StoredRoom): Promise<void> {
         String(room.updatedAt + ROOM_TTL_SECONDS * 1000),
         String(members.length),
         String(schedules.length),
+        redisKey('room:'),
         ...schedules.flatMap((item) => [String(item.score), item.value]),
       ],
     }
   );
+  if (Number(result) === -1) {
+    room.revision = previousRevision;
+    throw new Error('ROOM_IDENTITY_CONFLICT');
+  }
   if (Number(result) !== 1) throw new Error('STALE_ROOM_WRITE');
 }
 
@@ -327,7 +399,7 @@ async function acquireRedisLock(id: string): Promise<(() => Promise<void>) | nul
   if (!client) return null;
   const token = randomUUID();
   const key = redisKey(`lock:room:${id}`);
-  for (let attempt = 0; attempt < 25; attempt++) {
+  for (let attempt = 0; attempt < 8; attempt++) {
     if (await client.set(key, token, { NX: true, PX: 15_000 })) {
       return async () => {
         await client.eval(
@@ -336,7 +408,7 @@ async function acquireRedisLock(id: string): Promise<(() => Promise<void>) | nul
         );
       };
     }
-    await new Promise((resolve) => setTimeout(resolve, 10 + attempt * 2));
+    await new Promise((resolve) => setTimeout(resolve, 8 + Math.floor(Math.random() * 8)));
   }
   throw new Error('ROOM_BUSY');
 }

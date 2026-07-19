@@ -101,7 +101,7 @@ function hiddenGuess(feedback: GuessFeedback) {
   };
 }
 
-function publicRoom(room: StoredRoom, viewerKey: string) {
+function buildPublicRoom(room: StoredRoom, viewerKey: string) {
   const viewerIsSpectator = room.spectators.some((spectator) => spectator.key === viewerKey);
   const target = room.targetPlayerId ? getPlayer(room.targetPlayerId) : undefined;
   return {
@@ -159,8 +159,25 @@ function publicRoom(room: StoredRoom, viewerKey: string) {
   };
 }
 
-function roomViewers(room: StoredRoom): string[] {
-  return [...new Set([...room.players, ...room.spectators].map((member) => member.key))];
+type PublicRoom = ReturnType<typeof buildPublicRoom>;
+const publicRoomCache = new WeakMap<StoredRoom, {
+  revision: number;
+  views: Map<string, PublicRoom>;
+}>();
+
+function publicRoom(room: StoredRoom, viewerKey: string): PublicRoom {
+  const spectator = room.spectators.some((candidate) => candidate.key === viewerKey);
+  const cacheKey = spectator ? 'spectator' : viewerKey;
+  let cached = publicRoomCache.get(room);
+  if (!cached || cached.revision !== room.revision) {
+    cached = { revision: room.revision, views: new Map() };
+    publicRoomCache.set(room, cached);
+  }
+  const existing = cached.views.get(cacheKey);
+  if (existing) return existing;
+  const view = buildPublicRoom(room, viewerKey);
+  cached.views.set(cacheKey, view);
+  return view;
 }
 
 function emitRoomViews<T>(
@@ -169,8 +186,12 @@ function emitRoomViews<T>(
   event: string,
   payload: (viewerKey: string) => T
 ): void {
-  for (const viewerKey of roomViewers(room)) {
-    io.to(identityChannel(viewerKey)).emit(event, payload(viewerKey));
+  for (const player of room.players) {
+    io.to(identityChannel(player.key)).emit(event, payload(player.key));
+  }
+  if (room.spectators.length) {
+    const channels = room.spectators.map((spectator) => identityChannel(spectator.key));
+    io.to(channels).emit(event, payload(room.spectators[0].key));
   }
 }
 
@@ -226,25 +247,6 @@ function setLocalTimer(key: string, delay: number, handler: () => void) {
   timers.set(key, timer);
 }
 
-async function scheduleReliably(
-  kind: string,
-  roomId: string,
-  discriminator: string,
-  at: number
-): Promise<void> {
-  let lastError: unknown;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      if (await schedule(kind, roomId, discriminator, at)) return;
-      throw new Error('REDIS_UNAVAILABLE');
-    } catch (err) {
-      lastError = err;
-      await new Promise((resolve) => setTimeout(resolve, 100 * (attempt + 1)));
-    }
-  }
-  throw lastError;
-}
-
 async function persistMatch(room: StoredRoom, winnerKey: string | null) {
   await enqueueMatchResult({
     roomId: room.id,
@@ -278,7 +280,7 @@ async function finishMatch(
     room.eventResults = {};
     room.roundResult = null;
     room.matchResult = { winnerKey, reason };
-    return { room: structuredClone(room) };
+    return { room };
   }, (value) => Boolean(value && !('stale' in value)));
   if (!result) return 'ignored';
   if ('stale' in result) return 'stale';
@@ -292,8 +294,6 @@ async function finishMatch(
   setLocalTimer(`cleanup:${roomId}`, FINISHED_ROOM_TTL_MS, () => {
     void cleanupRoom(roomId);
   });
-  void scheduleReliably('cleanup', roomId, '0', Date.now() + FINISHED_ROOM_TTL_MS)
-    .catch((err) => console.error('[cleanup:schedule]', err));
   return 'finished';
 }
 
@@ -316,7 +316,7 @@ async function startRound(io: Server, roomId: string) {
     room.roundResult = null;
     room.matchResult = null;
     for (const player of room.players) player.guesses = [];
-    return { room: structuredClone(room) };
+    return { room };
   }, (value) => Boolean(value && !('waitingForReconnect' in value)));
   if (!result) return false;
   if ('waitingForReconnect' in result) return false;
@@ -360,7 +360,7 @@ async function finishRound(
       nextRoundAt: room.nextRoundAt,
     };
     if (matchOver) room.matchResult = { winnerKey, reason: 'score' };
-    return { room: structuredClone(room), matchOver };
+    return { room, matchOver };
   });
   if (!result) return;
   const { room, matchOver } = result;
@@ -383,11 +383,72 @@ async function finishRound(
     setLocalTimer(`cleanup:${roomId}`, FINISHED_ROOM_TTL_MS, () => {
       void cleanupRoom(roomId);
     });
-    void scheduleReliably('cleanup', roomId, '0', Date.now() + FINISHED_ROOM_TTL_MS)
-      .catch((err) => console.error('[cleanup:schedule]', err));
     return;
   }
   setLocalTimer(`next:${roomId}`, NEXT_ROUND_DELAY_MS, () => void startRound(io, roomId));
+}
+
+async function surrenderRound(
+  io: Server,
+  roomId: string,
+  loserKey: string,
+  socketId: string,
+  expectedRound: number
+): Promise<{ room: StoredRoom; matchOver: boolean } | 'stale' | null> {
+  const result = await withRoomLock(roomId, (room) => {
+    if (room.status !== 'playing' || room.round !== expectedRound) return null;
+    const loser = room.players.find((player) => player.key === loserKey);
+    if (!loser || loser.socketId !== socketId) return { stale: true as const };
+    const winner = room.players.find((player) => player.key !== loserKey);
+    if (!winner) return null;
+
+    winner.score += 1;
+    room.roundEndsAt = null;
+    const matchOver = winner.score >= winsNeeded(room.boType);
+    if (matchOver) {
+      room.status = 'finished';
+      room.nextRoundAt = null;
+      room.matchResult = { winnerKey: winner.key, reason: 'score' };
+    } else {
+      room.status = 'round_over';
+      room.nextRoundAt = Date.now() + NEXT_ROUND_DELAY_MS;
+    }
+    room.roundResult = {
+      round: room.round,
+      winnerKey: winner.key,
+      reason: 'surrender',
+      matchOver,
+      nextRoundAt: room.nextRoundAt,
+    };
+    return { room, matchOver };
+  }, (value) => Boolean(value && !('stale' in value)));
+
+  if (!result) return null;
+  if ('stale' in result) return 'stale';
+  const winnerKey = result.room.roundResult?.winnerKey ?? null;
+  emitRoomViews(io, result.room, 'round:over', (viewerKey) => ({
+    winnerKey,
+    reason: 'surrender',
+    answer: answerView(result.room.targetPlayerId),
+    matchOver: result.matchOver,
+    nextRoundInMs: result.matchOver ? undefined : NEXT_ROUND_DELAY_MS,
+    room: publicRoom(result.room, viewerKey),
+  }));
+  if (result.matchOver) {
+    emitRoomViews(io, result.room, 'match:over', (viewerKey) => ({
+      winnerKey,
+      reason: 'score',
+      answer: answerView(result.room.targetPlayerId),
+      room: publicRoom(result.room, viewerKey),
+    }));
+    void persistMatch(result.room, winnerKey).catch((err) => console.error('[match:persist]', err));
+    setLocalTimer(`cleanup:${roomId}`, FINISHED_ROOM_TTL_MS, () => {
+      void cleanupRoom(roomId);
+    });
+  } else {
+    setLocalTimer(`next:${roomId}`, NEXT_ROUND_DELAY_MS, () => void startRound(io, roomId));
+  }
+  return result;
 }
 
 async function cleanupRoom(roomId: string) {
@@ -422,7 +483,7 @@ async function processSchedule(io: Server, item: string): Promise<number | null>
             locked.hostKey = locked.players[0].key;
           }
           if (locked.players.length === 1) locked.players[0].ready = true;
-          return { room: structuredClone(locked) };
+          return { room: locked };
         }, (value) => Boolean(value));
         if (updated) {
           await clearIdentityRoom(discriminator, roomId);
@@ -463,7 +524,7 @@ async function processSchedule(io: Server, item: string): Promise<number | null>
           current.disconnectDeadline > Date.now()
         ) return null;
         locked.spectators = locked.spectators.filter((candidate) => candidate.key !== discriminator);
-        return { room: structuredClone(locked) };
+        return { room: locked };
       }, (value) => Boolean(value));
       if (updated) {
         await clearIdentityRoom(discriminator, roomId);
@@ -510,8 +571,15 @@ function safeOn(
   socket.on(event, (payload: any, ack?: (value: any) => void) => {
     void handler(payload, ack).catch((err) => {
       console.error(`[socket:${event}]`, err);
-      const code = err instanceof Error && ['ROOM_BUSY', 'REDIS_UNAVAILABLE', 'STALE_ROOM_WRITE'].includes(err.message)
-        ? err.message === 'STALE_ROOM_WRITE' ? 'ROOM_BUSY' : err.message
+      const code = err instanceof Error && [
+        'ROOM_BUSY',
+        'REDIS_UNAVAILABLE',
+        'STALE_ROOM_WRITE',
+        'ROOM_IDENTITY_CONFLICT',
+      ].includes(err.message)
+        ? err.message === 'ROOM_IDENTITY_CONFLICT'
+          ? 'ALREADY_IN_ROOM'
+          : err.message === 'STALE_ROOM_WRITE' ? 'ROOM_BUSY' : err.message
         : 'INTERNAL_ERROR';
       ack?.({ code });
     });
@@ -588,18 +656,60 @@ async function releaseConnectionSlot(ip: string, identity: string, socketId: str
   );
 }
 
-async function refreshConnectionSlot(ip: string, identity: string, socketId: string): Promise<void> {
+async function refreshConnectionSlots(
+  entries: { ip: string; identity: string; socketId: string }[]
+): Promise<void> {
+  if (!entries.length) return;
   const client = redis();
   if (!client) return;
   const now = Date.now();
-  await client.multi()
-    .zAdd(redisKey(`connections:ip:${ip}`), { score: now, value: socketId })
-    .zAdd(redisKey(`connections:identity:${identity}`), { score: now, value: socketId })
-    .zAdd(redisKey('presence:online'), { score: now, value: identity })
-    .set(redisKey(`connections:socket:${socketId}`), '1', { EX: 180 })
-    .expire(redisKey(`connections:ip:${ip}`), 900)
-    .expire(redisKey(`connections:identity:${identity}`), 900)
-    .exec();
+  await client.eval(
+    `for index = 2, #ARGV, 3 do
+       local ip = ARGV[index]
+       local identity = ARGV[index + 1]
+       local socketId = ARGV[index + 2]
+       local ipKey = KEYS[2] .. ip
+       local identityKey = KEYS[3] .. identity
+       redis.call('ZADD', ipKey, ARGV[1], socketId)
+       redis.call('ZADD', identityKey, ARGV[1], socketId)
+       redis.call('ZADD', KEYS[1], ARGV[1], identity)
+       redis.call('SET', KEYS[4] .. socketId, '1', 'EX', 180)
+       redis.call('EXPIRE', ipKey, 900)
+       redis.call('EXPIRE', identityKey, 900)
+     end
+     return #ARGV`,
+    {
+      keys: [
+        redisKey('presence:online'),
+        redisKey('connections:ip:'),
+        redisKey('connections:identity:'),
+        redisKey('connections:socket:'),
+      ],
+      arguments: [
+        String(now),
+        ...entries.flatMap((entry) => [entry.ip, entry.identity, entry.socketId]),
+      ],
+    }
+  );
+}
+
+function yieldEventLoop(): Promise<void> {
+  return new Promise((resolve) => setImmediate(resolve));
+}
+
+async function processGroupsWithLimit(
+  groups: string[][],
+  limit: number,
+  handler: (group: string[]) => Promise<void>
+): Promise<void> {
+  let cursor = 0;
+  await Promise.all(Array.from({ length: Math.min(limit, groups.length) }, async () => {
+    while (cursor < groups.length) {
+      const group = groups[cursor++];
+      await handler(group);
+      await yieldEventLoop();
+    }
+  }));
 }
 
 export function setupSocket(io: Server) {
@@ -609,6 +719,8 @@ export function setupSocket(io: Server) {
     void task.catch((err) => console.error(label, err)).finally(() => backgroundTasks.delete(task));
   };
   const presenceSubscribers = new Set<string>();
+  const heartbeatEntries = new Map<string, { ip: string; identity: string; socketId: string }>();
+  let heartbeatRequest: Promise<void> | null = null;
   let lastPresence: Omit<PresenceStats, 'updatedAt'> | null = null;
   let presenceRequest: Promise<PresenceStats> | null = null;
   const presenceWorker = setInterval(() => {
@@ -635,7 +747,7 @@ export function setupSocket(io: Server) {
   let scheduleRequest: Promise<void> | null = null;
   const worker = setInterval(() => {
     if (scheduleRequest) return;
-    scheduleRequest = claimDueSchedules()
+    scheduleRequest = claimDueSchedules(40)
       .then(async (items) => {
         const byRoom = new Map<string, string[]>();
         for (const item of items) {
@@ -644,9 +756,9 @@ export function setupSocket(io: Server) {
           group.push(item);
           byRoom.set(roomId, group);
         }
-        await Promise.all([...byRoom.values()].map(async (group) => {
+        await processGroupsWithLimit([...byRoom.values()], 8, async (group) => {
           for (const item of group) await handleScheduledItem(io, item);
-        }));
+        });
       })
       .then(() => undefined)
       .catch((err) => console.error('[schedule]', err))
@@ -655,6 +767,19 @@ export function setupSocket(io: Server) {
       });
   }, 1000);
   worker.unref?.();
+  const heartbeatWorker = setInterval(() => {
+    if (heartbeatRequest) return;
+    const entries = [...heartbeatEntries.values()];
+    heartbeatRequest = (async () => {
+      for (let index = 0; index < entries.length; index += 100) {
+        await refreshConnectionSlots(entries.slice(index, index + 100));
+        await yieldEventLoop();
+      }
+    })().catch((err) => console.error('[presence:heartbeat]', err)).finally(() => {
+      heartbeatRequest = null;
+    });
+  }, 60_000);
+  heartbeatWorker.unref?.();
 
   io.use(async (socket, next) => {
     try {
@@ -698,19 +823,11 @@ export function setupSocket(io: Server) {
   io.on('connection', (socket) => {
     const me = socket.data.identity as StoredIdentity;
     socket.emit('identity:self', { key: me.key });
-    let connectionHeartbeat: NodeJS.Timeout | null = null;
-    let connectionHeartbeatActive = true;
-    const scheduleConnectionHeartbeat = () => {
-      if (!connectionHeartbeatActive) return;
-      const delay = 45_000 + Math.floor(Math.random() * 30_000);
-      connectionHeartbeat = setTimeout(() => {
-        void refreshConnectionSlot(String(socket.data.ip), me.key, socket.id)
-          .catch((err) => console.error('[presence:heartbeat]', err))
-          .finally(scheduleConnectionHeartbeat);
-      }, delay);
-      connectionHeartbeat.unref?.();
-    };
-    scheduleConnectionHeartbeat();
+    heartbeatEntries.set(socket.id, {
+      ip: String(socket.data.ip),
+      identity: me.key,
+      socketId: socket.id,
+    });
     socket.join(identityChannel(me.key));
     const restorePromise = getRoomForIdentity(me.key, true).then(async (existing) => {
       if (!existing) return;
@@ -784,7 +901,11 @@ export function setupSocket(io: Server) {
       await restorePromise;
       if (!(await socketAllowed('create', me.key, 5, 60))) return ack?.({ code: 'RATE_LIMITED' });
       const existing = await getRoomForIdentity(me.key);
-      if (existing) return ack?.({ room: publicRoom(existing, me.key) });
+      if (existing) return ack?.({
+        code: 'ALREADY_IN_ROOM',
+        room: publicRoom(existing, me.key),
+        role: existing.players.some((player) => player.key === me.key) ? 'player' : 'spectator',
+      });
       const boType = ([1, 3, 5, 7] as BoType[]).includes(payload?.boType) ? payload.boType : 3;
       const now = Date.now();
       const roomId = await genRoomId();
@@ -828,7 +949,11 @@ export function setupSocket(io: Server) {
       if (!(await socketAllowed('join', me.key, 20, 60))) return ack?.({ code: 'RATE_LIMITED' });
       const roomId = String(payload?.roomId ?? '').toUpperCase();
       const current = await getRoomForIdentity(me.key);
-      if (current && current.id !== roomId) return ack?.({ code: 'ALREADY_IN_ROOM' });
+      if (current && current.id !== roomId) return ack?.({
+        code: 'ALREADY_IN_ROOM',
+        room: publicRoom(current, me.key),
+        role: current.players.some((player) => player.key === me.key) ? 'player' : 'spectator',
+      });
       const role = await withRoomLock(roomId, (room) => {
         if (room.status === 'finished') return { code: 'ROOM_NOT_FOUND' };
         const player = room.players.find((p) => p.key === me.key);
@@ -938,25 +1063,28 @@ export function setupSocket(io: Server) {
       }
       const result = await withRoomLock(roomId, (locked) => {
         const eventKey = `${me.key}:${eventId}`;
-        const previous = locked.eventResults[eventKey];
-        if (previous) {
-          return { duplicate: true, feedback: previous, round: locked.round, room: structuredClone(locked) };
+        const previousIndex = locked.eventResults[eventKey];
+        if (previousIndex !== undefined) {
+          const previousPlayer = locked.players.find((candidate) => candidate.key === me.key);
+          const previous = previousPlayer?.guesses[previousIndex];
+          if (!previous) return { code: 'NO_ACTIVE_ROUND', reason: 'event_result_missing', room: locked };
+          return { duplicate: true, feedback: previous, round: locked.round, room: locked };
         }
         if (locked.status !== 'playing' || !locked.targetPlayerId) {
-          return { code: 'NO_ACTIVE_ROUND', reason: 'round_not_playing', room: structuredClone(locked) };
+          return { code: 'NO_ACTIVE_ROUND', reason: 'round_not_playing', room: locked };
         }
         if (locked.round !== roundId) {
-          return { code: 'STALE_ROUND', reason: 'round_id_mismatch', room: structuredClone(locked) };
+          return { code: 'STALE_ROUND', reason: 'round_id_mismatch', room: locked };
         }
         if (locked.roundEndsAt && locked.roundEndsAt <= Date.now()) {
-          return { code: 'NO_ACTIVE_ROUND', reason: 'deadline_passed', room: structuredClone(locked) };
+          return { code: 'NO_ACTIVE_ROUND', reason: 'deadline_passed', room: locked };
         }
         const player = locked.players.find((p) => p.key === me.key);
         if (!player) {
-          return { code: 'NO_ACTIVE_ROUND', reason: 'player_missing', room: structuredClone(locked) };
+          return { code: 'NO_ACTIVE_ROUND', reason: 'player_missing', room: locked };
         }
         if (player.socketId !== socket.id) {
-          return { code: 'STALE_CONNECTION', room: structuredClone(locked) };
+          return { code: 'STALE_CONNECTION', room: locked };
         }
         if (player.guesses.length >= MAX_GUESSES) return { code: 'GUESS_LIMIT_REACHED' };
         if (player.guesses.some((item) => item.playerId === guess.id)) return { code: 'ALREADY_GUESSED' };
@@ -964,7 +1092,7 @@ export function setupSocket(io: Server) {
         if (!target) return { code: 'INTERNAL_ERROR' };
         const feedback = compareGuess(guess, target);
         player.guesses.push(feedback);
-        locked.eventResults[eventKey] = feedback;
+        locked.eventResults[eventKey] = player.guesses.length - 1;
         const shouldFinish = feedback.correct || locked.players.every(
           (candidate) => candidate.guesses.length >= MAX_GUESSES
         );
@@ -993,7 +1121,7 @@ export function setupSocket(io: Server) {
           correct: feedback.correct,
           shouldFinish,
           matchOver,
-          room: structuredClone(locked),
+          room: locked,
         };
       }, (value) => !('code' in value) && !('duplicate' in value));
       if (!result) return ack?.({ code: 'NO_ACTIVE_ROUND', reason: 'room_missing' });
@@ -1019,6 +1147,7 @@ export function setupSocket(io: Server) {
       ack?.({ feedback: result.feedback, room: publicRoom(result.room, me.key) });
       if (!('duplicate' in result)) {
         emitRoomViews(io, result.room, 'game:guess:applied', (viewerKey) => ({
+          roomId: result.room.id,
           roundId: result.round,
           key: me.key,
           eventId,
@@ -1053,12 +1182,33 @@ export function setupSocket(io: Server) {
           setLocalTimer(`cleanup:${roomId}`, FINISHED_ROOM_TTL_MS, () => {
             void cleanupRoom(roomId);
           });
-          void scheduleReliably('cleanup', roomId, '0', Date.now() + FINISHED_ROOM_TTL_MS)
-            .catch((err) => console.error('[cleanup:schedule]', err));
         } else {
           setLocalTimer(`next:${roomId}`, NEXT_ROUND_DELAY_MS, () => void startRound(io, roomId));
         }
       }
+    });
+
+    safeOn(socket, 'game:surrender-round', async (payload, ack) => {
+      await restorePromise;
+      if (!(await socketAllowed('surrender', me.key, 5, 60))) {
+        return ack?.({ code: 'RATE_LIMITED' });
+      }
+      const roomId = await getRoomIdForIdentity(me.key);
+      if (!roomId) return ack?.({ code: 'NO_ACTIVE_ROUND' });
+      const roundId = Number(payload?.roundId);
+      if (!Number.isInteger(roundId) || roundId <= 0) {
+        return ack?.({ code: 'VALIDATION_FAILED' });
+      }
+      const result = await surrenderRound(io, roomId, me.key, socket.id, roundId);
+      if (result === 'stale') return ack?.({ code: 'STALE_CONNECTION' });
+      if (!result) {
+        const latest = await getRoom(roomId);
+        return ack?.({
+          code: latest?.round !== roundId ? 'STALE_ROUND' : 'NO_ACTIVE_ROUND',
+          room: latest ? publicRoom(latest, me.key) : undefined,
+        });
+      }
+      ack?.({ ok: true, room: publicRoom(result.room, me.key) });
     });
 
     safeOn(socket, 'room:leave', async (_payload, ack) => {
@@ -1205,8 +1355,7 @@ export function setupSocket(io: Server) {
 
     socket.on('disconnect', () => {
       presenceSubscribers.delete(socket.id);
-      connectionHeartbeatActive = false;
-      if (connectionHeartbeat) clearTimeout(connectionHeartbeat);
+      heartbeatEntries.delete(socket.id);
       if (socket.data.connectionSlot) {
         socket.data.connectionSlot = false;
         void releaseConnectionSlot(String(socket.data.ip), me.key, socket.id)
@@ -1226,13 +1375,13 @@ export function setupSocket(io: Server) {
           if (spectator?.socketId === socket.id) {
             spectator.connected = false;
             spectator.disconnectDeadline = Date.now() + config.disconnectForfeitMs;
-            return { spectator: true, room: structuredClone(locked) };
+            return { spectator: true, room: locked };
           }
           const player = locked.players.find((p) => p.key === me.key);
           if (!player || player.socketId !== socket.id) return null;
           player.connected = false;
           player.disconnectDeadline = Date.now() + config.disconnectForfeitMs;
-          return { deadline: player.disconnectDeadline, room: structuredClone(locked) };
+          return { deadline: player.disconnectDeadline, room: locked };
         });
         if (!result) return;
         if ('spectator' in result || 'removed' in result) {
@@ -1263,10 +1412,14 @@ export function setupSocket(io: Server) {
 
   return async () => {
     clearInterval(worker);
+    clearInterval(heartbeatWorker);
     clearInterval(presenceWorker);
     clearInterval(presenceCleanupWorker);
     presenceSubscribers.clear();
-    if (backgroundTasks.size) await Promise.allSettled([...backgroundTasks]);
+    await Promise.allSettled([
+      heartbeatRequest ?? Promise.resolve(),
+      ...backgroundTasks,
+    ]);
   };
 }
 

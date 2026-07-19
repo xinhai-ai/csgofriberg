@@ -9,6 +9,10 @@ export const POW_COOKIE = 'csgofriberg_pow';
 export const POW_ALGORITHM = 'csgofriberg-pow-v1';
 
 const DOMAIN = Buffer.from(`${POW_ALGORITHM}\0`, 'ascii');
+const MAX_TOKEN_CACHE = 10_000;
+const MAX_FINGERPRINT_CACHE = 512;
+const tokenCache = new Map<string, { access: PowAccess; fingerprint: string }>();
+const fingerprintCache = new Map<string, string>();
 
 interface StoredChallenge {
   challenge: string;
@@ -40,11 +44,19 @@ function cookieOptions(maxAge: number) {
 }
 
 export function browserFingerprint(userAgent: string | undefined): string {
-  return crypto
+  const key = userAgent || 'unknown';
+  const cached = fingerprintCache.get(key);
+  if (cached) return cached;
+  const fingerprint = crypto
     .createHash('sha256')
     .update('csgofriberg-browser-v1\0', 'ascii')
-    .update(userAgent || 'unknown', 'utf8')
+    .update(key, 'utf8')
     .digest('base64url');
+  if (fingerprintCache.size >= MAX_FINGERPRINT_CACHE) {
+    fingerprintCache.delete(fingerprintCache.keys().next().value!);
+  }
+  fingerprintCache.set(key, fingerprint);
+  return fingerprint;
 }
 
 function nonceBuffer(nonce: bigint): Buffer {
@@ -158,6 +170,13 @@ export function verifyPowCookie(
 ): PowAccess | null {
   const token = parseCookies(cookieHeader)[POW_COOKIE];
   if (!token) return null;
+  const cached = tokenCache.get(token);
+  if (cached) {
+    if (cached.access.expiresAt > Date.now() && cached.fingerprint === browserFingerprint(userAgent)) {
+      return cached.access;
+    }
+    tokenCache.delete(token);
+  }
   try {
     const payload = jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] }) as PowTokenPayload;
     if (
@@ -168,7 +187,10 @@ export function verifyPowCookie(
       payload.difficulty < 16 ||
       payload.difficulty > 24
     ) return null;
-    return { expiresAt: payload.exp * 1000, difficulty: payload.difficulty };
+    const access = { expiresAt: payload.exp * 1000, difficulty: payload.difficulty };
+    if (tokenCache.size >= MAX_TOKEN_CACHE) tokenCache.delete(tokenCache.keys().next().value!);
+    tokenCache.set(token, { access, fingerprint: payload.fp });
+    return access;
   } catch {
     return null;
   }

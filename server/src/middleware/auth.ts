@@ -10,6 +10,14 @@ const AUTH_COOKIE = 'csgofriberg_session';
 const GUEST_COOKIE = 'csgofriberg_guest';
 const AUTH_MAX_AGE_MS = 15 * 24 * 60 * 60 * 1000;
 const GUEST_MAX_AGE_MS = 3 * 365 * 24 * 60 * 60 * 1000;
+const MAX_VERIFIED_TOKEN_CACHE = 10_000;
+const verifiedAuthTokens = new Map<string, { payload: AuthTokenPayload; expiresAt: number }>();
+const verifiedGuestTokens = new Map<string, { identity: GuestIdentity; expiresAt: number }>();
+
+function cacheToken<T>(cache: Map<string, T>, token: string, value: T): void {
+  if (cache.size >= MAX_VERIFIED_TOKEN_CACHE) cache.delete(cache.keys().next().value!);
+  cache.set(token, value);
+}
 
 interface AuthTokenPayload {
   sub: string;
@@ -108,10 +116,20 @@ function signGuestToken(key: string): string {
 
 function verifyGuestToken(token: string | undefined): GuestIdentity | null {
   if (!token) return null;
+  const cached = verifiedGuestTokens.get(token);
+  if (cached) {
+    if (cached.expiresAt > Date.now()) return cached.identity;
+    verifiedGuestTokens.delete(token);
+  }
   try {
-    const payload = jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] }) as GuestTokenPayload;
+    const payload = jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] }) as GuestTokenPayload & { exp?: number };
     if (payload.typ !== 'guest' || !/^[\w-]{8,64}$/.test(payload.key)) return null;
-    return { key: payload.key, name: guestNameFromKey(payload.key) };
+    const identity = { key: payload.key, name: guestNameFromKey(payload.key) };
+    cacheToken(verifiedGuestTokens, token, {
+      identity,
+      expiresAt: (payload.exp ?? 0) * 1000,
+    });
+    return identity;
   } catch {
     return null;
   }
@@ -134,10 +152,21 @@ export async function authenticateCookie(cookieHeader: string | undefined): Prom
   const token = parseCookies(cookieHeader)[AUTH_COOKIE];
   if (!token) return null;
   let payload: AuthTokenPayload;
-  try {
-    payload = jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] }) as AuthTokenPayload;
-  } catch {
-    return null;
+  const cachedToken = verifiedAuthTokens.get(token);
+  if (cachedToken && cachedToken.expiresAt > Date.now()) {
+    payload = cachedToken.payload;
+  } else {
+    if (cachedToken) verifiedAuthTokens.delete(token);
+    try {
+      const verified = jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] }) as AuthTokenPayload & { exp?: number };
+      payload = verified;
+      cacheToken(verifiedAuthTokens, token, {
+        payload,
+        expiresAt: (verified.exp ?? 0) * 1000,
+      });
+    } catch {
+      return null;
+    }
   }
   if (payload.typ !== 'auth' || !/^\d+$/.test(payload.sub)) return null;
   const userId = Number(payload.sub);

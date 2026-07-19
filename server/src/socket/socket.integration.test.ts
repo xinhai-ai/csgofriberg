@@ -12,6 +12,7 @@ import { browserFingerprint, POW_COOKIE } from '../services/pow';
 import jwt from 'jsonwebtoken';
 import { config } from '../config';
 import { guestNameFromKey, signToken } from '../middleware/auth';
+import { getRoom, withRoomLock } from '../services/roomStore';
 
 let server: http.Server;
 let io: Server;
@@ -514,6 +515,152 @@ describe('multiplayer socket integration', () => {
         reason: 'guessed',
         matchOver: true,
       });
+    } finally {
+      a.disconnect();
+      b.disconnect();
+    }
+  });
+
+  it('returns the current room when creating or joining another room', async () => {
+    const stamp = Date.now();
+    const owner = await connect(withPowCookie(`csgofriberg_guest=${jwt.sign(
+      { key: `already-owner-${stamp}`, typ: 'guest' }, config.jwtSecret, { expiresIn: '1h' }
+    )}`));
+    const other = await connect(withPowCookie(`csgofriberg_guest=${jwt.sign(
+      { key: `already-other-${stamp}`, typ: 'guest' }, config.jwtSecret, { expiresIn: '1h' }
+    )}`));
+    try {
+      const current = await emit(owner, 'room:create', { dbType: 'easy', boType: 3 });
+      const target = await emit(other, 'room:create', { dbType: 'easy', boType: 3 });
+      createdRoomIds.push(current.room.id, target.room.id);
+
+      const repeatedCreate = await emit(owner, 'room:create', { dbType: 'normal', boType: 1 });
+      expect(repeatedCreate).toMatchObject({
+        code: 'ALREADY_IN_ROOM',
+        role: 'player',
+        room: { id: current.room.id },
+      });
+      const crossJoin = await emit(owner, 'room:join', { roomId: target.room.id });
+      expect(crossJoin).toMatchObject({
+        code: 'ALREADY_IN_ROOM',
+        role: 'player',
+        room: { id: current.room.id },
+      });
+    } finally {
+      owner.disconnect();
+      other.disconnect();
+    }
+  });
+
+  it('allows surrendering only the active round and scores it once', async () => {
+    const stamp = Date.now();
+    const keyA = `surrender-a-${stamp}`;
+    const keyB = `surrender-b-${stamp}`;
+    const a = await connect(withPowCookie(`csgofriberg_guest=${jwt.sign(
+      { key: keyA, typ: 'guest' }, config.jwtSecret, { expiresIn: '1h' }
+    )}`));
+    const b = await connect(withPowCookie(`csgofriberg_guest=${jwt.sign(
+      { key: keyB, typ: 'guest' }, config.jwtSecret, { expiresIn: '1h' }
+    )}`));
+    try {
+      const created = await emit(a, 'room:create', { dbType: 'easy', boType: 3 });
+      createdRoomIds.push(created.room.id);
+      await emit(b, 'room:join', { roomId: created.room.id });
+      await emit(b, 'room:ready', { ready: true });
+      await emit(a, 'game:start');
+      const active = await emit(a, 'room:sync');
+      const results = await Promise.all([
+        emit(a, 'game:surrender-round', { roundId: active.room.roundId }),
+        emit(a, 'game:surrender-round', { roundId: active.room.roundId }),
+      ]);
+      expect(results.filter((result) => result.ok)).toHaveLength(1);
+      expect(results.some((result) => result.code === 'NO_ACTIVE_ROUND')).toBe(true);
+
+      const synced = await emit(b, 'room:sync');
+      expect(synced.room.status).toBe('round_over');
+      expect(synced.room.roundResult).toMatchObject({
+        winnerKey: `g:${keyB}`,
+        reason: 'surrender',
+        matchOver: false,
+      });
+      expect(synced.room.players.find((player: any) => player.key === `g:${keyB}`).score).toBe(1);
+      expect(synced.room.players.find((player: any) => player.key === `g:${keyA}`).score).toBe(0);
+    } finally {
+      a.disconnect();
+      b.disconnect();
+    }
+  });
+
+  it('finishes a BO1 match when the active round is surrendered', async () => {
+    const stamp = Date.now();
+    const keyA = `surrender-bo1-a-${stamp}`;
+    const keyB = `surrender-bo1-b-${stamp}`;
+    const a = await connect(withPowCookie(`csgofriberg_guest=${jwt.sign(
+      { key: keyA, typ: 'guest' }, config.jwtSecret, { expiresIn: '1h' }
+    )}`));
+    const b = await connect(withPowCookie(`csgofriberg_guest=${jwt.sign(
+      { key: keyB, typ: 'guest' }, config.jwtSecret, { expiresIn: '1h' }
+    )}`));
+    try {
+      const created = await emit(a, 'room:create', { dbType: 'easy', boType: 1 });
+      createdRoomIds.push(created.room.id);
+      await emit(b, 'room:join', { roomId: created.room.id });
+      await emit(b, 'room:ready', { ready: true });
+      await emit(a, 'game:start');
+      const active = await emit(a, 'room:sync');
+      expect((await emit(a, 'game:surrender-round', { roundId: active.room.roundId })).ok).toBe(true);
+      const synced = await emit(b, 'room:sync');
+      expect(synced.room.status).toBe('finished');
+      expect(synced.room.matchResult).toMatchObject({
+        winnerKey: `g:${keyB}`,
+        reason: 'score',
+      });
+    } finally {
+      a.disconnect();
+      b.disconnect();
+    }
+  });
+
+  it('does not jump back when an old room is saved after a new room starts', async () => {
+    const stamp = Date.now();
+    const keyA = `room-switch-a-${stamp}`;
+    const keyB = `room-switch-b-${stamp}`;
+    const a = await connect(withPowCookie(`csgofriberg_guest=${jwt.sign(
+      { key: keyA, typ: 'guest' }, config.jwtSecret, { expiresIn: '1h' }
+    )}`));
+    const b = await connect(withPowCookie(`csgofriberg_guest=${jwt.sign(
+      { key: keyB, typ: 'guest' }, config.jwtSecret, { expiresIn: '1h' }
+    )}`));
+    try {
+      const first = await emit(a, 'room:create', { dbType: 'easy', boType: 1 });
+      createdRoomIds.push(first.room.id);
+      await emit(b, 'room:join', { roomId: first.room.id });
+      await emit(b, 'room:ready', { ready: true });
+      await emit(a, 'game:start');
+      const firstStored = JSON.parse((await redis()!.get(redisKey(`room:${first.room.id}`)))!);
+      await emit(a, 'game:guess', {
+        playerId: firstStored.targetPlayerId,
+        roundId: firstStored.round,
+        eventId: `switch-${stamp}-first`,
+      });
+      await emit(a, 'room:leave');
+      await emit(b, 'room:leave');
+
+      const second = await emit(a, 'room:create', { dbType: 'easy', boType: 3 });
+      createdRoomIds.push(second.room.id);
+      await emit(b, 'room:join', { roomId: second.room.id });
+      await emit(b, 'room:ready', { ready: true });
+      await emit(a, 'game:start');
+
+      await withRoomLock(first.room.id, (oldRoom) => {
+        oldRoom.updatedAt = Date.now();
+      });
+
+      expect(await redis()!.get(redisKey(`identity-room:g:${keyA}`))).toBe(second.room.id);
+      expect(await redis()!.get(redisKey(`identity-room:g:${keyB}`))).toBe(second.room.id);
+      expect((await emit(a, 'room:sync')).room.id).toBe(second.room.id);
+      expect((await emit(b, 'room:sync')).room.id).toBe(second.room.id);
+      expect((await getRoom(first.room.id))?.status).toBe('finished');
     } finally {
       a.disconnect();
       b.disconnect();

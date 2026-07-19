@@ -26,8 +26,19 @@ import powRoutes from './routes/pow';
 import { requirePow } from './middleware/pow';
 import { closePasswordWorkers } from './services/password';
 import { getRuntimeSnapshot, startRuntimeMonitor } from './services/runtimeMonitor';
+import { requireAdmin, requireAuth } from './middleware/auth';
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
+
+function rejectOversizedBody(maxBytes: number) {
+  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const declared = Number(req.headers['content-length'] || 0);
+    if (Number.isFinite(declared) && declared > maxBytes) {
+      return res.status(413).json({ code: 'PAYLOAD_TOO_LARGE' });
+    }
+    next();
+  };
+}
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, onTimeout: () => void): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -101,9 +112,16 @@ async function main() {
     })
   );
   app.use('/api', rateLimit({ name: 'api', limit: 600, windowSeconds: 60 }));
-  app.use('/api', express.json({ limit: '2mb' }));
+  app.use('/api/pow', rejectOversizedBody(16 * 1024), express.json({ limit: '16kb' }));
   app.use('/api/pow', powRoutes);
   app.use('/api', requirePow);
+  app.use('/api/admin/players/import', requireAuth, requireAdmin);
+  app.use(
+    '/api/admin/players/import',
+    rejectOversizedBody(1024 * 1024),
+    express.json({ limit: '1mb' })
+  );
+  app.use('/api', rejectOversizedBody(64 * 1024), express.json({ limit: '64kb' }));
 
   app.use('/api/auth', authRoutes);
   app.use('/api/players', playerRoutes);

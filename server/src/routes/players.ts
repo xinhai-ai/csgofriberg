@@ -1,9 +1,7 @@
 import { Router } from 'express';
-import { db } from '../db/knex';
 import { asyncHandler } from '../middleware/common';
-import { Player } from '../types';
 import { ageOf } from '../services/gameService';
-import { getPublicPlayerList } from '../services/playerCache';
+import { getPublicPlayerList, searchCachedPlayers } from '../services/playerCache';
 import { rateLimit } from '../middleware/rateLimit';
 
 const router = Router();
@@ -38,14 +36,7 @@ router.get(
     const search = String(req.query.search ?? '').trim();
     const suggest = req.query.suggest === '1';
 
-    let query = db<Player>('players').where({ is_enabled: true }).orderBy('nickname');
-    if (search) {
-      query = query.where((b) => {
-        b.whereILike('nickname', `%${search}%`)
-          .orWhereILike('team', `%${search}%`);
-      });
-    }
-    const players = await query.limit(suggest ? 10 : 100);
+    const players = searchCachedPlayers(search, suggest ? 10 : 100);
 
     if (suggest) {
       return res.json(players.map((p) => ({ id: p.id, nickname: p.nickname })));

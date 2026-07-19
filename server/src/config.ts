@@ -26,6 +26,7 @@ export const config = {
   dbUrl: process.env.DB_URL || './data/csgofriberg.sqlite3',
   dbPoolMin: Number(process.env.DB_POOL_MIN || 2),
   dbPoolMax: Number(process.env.DB_POOL_MAX || 20),
+  dbAcquireTimeoutMs: Math.max(500, Number(process.env.DB_ACQUIRE_TIMEOUT_MS || 3000)),
   trustProxy: process.env.TRUST_PROXY === 'true',
   redisUrl: process.env.REDIS_URL || 'redis://127.0.0.1:6379',
   redisPrefix: process.env.REDIS_PREFIX || 'csgofriberg:',

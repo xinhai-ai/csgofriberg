@@ -9,6 +9,7 @@ function buildConfig(): Knex.Config {
       client: 'pg',
       connection: config.dbUrl,
       pool: { min: config.dbPoolMin, max: config.dbPoolMax },
+      acquireConnectionTimeout: config.dbAcquireTimeoutMs,
     };
   }
   const file = path.isAbsolute(config.dbUrl)

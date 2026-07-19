@@ -10,7 +10,8 @@ x-app-environment: &app-environment
   DB_CLIENT: pg
   DB_URL: postgres://${POSTGRES_USER:-csgofriberg}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-csgofriberg}
   DB_POOL_MIN: ${DB_POOL_MIN:-0}
-  DB_POOL_MAX: ${DB_POOL_MAX:-5}
+  DB_POOL_MAX: ${DB_POOL_MAX:-10}
+  DB_ACQUIRE_TIMEOUT_MS: ${DB_ACQUIRE_TIMEOUT_MS:-3000}
   REDIS_URL: redis://redis:6379
   REDIS_PREFIX: ${REDIS_PREFIX:-csgofriberg:}
   REDIS_REQUIRED: "true"
@@ -114,7 +115,7 @@ services:
       - --appendfsync
       - everysec
       - --maxmemory
-      - 80mb
+      - 96mb
       - --maxmemory-policy
       - noeviction
     volumes:

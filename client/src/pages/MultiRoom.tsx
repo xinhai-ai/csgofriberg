@@ -12,6 +12,7 @@ import {
   Eye,
   EyeOff,
   Timer,
+  Flag,
 } from 'lucide-react';
 import Page from '../components/Page';
 import GuessBoard from '../components/GuessBoard';
@@ -46,6 +47,7 @@ const ROUND_OVER_REASON: Record<string, string> = {
   guessed: '猜中目标',
   exhausted: '双方次数用尽',
   timeout: '本局时间到',
+  surrender: '一方选择本轮投降',
 };
 
 /** 每局倒计时,从服务端下发的截止时间戳换算 */
@@ -122,15 +124,18 @@ export default function MultiRoom() {
   const [showRoomCode, setShowRoomCode] = useState(false);
   const [myKey, setMyKey] = useState('');
   const [roundExpired, setRoundExpired] = useState(false);
+  const [surrendering, setSurrendering] = useState(false);
   const navigate = useNavigate();
   const confirm = useConfirm();
   const roomRef = useRef<RoomState | null>(null);
   const myKeyRef = useRef('');
+  const syncSequenceRef = useRef(0);
   roomRef.current = room;
   myKeyRef.current = myKey;
 
-  const applyRoomSnapshot = useCallback((state: RoomState) => {
+  const applyRoomSnapshot = useCallback((state: RoomState, authoritative = false) => {
     const current = roomRef.current;
+    if (!authoritative && (!current || state.id !== current.id)) return;
     if (current && state.id === current.id && state.stateVersion < current.stateVersion) return;
     roomRef.current = state;
     setRoom(state);
@@ -139,6 +144,15 @@ export default function MultiRoom() {
     setMatchOver(state.matchResult);
     if (state.players.every((player) => player.connected)) setOfflineNote('');
   }, []);
+
+  const syncRoom = useCallback((socket = getSocket()) => {
+    const sequence = ++syncSequenceRef.current;
+    socket.emit('room:sync', {}, (res: any) => {
+      if (sequence !== syncSequenceRef.current) return;
+      if (res?.selfKey) setMyKey(res.selfKey);
+      if (res?.room) applyRoomSnapshot(res.room, true);
+    });
+  }, [applyRoomSnapshot]);
 
   useEffect(() => {
     const socket = getSocket();
@@ -172,6 +186,7 @@ export default function MultiRoom() {
     const onRoomError = (p: { code: string }) => setError(translate(p.code));
     const onIdentity = (p: { key: string }) => setMyKey(p.key);
     const onGuessApplied = (p: {
+      roomId: string;
       roundId: number;
       key: string;
       eventId: string;
@@ -180,12 +195,10 @@ export default function MultiRoom() {
       feedback: MultiplayerGuessFeedback;
     }) => {
       setRoom((current) => {
-        if (!current || current.roundId !== p.roundId) return current;
+        if (!current || current.id !== p.roomId || current.roundId !== p.roundId) return current;
         if (p.stateVersion <= current.stateVersion) return current;
         if (p.stateVersion !== current.stateVersion + 1) {
-          socket.emit('room:sync', {}, (sync: any) => {
-            if (sync?.room) applyRoomSnapshot(sync.room);
-          });
+          syncRoom(socket);
           return current;
         }
         const feedback = p.feedback;
@@ -196,9 +209,7 @@ export default function MultiRoom() {
             if (player.key !== p.key) return player;
             if (p.guessCount <= player.guessCount) return player;
             if (p.guessCount !== player.guessCount + 1) {
-              socket.emit('room:sync', {}, (sync: any) => {
-                if (sync?.room) applyRoomSnapshot(sync.room);
-              });
+              syncRoom(socket);
               return player;
             }
             const duplicate = !('hidden' in feedback) && player.guesses.some(
@@ -229,10 +240,7 @@ export default function MultiRoom() {
     // 切回页面(含 bfcache 恢复/移动端切回)时重连并重新同步房间状态
     const resync = () => {
       const s = getSocket(); // 内部会对手动断开的 socket 执行 connect()
-      s.emit('room:sync', {}, (res: any) => {
-        if (res?.selfKey) setMyKey(res.selfKey);
-        if (res?.room) applyRoomSnapshot(res.room);
-      });
+      syncRoom(s);
     };
     const onPageShow = () => resync();
     const onVisible = () => {
@@ -245,9 +253,11 @@ export default function MultiRoom() {
     socket.on('connect', resync);
 
     // 主动向服务端同步一次房间状态;确认不在任何房间才回大厅
+    const initialSequence = ++syncSequenceRef.current;
     socket.emit('room:sync', {}, (res: any) => {
+      if (initialSequence !== syncSequenceRef.current) return;
       if (res?.selfKey) setMyKey(res.selfKey);
-      if (res?.room) applyRoomSnapshot(res.room);
+      if (res?.room) applyRoomSnapshot(res.room, true);
       else if (!roomRef.current) navigate('/multi');
     });
     return () => {
@@ -264,7 +274,7 @@ export default function MultiRoom() {
       document.removeEventListener('visibilitychange', onVisible);
       socket.off('connect', resync);
     };
-  }, [applyRoomSnapshot, navigate]);
+  }, [applyRoomSnapshot, navigate, syncRoom]);
 
   const emit = (event: string, payload: unknown = {}) => {
     setError('');
@@ -288,9 +298,7 @@ export default function MultiRoom() {
     const timer = window.setTimeout(() => {
       if (!finish()) return;
       setError(translate('NETWORK_ERROR'));
-      socket.emit('room:sync', {}, (sync: any) => {
-        if (sync?.room) applyRoomSnapshot(sync.room);
-      });
+      syncRoom(socket);
     }, 5_000);
     socket.emit('game:guess', {
       playerId,
@@ -302,16 +310,12 @@ export default function MultiRoom() {
       if (res?.room) applyRoomSnapshot(res.room);
       if (res?.code === 'NO_ACTIVE_ROUND' || res?.code === 'STALE_ROUND') {
         setError('');
-        socket.emit('room:sync', {}, (sync: any) => {
-          if (sync?.room) applyRoomSnapshot(sync.room);
-        });
+        syncRoom(socket);
         return;
       }
       if (res?.code === 'ROOM_BUSY') {
         setError('');
-        socket.emit('room:sync', {}, (sync: any) => {
-          if (sync?.room) applyRoomSnapshot(sync.room);
-        });
+        syncRoom(socket);
         return;
       }
       if (res?.code) setError(translate(res.code));
@@ -333,6 +337,28 @@ export default function MultiRoom() {
     })) return;
     emit('room:leave');
     navigate('/multi');
+  };
+
+  const surrenderRound = async () => {
+    const current = roomRef.current;
+    if (!current || current.status !== 'playing' || surrendering) return;
+    if (!await confirm({
+      title: '投降本轮?',
+      message: '投降后对手将立即获得本轮分数；如果对手达到赛点，整场比赛会直接结束。',
+      confirmLabel: '确认投降本轮',
+      tone: 'danger',
+    })) return;
+    setSurrendering(true);
+    getSocket().emit('game:surrender-round', { roundId: current.roundId }, (res: any) => {
+      setSurrendering(false);
+      if (res?.room) applyRoomSnapshot(res.room);
+      if (res?.code === 'NO_ACTIVE_ROUND' || res?.code === 'STALE_ROUND') {
+        setError('');
+        syncRoom();
+        return;
+      }
+      if (res?.code) setError(translate(res.code));
+    });
   };
 
   const me = room?.players.find((p) => p.key === myKey);
@@ -380,6 +406,16 @@ export default function MultiRoom() {
             <DoorOpen size={15} />
             <span className="btn-text">{isSpectator ? '退出观战' : '离开房间'}</span>
           </button>
+          {playing && me && (
+            <button
+              className="btn btn-ghost btn-sm"
+              disabled={roundExpired || surrendering}
+              onClick={() => void surrenderRound()}
+            >
+              <Flag size={15} />
+              <span className="btn-text">{surrendering ? '处理中' : '投降本轮'}</span>
+            </button>
+          )}
         </div>
       }
       statusBar={

@@ -37,6 +37,12 @@ export function errorHandler(
   if (err instanceof Error && err.message === 'PASSWORD_SERVICE_BUSY') {
     return res.status(503).json({ code: 'AUTH_BUSY' });
   }
+  if (err instanceof Error && 'type' in err && err.type === 'entity.too.large') {
+    return res.status(413).json({ code: 'PAYLOAD_TOO_LARGE' });
+  }
+  if (err instanceof Error && err.message.includes('Timeout acquiring a connection')) {
+    return res.status(503).json({ code: 'DATABASE_BUSY' });
+  }
   console.error(err);
   res.status(500).json({ code: 'INTERNAL_ERROR' });
 }
