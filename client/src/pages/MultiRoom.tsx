@@ -331,6 +331,7 @@ export default function MultiRoom() {
           </button>
           <button
             className="btn btn-danger btn-sm"
+            aria-label={isSpectator ? '退出观战' : '离开房间'}
             onClick={() => void leaveRoom()}
           >
             <DoorOpen size={15} />

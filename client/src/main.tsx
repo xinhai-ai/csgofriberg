@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { RouterProvider } from 'react-router-dom';
 import { router } from './router';
 import './styles.css';
+import './theme-blast.css';
 import { initializeIdentity } from './api/session';
 import { ConfirmProvider } from './components/ConfirmDialog';
 import { ensurePow } from './api/pow';

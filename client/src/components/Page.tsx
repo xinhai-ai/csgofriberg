@@ -46,7 +46,9 @@ export default function Page({
         </span>
       </div>
       {statusBar && <div className="status-bar">{statusBar}</div>}
-      <div className="page-scroll">{children}</div>
+      <main className="page-scroll" id="main-content">
+        {children}
+      </main>
       {dock && <div className="input-dock">{dock}</div>}
     </div>
   );

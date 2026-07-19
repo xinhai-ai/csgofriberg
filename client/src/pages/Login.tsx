@@ -46,7 +46,7 @@ export default function Login() {
 
   return (
     <Page title={mode === 'login' ? '登录' : '注册'} icon={<KeyRound size={17} />}>
-      <div className="card">
+      <div className="card auth-card">
         <p className="muted" style={{ textAlign: 'center' }}>
           登录仅用于跨设备保存战绩与进度,所有模式无需登录即可游玩
         </p>

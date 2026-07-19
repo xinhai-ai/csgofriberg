@@ -310,7 +310,7 @@ export default function MultiLobby() {
               加入已有房间
             </h3>
             <p className="muted">输入房间码后按回车加入</p>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <div className="join-room-form">
               <input
                 className="input"
                 placeholder="5 位房间码"
