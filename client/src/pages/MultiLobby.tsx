@@ -54,7 +54,7 @@ export default function MultiLobby() {
   const [dbType, setDbType] = useState<DbType>('normal');
   const [boType, setBoType] = useState(3);
   const [allowSpectators, setAllowSpectators] = useState(false);
-  const [anonymous, setAnonymous] = useState(false);
+  const anonymous = true;
   const [mmDbType, setMmDbType] = useState<DbType>('normal');
   const mmAnonymous = true;
   const [joinCode, setJoinCode] = useState('');
@@ -334,14 +334,6 @@ export default function MultiLobby() {
                 onChange={(event) => setAllowSpectators(event.target.checked)}
               />
               <span>允许观战</span>
-            </label>
-            <label className="spectator-option">
-              <input
-                type="checkbox"
-                checked={anonymous}
-                onChange={(event) => setAnonymous(event.target.checked)}
-              />
-              <span>匿名房间</span>
             </label>
             <div style={{ textAlign: 'center', marginTop: 14 }}>
               <button className="btn btn-lg" onClick={() => void create()}>
