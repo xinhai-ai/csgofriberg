@@ -16,12 +16,23 @@ const sourceFiles = [
 ];
 const sourceHash = createHash('sha256');
 for (const file of sourceFiles) {
-  sourceHash.update(path.relative(repoRoot, file));
+  sourceHash.update(path.relative(repoRoot, file).split(path.sep).join('/'));
   sourceHash.update('\0');
-  sourceHash.update(readFileSync(file));
+  // Git may check text files out with CRLF on Windows and LF in CI. Hash the
+  // logical source instead of platform-specific line endings.
+  sourceHash.update(readFileSync(file, 'utf8').replace(/\r\n/g, '\n'));
   sourceHash.update('\0');
 }
 const expectedSourceHash = sourceHash.digest('hex');
+const precompiledMatchesSource = existsSync(destination)
+  && existsSync(sourceHashFile)
+  && readFileSync(sourceHashFile, 'utf8').trim() === expectedSourceHash;
+
+if (precompiledMatchesSource && process.env.FORCE_POW_BUILD !== 'true') {
+  console.log('[build:pow] 预编译 PoW WASM 与当前源码匹配,跳过 Rust 编译');
+  process.exit(0);
+}
+
 const windowsCacheRoot = process.env.RUST_CACHE_ROOT || 'E:\\Data\\CacheData\\rust';
 const fallbackCargoHome = process.platform === 'win32'
   ? path.join(windowsCacheRoot, 'cargo')
@@ -46,9 +57,6 @@ const result = spawnSync(
 
 if (result.error || result.status !== 0) {
   const reason = result.error?.message || `Cargo 退出码 ${result.status ?? 'unknown'}`;
-  const precompiledMatchesSource = existsSync(destination)
-    && existsSync(sourceHashFile)
-    && readFileSync(sourceHashFile, 'utf8').trim() === expectedSourceHash;
   if (precompiledMatchesSource) {
     console.warn(`[build:pow] Rust 构建不可用(${reason}),使用已有的预编译 PoW WASM`);
     process.exit(0);
