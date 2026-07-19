@@ -70,7 +70,7 @@ ADMIN_USERNAME=admin ADMIN_PASSWORD='至少12位强密码' pnpm create-admin
 ## Docker 生产部署
 
 生产环境使用 PostgreSQL 专用的精简 Docker 镜像。GitHub Actions 自动执行
-测试、前后端编译、多架构镜像构建，并发布到
+测试、前后端编译、`linux/amd64` 镜像构建，并发布到
 `ghcr.io/xinhai-ai/csgofriberg`。运行镜像不包含 Rust、pnpm、TypeScript、Vite、
 源码、测试、构建工具或 SQLite 驱动。
 

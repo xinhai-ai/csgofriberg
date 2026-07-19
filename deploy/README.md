@@ -163,7 +163,7 @@ container restart.
 
 `.github/workflows/docker.yml` runs tests and the complete production build on
 pull requests. Pushes to `main`, version tags such as `v1.2.3`, and manual runs
-also build `linux/amd64` and `linux/arm64` images and publish them to GHCR.
+also build the `linux/amd64` image and publish it to GHCR.
 
 Published tags include:
 
