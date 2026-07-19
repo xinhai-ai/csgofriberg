@@ -129,8 +129,9 @@ export default function Home() {
       {logoutError && <div className="status-bar"><span className="error">{logoutError}</span></div>}
       <main className="page-scroll" id="main-content">
         <div className="home-hero">
+          <span className="hero-kicker">CS MAJOR // PLAYER GUESSING</span>
           <h1>弗一把</h1>
-          <p>CS:GO / CS2 Major 选手猜测游戏</p>
+          <p className="hero-subtitle">CS:GO / CS2 Major 选手猜测游戏</p>
           {initialized && !user && (
             <p className="muted" style={{ marginTop: 6 }}>
               无需登录即可游玩,战绩保存在本机;登录后自动同步到账号
@@ -138,10 +139,34 @@ export default function Home() {
           )}
         </div>
         <div className="menu-grid">
-          <MenuCard to="/single/easy" icon={<Gamepad2 size={22} />} label="简单版" color="#16a34a" />
-          <MenuCard to="/single/normal" icon={<Flame size={22} />} label="完整版" color="#dc2626" />
-          <MenuCard to="/search" icon={<Search size={22} />} label="查选手" color="#2563eb" />
-          <MenuCard to="/multi" icon={<Globe size={22} />} label="多人联机" color="#d97706" />
+          <MenuCard
+            to="/single/easy"
+            icon={<Gamepad2 size={22} />}
+            label="简单版"
+            description="知名选手池 · 快速上手"
+            color="#74e38f"
+          />
+          <MenuCard
+            to="/single/normal"
+            icon={<Flame size={22} />}
+            label="完整版"
+            description="完整数据库 · 终极挑战"
+            color="#ff6578"
+          />
+          <MenuCard
+            to="/search"
+            icon={<Search size={22} />}
+            label="查选手"
+            description="队伍、国籍与 Major 履历"
+            color="#65a8ff"
+          />
+          <MenuCard
+            to="/multi"
+            icon={<Globe size={22} />}
+            label="多人联机"
+            description="创建房间或随机匹配"
+            color="#ffb64e"
+          />
         </div>
         <div className="bottom-bar">
           <Link to="/stats" className="btn">
