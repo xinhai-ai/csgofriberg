@@ -114,6 +114,22 @@ export interface RoomState {
   } | null;
 }
 
+export interface RoomPatch {
+  roomId: string;
+  baseVersion: number;
+  stateVersion: number;
+  hostKey?: string;
+  players?: {
+    added?: RoomPlayer[];
+    updated?: Array<Partial<RoomPlayer> & { key: string }>;
+    removed?: string[];
+  };
+  spectators?: {
+    added?: Array<{ key: string; name: string }>;
+    removed?: string[];
+  };
+}
+
 export interface PresenceStats {
   onlineUsers: number;
   multiplayerRooms: number;

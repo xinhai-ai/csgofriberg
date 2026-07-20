@@ -114,12 +114,85 @@ async function clearBenchmarkKeys() {
   }
 }
 
+function serializedBytes(value) {
+  return Buffer.byteLength(JSON.stringify(value), 'utf8');
+}
+
+function payloadComparison(spectatorCount = 100) {
+  const spectators = Array.from({ length: spectatorCount }, (_, index) => ({
+    key: `g:00000000-0000-4000-8000-${String(index).padStart(12, '0')}`,
+    name: `spectator-${index}`,
+  }));
+  const room = {
+    id: 'ABCDE',
+    hostKey: 'g:player-a',
+    status: 'waiting',
+    dbType: 'normal',
+    boType: 3,
+    allowSpectators: true,
+    anonymous: false,
+    round: 0,
+    winsNeeded: 2,
+    maxGuesses: 8,
+    roundEndsAt: null,
+    roundId: 0,
+    stateVersion: 42,
+    spectators,
+    roundResult: null,
+    matchResult: null,
+    players: ['a', 'b'].map((key, index) => ({
+      key: `g:player-${key}`,
+      name: `player-${index + 1}`,
+      ready: index === 0,
+      connected: true,
+      score: 0,
+      guessCount: 0,
+      guesses: [],
+    })),
+  };
+  const readyPatch = {
+    roomId: room.id,
+    baseVersion: 41,
+    stateVersion: 42,
+    players: { updated: [{ key: 'g:player-b', ready: true }] },
+  };
+  const guessBase = {
+    kind: 'applied',
+    round: 1,
+    correct: false,
+    shouldFinish: false,
+    matchOver: false,
+    revision: 43,
+    guessCount: 1,
+    playerKeys: ['g:player-a', 'g:player-b'],
+  };
+  const oldGuessResult = { ...guessBase, spectatorKeys: spectators.map((item) => item.key) };
+  const newGuessResult = guessBase;
+  const fullRoomBytes = serializedBytes(room);
+  const readyPatchBytes = serializedBytes(readyPatch);
+  const oldGuessBytes = serializedBytes(oldGuessResult);
+  const newGuessBytes = serializedBytes(newGuessResult);
+  return {
+    spectatorCount,
+    readyBroadcast: {
+      fullRoomBytes,
+      patchBytes: readyPatchBytes,
+      reduction: Number((fullRoomBytes / readyPatchBytes).toFixed(2)),
+    },
+    guessLuaResponse: {
+      oldBytes: oldGuessBytes,
+      newBytes: newGuessBytes,
+      reduction: Number((oldGuessBytes / newGuessBytes).toFixed(2)),
+    },
+  };
+}
+
 (async () => {
   await initRedis();
   try {
     const results = [];
     for (const count of [10, 40, 100]) results.push(await run(count));
-    console.log(JSON.stringify(results, null, 2));
+    console.log(JSON.stringify({ cleanup: results, payloads: payloadComparison() }, null, 2));
   } finally {
     await clearBenchmarkKeys();
     await closeRedis();

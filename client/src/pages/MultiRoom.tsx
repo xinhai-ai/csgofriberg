@@ -20,7 +20,7 @@ import GuessInputBar from '../components/GuessInputBar';
 import AnswerOverlay, { AnswerInfo } from '../components/AnswerOverlay';
 import { getSocket } from '../api/socket';
 import { translate } from '../i18n/messages';
-import { MultiplayerGuessFeedback, RoomState, RoomPlayer } from '../types';
+import { MultiplayerGuessFeedback, RoomPatch, RoomState, RoomPlayer } from '../types';
 import { useConfirm } from '../components/ConfirmDialog';
 
 interface RoundOver {
@@ -38,6 +38,39 @@ interface MatchOver {
 }
 
 const MULTI_GUESS_INTERVAL_MS = 3_000;
+
+function applyRoomPatchState(current: RoomState, patch: RoomPatch): RoomState {
+  const removedPlayers = new Set(patch.players?.removed ?? []);
+  let players = current.players
+    .filter((player) => !removedPlayers.has(player.key))
+    .map((player) => {
+      const update = patch.players?.updated?.find((candidate) => candidate.key === player.key);
+      return update ? { ...player, ...update } : player;
+    });
+  for (const added of patch.players?.added ?? []) {
+    const index = players.findIndex((player) => player.key === added.key);
+    if (index >= 0) players[index] = added;
+    else players = [...players, added];
+  }
+
+  const removedSpectators = new Set(patch.spectators?.removed ?? []);
+  let spectators = current.spectators.filter(
+    (spectator) => !removedSpectators.has(spectator.key)
+  );
+  for (const added of patch.spectators?.added ?? []) {
+    const index = spectators.findIndex((spectator) => spectator.key === added.key);
+    if (index >= 0) spectators[index] = added;
+    else spectators = [...spectators, added];
+  }
+
+  return {
+    ...current,
+    stateVersion: patch.stateVersion,
+    hostKey: patch.hostKey ?? current.hostKey,
+    players,
+    spectators,
+  };
+}
 
 const MATCH_OVER_REASON: Record<string, string> = {
   score: '率先拿下赛点',
@@ -174,6 +207,20 @@ export default function MultiRoom() {
     const onState = (state: RoomState) => {
       applyRoomSnapshot(state);
     };
+    const onPatch = (patch: RoomPatch) => {
+      setRoom((current) => {
+        if (!current || current.id !== patch.roomId) return current;
+        if (patch.stateVersion <= current.stateVersion) return current;
+        if (patch.baseVersion !== current.stateVersion) {
+          syncRoom(socket);
+          return current;
+        }
+        const next = applyRoomPatchState(current, patch);
+        roomRef.current = next;
+        if (next.players.every((player) => player.connected)) setOfflineNote('');
+        return next;
+      });
+    };
     const onRoundStart = (p: { room: RoomState }) => {
       setGuessCooldownUntil(0);
       setRoundOver(null);
@@ -245,6 +292,7 @@ export default function MultiRoom() {
       });
     };
     socket.on('room:state', onState);
+    socket.on('room:patch', onPatch);
     socket.on('round:start', onRoundStart);
     socket.on('round:over', onRoundOver);
     socket.on('match:over', onMatchOver);
@@ -280,6 +328,7 @@ export default function MultiRoom() {
     });
     return () => {
       socket.off('room:state', onState);
+      socket.off('room:patch', onPatch);
       socket.off('round:start', onRoundStart);
       socket.off('round:over', onRoundOver);
       socket.off('match:over', onMatchOver);

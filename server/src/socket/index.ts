@@ -53,6 +53,7 @@ const MULTI_GUESS_INTERVAL_MS = 3_000;
 const FINISHED_ROOM_TTL_MS = 5 * 60_000;
 const LOCAL_GUESS_LIMIT = 12;
 const LOCAL_GUESS_WINDOW_MS = 10_000;
+const PATCH_ROOM_PROTOCOL = 2;
 const localGuessBuckets = new Map<string, { count: number; expiresAt: number }>();
 
 function allowLocalGuess(identity: string): boolean {
@@ -109,6 +110,27 @@ function winsNeeded(bo: BoType): number {
 
 function identityChannel(key: string): string {
   return `identity:${key}`;
+}
+
+function identityProtocolChannel(key: string, protocol: 1 | 2): string {
+  return `${identityChannel(key)}:v${protocol}`;
+}
+
+function spectatorChannel(roomId: string): string {
+  return `room:${roomId}:spectators`;
+}
+
+function roomProtocol(socket: Socket): 1 | 2 {
+  return socket.data.roomProtocol === PATCH_ROOM_PROTOCOL ? 2 : 1;
+}
+
+function joinRoomChannels(socket: Socket, room: StoredRoom, identity: string): void {
+  socket.join(room.id);
+  if (room.spectators.some((spectator) => spectator.key === identity)) {
+    socket.join(spectatorChannel(room.id));
+  } else {
+    socket.leave(spectatorChannel(room.id));
+  }
 }
 
 function hiddenGuess(feedback: GuessFeedback) {
@@ -191,6 +213,18 @@ function buildPublicRoom(room: StoredRoom, viewerKey: string) {
 }
 
 type PublicRoom = ReturnType<typeof buildPublicRoom>;
+type RoomPatchChanges = {
+  hostKey?: string;
+  players?: {
+    added?: PublicRoom['players'];
+    updated?: Array<Partial<PublicRoom['players'][number]> & { key: string }>;
+    removed?: string[];
+  };
+  spectators?: {
+    added?: PublicRoom['spectators'];
+    removed?: string[];
+  };
+};
 const publicRoomCache = new WeakMap<StoredRoom, {
   revision: number;
   views: Map<string, PublicRoom>;
@@ -226,8 +260,24 @@ function emitRoomViews<T>(
   }
 }
 
-function emitRoomState(io: Server, room: StoredRoom): void {
-  emitRoomViews(io, room, 'room:state', (viewerKey) => publicRoom(room, viewerKey));
+function emitRoomPatch(io: Server, room: StoredRoom, changes: RoomPatchChanges): void {
+  for (const player of room.players) {
+    io.to(identityProtocolChannel(player.key, 1)).emit('room:state', publicRoom(room, player.key));
+  }
+  if (room.spectators.length) {
+    const legacyChannels = room.spectators.map((spectator) => identityProtocolChannel(spectator.key, 1));
+    io.to(legacyChannels).emit('room:state', publicRoom(room, room.spectators[0].key));
+  }
+
+  const patchChannels = [...room.players, ...room.spectators]
+    .map((member) => identityProtocolChannel(member.key, 2));
+  if (!patchChannels.length) return;
+  io.to(patchChannels).emit('room:patch', {
+    roomId: room.id,
+    baseVersion: Math.max(0, room.revision - 1),
+    stateVersion: room.revision,
+    ...changes,
+  });
 }
 
 function answerView(targetPlayerId: number | null) {
@@ -528,7 +578,15 @@ async function processSchedule(io: Server, item: string): Promise<number | null>
           if (!updated.room.players.length && !updated.room.spectators.length) {
             await deleteRoom(updated.room);
           } else {
-            emitRoomState(io, updated.room);
+            emitRoomPatch(io, updated.room, {
+              hostKey: updated.room.hostKey,
+              players: {
+                removed: [discriminator],
+                updated: updated.room.players.length === 1
+                  ? [{ key: updated.room.players[0].key, ready: updated.room.players[0].ready }]
+                  : [],
+              },
+            });
           }
         }
         return null;
@@ -569,7 +627,9 @@ async function processSchedule(io: Server, item: string): Promise<number | null>
         if (!updated.room.players.length && !updated.room.spectators.length) {
           await deleteRoom(updated.room);
         } else {
-          emitRoomState(io, updated.room);
+          emitRoomPatch(io, updated.room, {
+            spectators: { removed: [discriminator] },
+          });
         }
       }
     }
@@ -615,7 +675,9 @@ async function handleScheduledGroup(io: Server, items: string[]): Promise<void> 
       if (!result.room.players.length && !result.room.spectators.length) {
         await deleteRoom(result.room);
       } else {
-        emitRoomState(io, result.room);
+        emitRoomPatch(io, result.room, {
+          spectators: { removed: result.removedKeys },
+        });
       }
     }
     await Promise.all(spectatorItems.map(acknowledgeSchedule));
@@ -902,6 +964,9 @@ export function setupSocket(io: Server) {
       }
       socket.data.identity = identity;
       socket.data.ip = ip;
+      socket.data.roomProtocol = Number(socket.handshake.auth?.roomProtocol) === PATCH_ROOM_PROTOCOL
+        ? PATCH_ROOM_PROTOCOL
+        : 1;
       socket.data.connectionSlot = true;
       next();
     } catch (err) {
@@ -921,8 +986,10 @@ export function setupSocket(io: Server) {
       socketId: socket.id,
     });
     socket.join(identityChannel(me.key));
+    socket.join(identityProtocolChannel(me.key, roomProtocol(socket)));
     const restorePromise = getRoomForIdentity(me.key, true).then(async (existing) => {
       if (!existing) return;
+      let refreshed = existing;
       if (existing.status !== 'finished') {
         const restored = await withRoomLock(existing.id, (room) => {
           const player = room.players.find((p) => p.key === me.key);
@@ -931,36 +998,36 @@ export function setupSocket(io: Server) {
             player.socketId = socket.id;
             player.connected = true;
             player.disconnectDeadline = null;
-            return true;
+            return { role: 'player' as const, room };
           }
           if (spectator) {
             spectator.socketId = socket.id;
             spectator.connected = true;
             spectator.disconnectDeadline = null;
-            return true;
+            return { role: 'spectator' as const, room };
           }
-          return false;
-        }, (value) => value);
+          return null;
+        }, (value) => Boolean(value));
         if (!restored) {
           await clearIdentityRoom(me.key, existing.id);
           return;
         }
+        refreshed = restored.room;
+        emitRoomPatch(io, refreshed, restored.role === 'player'
+          ? { players: { updated: [{ key: me.key, connected: true }] } }
+          : { spectators: { added: [{ key: me.key, name: me.name }] } });
       }
-      socket.join(existing.id);
-      socket.data.roomId = existing.id;
-      const refreshed = await getRoom(existing.id);
-      if (refreshed) {
-        emitRoomState(io, refreshed);
-        if (
-          refreshed.players.length === 2 &&
-          refreshed.players.every((player) => player.connected) &&
-          (
-            refreshed.status === 'starting' ||
-            (refreshed.status === 'round_over' && (refreshed.nextRoundAt ?? 0) <= Date.now())
-          )
-        ) {
-          await startRound(io, refreshed.id);
-        }
+      joinRoomChannels(socket, refreshed, me.key);
+      socket.data.roomId = refreshed.id;
+      if (
+        refreshed.players.length === 2 &&
+        refreshed.players.every((player) => player.connected) &&
+        (
+          refreshed.status === 'starting' ||
+          (refreshed.status === 'round_over' && (refreshed.nextRoundAt ?? 0) <= Date.now())
+        )
+      ) {
+        await startRound(io, refreshed.id);
       }
     }).catch((err) => console.error('[socket:reconnect]', err));
 
@@ -974,7 +1041,7 @@ export function setupSocket(io: Server) {
         socket.data.roomId = undefined;
         return ack?.({ code: 'NOT_IN_ROOM' });
       }
-      socket.join(room.id);
+      joinRoomChannels(socket, room, me.key);
       socket.data.roomId = room.id;
       ack?.({
         room: publicRoom(room, me.key),
@@ -1050,7 +1117,7 @@ export function setupSocket(io: Server) {
         }
         throw err;
       }
-      socket.join(room.id);
+      joinRoomChannels(socket, room, me.key);
       socket.data.roomId = room.id;
       ack?.({ room: publicRoom(room, me.key) });
     });
@@ -1075,7 +1142,7 @@ export function setupSocket(io: Server) {
           player.socketId = socket.id;
           player.connected = true;
           player.disconnectDeadline = null;
-          return { role: 'player' as const, room };
+          return { role: 'player' as const, room, existing: true };
         }
         const existingSpectator = room.spectators.find((p) => p.key === me.key);
         const asSpectator = Boolean(
@@ -1099,16 +1166,27 @@ export function setupSocket(io: Server) {
               disconnectDeadline: null,
             });
           }
-          return { role: 'spectator' as const, room };
+          return { role: 'spectator' as const, room, existing: true };
         }
         room.players.push(makePlayer(me, socket.id, false));
-        return { role: 'player' as const, room };
+        return { role: 'player' as const, room, existing: false };
       }, (value) => 'role' in value);
       if (!role) return ack?.({ code: 'ROOM_NOT_FOUND' });
       if ('code' in role) return ack?.({ code: role.code });
-      socket.join(roomId);
+      joinRoomChannels(socket, role.room, me.key);
       socket.data.roomId = roomId;
-      emitRoomState(io, role.room);
+      const joinedView = publicRoom(role.room, me.key);
+      if (role.role === 'player') {
+        const player = joinedView.players.find((candidate) => candidate.key === me.key);
+        emitRoomPatch(io, role.room, role.existing
+          ? { players: { updated: [{ key: me.key, connected: true }] } }
+          : { players: { added: player ? [player] : [] } });
+      } else {
+        const spectator = joinedView.spectators.find((candidate) => candidate.key === me.key);
+        emitRoomPatch(io, role.room, {
+          spectators: { added: spectator ? [spectator] : [] },
+        });
+      }
       ack?.({ room: publicRoom(role.room, me.key), role: role.role });
     });
 
@@ -1130,7 +1208,14 @@ export function setupSocket(io: Server) {
       }, (value) => typeof value === 'object');
       if (changed === 'STALE_CONNECTION') return ack?.({ code: changed });
       if (!changed) return ack?.({ code: 'NOT_IN_WAITING_ROOM' });
-      emitRoomState(io, changed.room);
+      const changedPlayer = changed.room.players.find((player) => player.key === me.key);
+      emitRoomPatch(io, changed.room, {
+        players: {
+          updated: changedPlayer
+            ? [{ key: me.key, ready: changedPlayer.ready }]
+            : [],
+        },
+      });
       ack?.({ ok: true });
     });
 
@@ -1223,28 +1308,40 @@ export function setupSocket(io: Server) {
         stateVersion: result.revision,
       };
       if (result.kind === 'duplicate') {
-        ack?.({ feedback: result.feedback });
+        ack?.(roomProtocol(socket) === PATCH_ROOM_PROTOCOL
+          ? {
+              ok: true,
+              duplicate: true,
+              eventId,
+              stateVersion: result.revision,
+            }
+          : { feedback: result.feedback });
         socket.emit('game:guess:applied', { ...delta, feedback: result.feedback });
         return;
       }
       const finishedRoom = result.shouldFinish ? result.room : undefined;
-      ack?.({
-        feedback: result.feedback,
-        cooldownMs: MULTI_GUESS_INTERVAL_MS,
-        room: finishedRoom ? publicRoom(finishedRoom, me.key) : undefined,
-      });
+      ack?.(roomProtocol(socket) === PATCH_ROOM_PROTOCOL
+        ? {
+            ok: true,
+            eventId,
+            cooldownMs: MULTI_GUESS_INTERVAL_MS,
+            stateVersion: result.revision,
+          }
+        : {
+            feedback: result.feedback,
+            cooldownMs: MULTI_GUESS_INTERVAL_MS,
+            room: finishedRoom ? publicRoom(finishedRoom, me.key) : undefined,
+          });
       for (const playerKey of result.playerKeys) {
         io.to(identityChannel(playerKey)).emit('game:guess:applied', {
           ...delta,
           feedback: playerKey === me.key ? result.feedback : hiddenGuess(result.feedback),
         });
       }
-      if (result.spectatorKeys.length) {
-        io.to(result.spectatorKeys.map(identityChannel)).emit('game:guess:applied', {
-          ...delta,
-          feedback: result.feedback,
-        });
-      }
+      io.to(spectatorChannel(roomId)).emit('game:guess:applied', {
+        ...delta,
+        feedback: result.feedback,
+      });
       if (result.shouldFinish) {
         if (!finishedRoom) throw new Error('MISSING_FINISHED_ROOM_SNAPSHOT');
         const winnerKey = result.correct ? me.key : null;
@@ -1294,7 +1391,9 @@ export function setupSocket(io: Server) {
           room: latest ? publicRoom(latest, me.key) : undefined,
         });
       }
-      ack?.({ ok: true, room: publicRoom(result.room, me.key) });
+      ack?.(roomProtocol(socket) === PATCH_ROOM_PROTOCOL
+        ? { ok: true }
+        : { ok: true, room: publicRoom(result.room, me.key) });
     });
 
     safeOn(socket, 'room:leave', async (_payload, ack) => {
@@ -1304,6 +1403,7 @@ export function setupSocket(io: Server) {
       if (room.status === 'finished') {
         await clearIdentityRoom(me.key, room.id);
         socket.leave(room.id);
+        socket.leave(spectatorChannel(room.id));
         socket.data.roomId = undefined;
         return ack?.({ ok: true });
       }
@@ -1328,15 +1428,28 @@ export function setupSocket(io: Server) {
           locked.spectators = locked.spectators.filter((p) => p.key !== me.key);
           if (locked.players.length && locked.hostKey === me.key) locked.hostKey = locked.players[0].key;
           if (locked.players.length === 1) locked.players[0].ready = true;
-          return 'LEFT' as const;
-        }, (value) => value === 'LEFT');
+          return { room: locked };
+        }, (value) => typeof value === 'object');
         if (left === 'STALE_CONNECTION') return ack?.({ code: left });
+        if (!left) return ack?.({ ok: true });
         await clearIdentityRoom(me.key, room.id);
-        const refreshed = await getRoom(room.id);
-        if (refreshed && !refreshed.players.length && !refreshed.spectators.length) await deleteRoom(refreshed);
-        else if (refreshed) emitRoomState(io, refreshed);
+        if (!left.room.players.length && !left.room.spectators.length) {
+          await deleteRoom(left.room);
+        } else {
+          emitRoomPatch(io, left.room, {
+            hostKey: left.room.hostKey,
+            players: {
+              removed: [me.key],
+              updated: left.room.players.length === 1
+                ? [{ key: left.room.players[0].key, ready: left.room.players[0].ready }]
+                : [],
+            },
+            spectators: { removed: [me.key] },
+          });
+        }
       }
       socket.leave(room.id);
+      socket.leave(spectatorChannel(room.id));
       socket.data.roomId = undefined;
       ack?.({ ok: true });
     });
@@ -1439,7 +1552,9 @@ export function setupSocket(io: Server) {
       await io.in(identityChannel(opponent.key)).socketsJoin(room.id);
       socket.join(room.id);
       socket.data.roomId = room.id;
-      ack?.({ queued: false, room: publicRoom(savedRoom, me.key) });
+      ack?.(roomProtocol(socket) === PATCH_ROOM_PROTOCOL
+        ? { queued: false }
+        : { queued: false, room: publicRoom(savedRoom, me.key) });
       emitRoomViews(io, savedRoom, 'match:found', (viewerKey) => ({
         room: publicRoom(savedRoom, viewerKey),
       }));
@@ -1489,19 +1604,15 @@ export function setupSocket(io: Server) {
           return { deadline: player.disconnectDeadline, room: locked };
         }, (value) => Boolean(value));
         if (!result) return;
-        if ('spectator' in result || 'removed' in result) {
-          if ('spectator' in result) {
-            emitRoomState(io, result.room);
-            return;
-          }
-          await clearIdentityRoom(me.key, room.id);
-          const refreshed = await getRoom(room.id);
-          if (refreshed && !refreshed.players.length && !refreshed.spectators.length) {
-            await deleteRoom(refreshed);
-          } else if (refreshed) emitRoomState(io, refreshed);
+        if ('spectator' in result) {
+          emitRoomPatch(io, result.room, {
+            spectators: { removed: [me.key] },
+          });
           return;
         }
-        emitRoomState(io, result.room);
+        emitRoomPatch(io, result.room, {
+          players: { updated: [{ key: me.key, connected: false }] },
+        });
         io.to(room.id).emit('player:offline', {
           key: me.key,
           graceMs: config.disconnectForfeitMs,

@@ -291,7 +291,6 @@ export type ApplyRoomGuessResult =
       revision: number;
       guessCount: number;
       playerKeys: string[];
-      spectatorKeys: string[];
       room?: StoredRoom;
     }
   | {
@@ -437,15 +436,12 @@ else
   if shouldFinish then redis.call('ZADD', KEYS[4], tonumber(nextRoundAt), 'next|' .. ARGV[12] .. '|' .. tostring(meta[3])) end
 end
 local playerKeys = redis.call('HKEYS', KEYS[7])
-local spectatorKeys = redis.call('HKEYS', KEYS[10])
-if #spectatorKeys == 0 then spectatorKeys = {__empty_array_marker=true} end
-local encodedResponse = cjson.encode({
+return cjson.encode({
   kind='applied', feedback=feedback, round=tonumber(meta[3]),
   correct=feedback.correct == true, shouldFinish=shouldFinish, matchOver=matchOver,
-  revision=revision, guessCount=guessCount, playerKeys=playerKeys,
-  spectatorKeys=spectatorKeys
+  revision=revision, guessCount=guessCount, playerKeys=playerKeys
 })
-return string.gsub(encodedResponse, '{"__empty_array_marker":true}', '[]')`;
+`;
 
 export async function getRoomGuessTarget(
   roomId: string,
@@ -568,7 +564,6 @@ export async function applyRoomGuess(input: ApplyRoomGuessInput): Promise<ApplyR
         revision: room.revision,
         guessCount: player.guesses.length,
         playerKeys: room.players.map((candidate) => candidate.key),
-        spectatorKeys: room.spectators.map((spectator) => spectator.key),
         room,
       };
     }, (value) => value.kind === 'applied');
