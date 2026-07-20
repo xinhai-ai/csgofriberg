@@ -18,6 +18,10 @@ describe('client asset fallback', () => {
       expect(assetResponse.headers.get('content-type')).toContain('text/plain');
       expect(await assetResponse.text()).toBe('Not Found');
 
+      const rootScriptResponse = await fetch(`http://127.0.0.1:${port}/2222.js`);
+      expect(rootScriptResponse.status).toBe(404);
+      expect(rootScriptResponse.headers.get('content-type')).toContain('text/plain');
+
       const routeResponse = await fetch(`http://127.0.0.1:${port}/room/example`);
       expect(routeResponse.status).toBe(200);
       expect(routeResponse.headers.get('content-type')).toContain('text/html');

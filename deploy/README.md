@@ -201,8 +201,9 @@ The dedicated `/assets/` location is required for rolling updates. Vite assets
 use content-hashed filenames, so an old instance returns 404 for a chunk owned
 by the new instance and vice versa. Retrying `http_404` lets Nginx fetch that
 chunk from the other instance. The application deliberately does not send the
-SPA `index.html` fallback for missing `/assets/` paths, because a module request
-receiving HTML fails with a MIME type error.
+SPA `index.html` fallback for missing `/assets/` paths or other file-like URLs
+such as `/missing.js`, because a module request receiving HTML fails with a MIME
+type error. Only extensionless application routes use the SPA fallback.
 
 The current client uses WebSocket-only Socket.IO transport, so sticky sessions
 are not required. Configure affinity before enabling HTTP long-polling.

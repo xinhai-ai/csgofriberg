@@ -11,9 +11,10 @@ export function setClientAssetCacheHeaders(res: Response, filePath: string): voi
   }
 }
 
-/** Keep missing Vite chunks as 404 so Nginx can retry the other rolling instance. */
+/** Keep missing files as 404; only extensionless application routes use the SPA fallback. */
 export function rejectMissingClientAsset(req: Request, res: Response, next: NextFunction) {
-  if (/^\/assets(?:\/|$)/.test(req.path)) {
+  const filename = req.path.split('/').at(-1) ?? '';
+  if (/^\/assets(?:\/|$)/.test(req.path) || /\.[A-Za-z0-9]{1,16}$/.test(filename)) {
     return res.status(404).type('text/plain').send('Not Found');
   }
   next();
