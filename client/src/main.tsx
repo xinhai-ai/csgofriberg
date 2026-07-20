@@ -11,6 +11,18 @@ localStorage.removeItem('token');
 localStorage.removeItem('user');
 initializeTheme();
 
+const visualViewport = window.visualViewport;
+if (visualViewport) {
+  const syncVisualViewportHeight = () => {
+    document.documentElement.style.setProperty(
+      '--visual-viewport-height',
+      `${Math.round(visualViewport.height)}px`
+    );
+  };
+  syncVisualViewportHeight();
+  visualViewport.addEventListener('resize', syncVisualViewportHeight);
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ConfirmProvider>

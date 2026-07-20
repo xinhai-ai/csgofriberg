@@ -673,6 +673,36 @@ describe('multiplayer socket integration', () => {
     }
   });
 
+  it('clears the surrendering player room mapping after leaving the match', async () => {
+    const stamp = Date.now();
+    const keyA = `surrender-leave-a-${stamp}`;
+    const keyB = `surrender-leave-b-${stamp}`;
+    const identityA = `g:${keyA}`;
+    const a = await connect(withPowCookie(`csgofriberg_guest=${jwt.sign(
+      { key: keyA, typ: 'guest' }, config.jwtSecret, { expiresIn: '1h' }
+    )}`));
+    const b = await connect(withPowCookie(`csgofriberg_guest=${jwt.sign(
+      { key: keyB, typ: 'guest' }, config.jwtSecret, { expiresIn: '1h' }
+    )}`));
+    try {
+      const created = await emit(a, 'room:create', { dbType: 'easy', boType: 3 });
+      createdRoomIds.push(created.room.id);
+      await emit(b, 'room:join', { roomId: created.room.id });
+      await emit(b, 'room:ready', { ready: true });
+      await emit(a, 'game:start');
+      const active = await emit(a, 'room:sync');
+
+      expect((await emit(a, 'game:surrender-round', { roundId: active.room.roundId })).ok).toBe(true);
+      expect((await emit(a, 'room:leave')).ok).toBe(true);
+
+      expect(await redis()!.get(redisKey(`identity-room:${identityA}`))).toBeNull();
+      expect(await emit(a, 'room:sync')).toMatchObject({ code: 'NOT_IN_ROOM' });
+    } finally {
+      a.disconnect();
+      b.disconnect();
+    }
+  });
+
   it('finishes a BO1 match when the active round is surrendered', async () => {
     const stamp = Date.now();
     const keyA = `surrender-bo1-a-${stamp}`;

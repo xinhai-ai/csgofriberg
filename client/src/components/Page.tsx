@@ -5,6 +5,7 @@ import ThemeToggle from './ThemeToggle';
 
 interface Props {
   title: string;
+  className?: string;
   icon?: ReactNode;
   /** 顶栏右侧动作区 */
   actions?: ReactNode;
@@ -22,6 +23,7 @@ interface Props {
  */
 export default function Page({
   title,
+  className,
   icon,
   actions,
   statusBar,
@@ -30,7 +32,7 @@ export default function Page({
   showHome = true,
 }: Props) {
   return (
-    <div className="page">
+    <div className={`page${className ? ` ${className}` : ''}`}>
       <div className="header-bar">
         <span className="title">
           {icon}

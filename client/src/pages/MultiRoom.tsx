@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Ref, useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Globe,
@@ -87,13 +87,21 @@ function PlayerBoard({
   player,
   room,
   title,
+  isSelf = false,
+  boardRef,
 }: {
   player: RoomPlayer;
   room: RoomState;
   title: string;
+  isSelf?: boolean;
+  boardRef?: Ref<HTMLDivElement>;
 }) {
   return (
-    <div className="card" style={{ margin: 0 }}>
+    <div
+      ref={boardRef}
+      className={`card player-board${isSelf ? ' player-board-self' : ' player-board-opponent'}`}
+      style={{ margin: 0 }}
+    >
       <h3>
         {title}
         <span className="muted" style={{ fontWeight: 400 }}>
@@ -125,11 +133,14 @@ export default function MultiRoom() {
   const [myKey, setMyKey] = useState('');
   const [roundExpired, setRoundExpired] = useState(false);
   const [surrendering, setSurrendering] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const [inputFocused, setInputFocused] = useState(false);
   const navigate = useNavigate();
   const confirm = useConfirm();
   const roomRef = useRef<RoomState | null>(null);
   const myKeyRef = useRef('');
   const syncSequenceRef = useRef(0);
+  const ownBoardRef = useRef<HTMLDivElement>(null);
   roomRef.current = room;
   myKeyRef.current = myKey;
 
@@ -324,7 +335,7 @@ export default function MultiRoom() {
 
   const leaveRoom = async () => {
     const currentRoom = room;
-    if (!currentRoom) return;
+    if (!currentRoom || leaving) return;
     const isCurrentSpectator = !currentRoom.players.some((player) => player.key === myKey);
     const matchOngoing =
       !isCurrentSpectator &&
@@ -335,7 +346,29 @@ export default function MultiRoom() {
       confirmLabel: '离开并判负',
       tone: 'danger',
     })) return;
-    emit('room:leave');
+    setError('');
+    setLeaving(true);
+    const socket = getSocket();
+    const result = await new Promise<any>((resolve) => {
+      let settled = false;
+      const finish = (value: any) => {
+        if (settled) return;
+        settled = true;
+        resolve(value);
+      };
+      const timer = window.setTimeout(() => finish({ code: 'NETWORK_ERROR' }), 5_000);
+      socket.emit('room:leave', {}, (res: any) => {
+        window.clearTimeout(timer);
+        finish(res ?? { ok: true });
+      });
+    });
+    if (result?.code) {
+      setLeaving(false);
+      setError(translate(result.code));
+      return;
+    }
+    setRoom(null);
+    roomRef.current = null;
     navigate('/multi');
   };
 
@@ -367,6 +400,23 @@ export default function MultiRoom() {
   const isHost = room?.hostKey === myKey;
   const playing = room?.status === 'playing';
 
+  useEffect(() => {
+    if (!inputFocused || !me || !window.matchMedia('(max-width: 640px)').matches) return;
+    let frame = 0;
+    const keepOwnBoardVisible = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        ownBoardRef.current?.scrollIntoView({ block: 'end' });
+      });
+    };
+    keepOwnBoardVisible();
+    window.visualViewport?.addEventListener('resize', keepOwnBoardVisible);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.visualViewport?.removeEventListener('resize', keepOwnBoardVisible);
+    };
+  }, [inputFocused, me?.guessCount, room?.roundId]);
+
   if (!room) {
     return (
       <Page title="多人房间" icon={<Globe size={17} />}>
@@ -383,6 +433,7 @@ export default function MultiRoom() {
 
   return (
     <Page
+      className={`game-page multi-game-page${inputFocused ? ' keyboard-active' : ''}`}
       title={`多人房间 · BO${room.boType}`}
       icon={<Globe size={17} />}
       actions={
@@ -401,10 +452,13 @@ export default function MultiRoom() {
           <button
             className="btn btn-danger btn-sm"
             aria-label={isSpectator ? '退出观战' : '离开房间'}
+            disabled={leaving}
             onClick={() => void leaveRoom()}
           >
             <DoorOpen size={15} />
-            <span className="btn-text">{isSpectator ? '退出观战' : '离开房间'}</span>
+            <span className="btn-text">
+              {leaving ? '退出中' : isSpectator ? '退出观战' : '离开房间'}
+            </span>
           </button>
           {playing && me && (
             <button
@@ -444,6 +498,7 @@ export default function MultiRoom() {
         playing && me ? (
           <GuessInputBar
             onPick={(p) => submitGuess(p.id)}
+            onFocusChange={setInputFocused}
             disabled={roundExpired || me.guessCount >= room.maxGuesses}
           />
         ) : undefined
@@ -529,10 +584,18 @@ export default function MultiRoom() {
               player={leftPlayer}
               room={room}
               title={me ? '我的猜测' : leftPlayer.name}
+              isSelf={leftPlayer.key === myKey}
+              boardRef={leftPlayer.key === myKey ? ownBoardRef : undefined}
             />
           )}
           {rightPlayer && (
-            <PlayerBoard player={rightPlayer} room={room} title={rightPlayer.name} />
+            <PlayerBoard
+              player={rightPlayer}
+              room={room}
+              title={rightPlayer.name}
+              isSelf={rightPlayer.key === myKey}
+              boardRef={rightPlayer.key === myKey ? ownBoardRef : undefined}
+            />
           )}
         </div>
       )}

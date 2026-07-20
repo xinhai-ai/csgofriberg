@@ -1254,6 +1254,7 @@ export function setupSocket(io: Server) {
           socketId: socket.id,
         });
         if (finished === 'stale') return ack?.({ code: 'STALE_CONNECTION' });
+        await clearIdentityRoom(me.key, room.id);
       } else {
         const left = await withRoomLock(room.id, (locked) => {
           const currentPlayer = locked.players.find((candidate) => candidate.key === me.key);

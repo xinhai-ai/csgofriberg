@@ -65,7 +65,7 @@ button, a { touch-action: manipulation; }
 .page {
   display: flex;
   flex-direction: column;
-  height: 100dvh;
+  height: var(--visual-viewport-height, 100dvh);
   width: 100%;
   min-width: 0;
   max-width: 100%;
@@ -86,6 +86,8 @@ button, a { touch-action: manipulation; }
   overscroll-behavior-y: contain;
 }
 .page-scroll > * { width: min(var(--content-max), 100%); min-width: 0; max-width: 100%; margin-inline: auto; }
+.single-game-board { min-width: 0; }
+.guess-board-end { height: 1px; overflow-anchor: auto; }
 
 /* ===== 顶部栏 ===== */
 .header-bar {
@@ -919,6 +921,8 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
 
 @media (max-width: 960px) {
   .boards { grid-template-columns: 1fr; }
+  .boards .player-board-opponent { order: 1; }
+  .boards .player-board-self { order: 2; }
   .lobby-grid { grid-template-columns: 1fr; grid-template-areas: none; max-width: 760px; }
   .lobby-grid > :nth-child(1),
   .lobby-grid > :nth-child(2),
@@ -946,6 +950,17 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
   .header-bar .btns .btn-text { display: none; }
   .home-page .header-bar .muted { display: none; }
   .status-bar { padding-block: 9px; font-size: 0.87rem; line-height: 1.45; }
+  .game-page.keyboard-active .header-bar,
+  .game-page.keyboard-active .status-bar { display: none; }
+  .game-page.keyboard-active .page-scroll {
+    gap: 8px;
+    padding-block: 8px;
+    scroll-padding-block: 8px;
+  }
+  .game-page.keyboard-active .score-bar {
+    min-height: 50px;
+    padding-block: 6px;
+  }
 
   .card { padding: 16px; border-radius: 13px; }
   .card h3 { margin-bottom: 10px; }

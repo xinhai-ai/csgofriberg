@@ -8,6 +8,7 @@ interface Suggestion {
 
 interface Props {
   onPick: (player: Suggestion) => void | Promise<void>;
+  onFocusChange?: (focused: boolean) => void;
   disabled?: boolean;
   placeholder?: string;
   buttonText?: string;
@@ -19,6 +20,7 @@ interface Props {
  */
 export default function GuessInputBar({
   onPick,
+  onFocusChange,
   disabled,
   placeholder = '输入选手昵称...',
   buttonText = '提交猜测',
@@ -135,8 +137,14 @@ export default function GuessInputBar({
           placeholder={placeholder}
           autoComplete="off"
           onChange={(e) => setText(e.target.value)}
-          onFocus={() => items.length && setOpen(true)}
-          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          onFocus={() => {
+            if (items.length) setOpen(true);
+            onFocusChange?.(true);
+          }}
+          onBlur={() => {
+            onFocusChange?.(false);
+            setTimeout(() => setOpen(false), 150);
+          }}
           onKeyDown={(e) => {
             if (!items.length) return;
             if (e.key === 'ArrowDown') {

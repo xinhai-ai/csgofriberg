@@ -23,8 +23,10 @@ export default function SingleGame() {
   const [status, setStatus] = useState<'playing' | 'won' | 'lost'>('playing');
   const [answer, setAnswer] = useState<AnswerInfo | null>(null);
   const [showOverlay, setShowOverlay] = useState(false);
+  const [inputFocused, setInputFocused] = useState(false);
   const [error, setError] = useState('');
   const gameIdRef = useRef<string | null>(null);
+  const boardEndRef = useRef<HTMLDivElement>(null);
 
   const setCurrentGameId = (id: string | null) => {
     gameIdRef.current = id;
@@ -54,6 +56,23 @@ export default function SingleGame() {
   useEffect(() => {
     void start(false);
   }, [start]);
+
+  useEffect(() => {
+    if (!inputFocused || !window.matchMedia('(max-width: 640px)').matches) return;
+    let frame = 0;
+    const keepLatestVisible = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        boardEndRef.current?.scrollIntoView({ block: 'end' });
+      });
+    };
+    keepLatestVisible();
+    window.visualViewport?.addEventListener('resize', keepLatestVisible);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.visualViewport?.removeEventListener('resize', keepLatestVisible);
+    };
+  }, [guesses.length, inputFocused]);
 
   const leave = async () => {
     const isGameActive = Boolean(gameIdRef.current) && status === 'playing';
@@ -121,6 +140,7 @@ export default function SingleGame() {
 
   return (
     <Page
+      className={`game-page single-game-page${inputFocused ? ' keyboard-active' : ''}`}
       title={isEasy ? '单人 · 简单版' : '单人 · 完整版'}
       icon={isEasy ? <Gamepad2 size={17} /> : <Flame size={17} />}
       actions={
@@ -171,12 +191,18 @@ export default function SingleGame() {
             </button>
           </div>
         ) : (
-          <GuessInputBar onPick={(p) => void guess(p.id)} />
+          <GuessInputBar
+            onPick={(p) => void guess(p.id)}
+            onFocusChange={setInputFocused}
+          />
         )
       }
     >
       {guesses.length ? (
-        <GuessBoard guesses={guesses} />
+        <div className="single-game-board">
+          <GuessBoard guesses={guesses} />
+          <div ref={boardEndRef} className="guess-board-end" aria-hidden="true" />
+        </div>
       ) : (
         <div style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--text-light)' }}>
           <Target size={32} strokeWidth={1.5} />
