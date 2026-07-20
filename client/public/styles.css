@@ -313,7 +313,7 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
 .admin-list-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 12px;
   margin-top: 16px;
 }
@@ -321,7 +321,8 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
   position: relative;
   display: flex;
   align-items: center;
-  flex: 1;
+  flex: 0 1 520px;
+  width: 100%;
   max-width: 520px;
 }
 .admin-search svg {
@@ -336,12 +337,26 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
 .admin-pagination {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  justify-content: center;
+  gap: 24px;
   margin-top: 14px;
 }
 .admin-pagination-actions { display: flex; align-items: center; gap: 8px; }
 .admin-pagination-actions .btn { width: 34px; height: 34px; }
+.admin-players-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+}
+.admin-players-heading h3 { justify-content: center; margin-bottom: 0; }
+.admin-players-card > .muted,
+.admin-players-card > .error { text-align: center; }
+.admin-import-card h3 { justify-content: center; text-align: center; }
+.admin-import-card > .muted { text-align: center; }
+.admin-import-card > .btn { display: flex; width: fit-content; margin: 12px auto 0 !important; }
 .admin-player-backdrop {
   position: fixed;
   inset: 0;
@@ -823,6 +838,28 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
   border: 1px dashed var(--border-strong);
   user-select: all;
 }
+.multi-lobby-message-card,
+.multi-lobby-created-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: min(760px, 100%);
+  margin-inline: auto;
+  text-align: center;
+}
+.multi-lobby-message-card h3,
+.multi-lobby-created-card h3 { justify-content: center; }
+.multi-lobby-message-card p,
+.multi-lobby-created-card p { max-width: 640px; }
+.multi-lobby-message-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.multi-lobby-created-meta { margin: 10px 0; }
 .join-room-form { display: grid; grid-template-columns: minmax(0, 180px) auto auto; gap: 10px; align-items: center; }
 .join-room-form .input { max-width: none !important; }
 .room-actions { display: flex; align-items: center; gap: 8px; min-width: 0; }
@@ -868,6 +905,8 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: clamp(14px, 4vw, 40px);
+  width: min(920px, 100%);
+  margin-inline: auto;
   min-height: 78px;
   padding: 14px;
   font-size: 1.1rem;
@@ -882,10 +921,8 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.score-bar .player-name:last-child {
-  justify-content: flex-end;
-  text-align: right;
-}
+.score-bar-player-left { justify-content: flex-end; text-align: right; }
+.score-bar-player-right { justify-content: flex-start; text-align: left; }
 .score-bar .score {
   font-size: 2rem;
   font-weight: 700;
@@ -945,8 +982,8 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
   .admin-list-toolbar { align-items: stretch; flex-direction: column; }
   .admin-search { max-width: none; }
   .admin-page-size { justify-content: space-between; }
-  .admin-pagination { align-items: flex-start; flex-direction: column; }
-  .admin-pagination-actions { width: 100%; justify-content: space-between; }
+  .admin-pagination { flex-direction: column; }
+  .admin-pagination-actions { width: min(280px, 100%); justify-content: space-between; }
 }
 
 @media (max-width: 640px) {
@@ -1078,6 +1115,8 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
   .room-player-row { flex-wrap: wrap; }
   .room-player-row > b { flex: 1 1 140px; }
   .room-ready-actions .btn { flex: 1; }
+  .multi-lobby-message-actions { width: 100%; }
+  .multi-lobby-message-actions .btn { flex: 1 1 180px; }
 }
 
 @media (max-width: 520px) {

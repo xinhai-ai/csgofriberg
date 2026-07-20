@@ -604,14 +604,14 @@ export default function MultiRoom() {
     >
       {/* 比分栏 */}
       <div className="card score-bar">
-        <span className="player-name">
+        <span className="player-name score-bar-player-left">
           {leftPlayer?.key === room.hostKey && <Crown size={16} color="var(--warning)" />}
           {leftPlayer?.name ?? '-'}
         </span>
         <span className="score">
           {leftPlayer?.score ?? 0} : {rightPlayer?.score ?? 0}
         </span>
-        <span className="player-name">
+        <span className="player-name score-bar-player-right">
           {rightPlayer?.key === room.hostKey && <Crown size={16} color="var(--warning)" />}
           {rightPlayer?.name ?? '等待加入'}
         </span>

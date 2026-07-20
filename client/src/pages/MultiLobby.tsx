@@ -247,13 +247,13 @@ export default function MultiLobby() {
   return (
     <Page title="多人联机" icon={<Globe size={17} />}>
       {error && (
-        <div className="card" style={{ borderColor: 'var(--danger)' }}>
+        <div className="card multi-lobby-message-card" style={{ borderColor: 'var(--danger)' }}>
           <span className="error">{error}</span>
         </div>
       )}
 
       {currentRoom && (
-        <div className="card" style={{ borderColor: 'var(--warning)' }}>
+        <div className="card multi-lobby-message-card" style={{ borderColor: 'var(--warning)' }}>
           <h3>
             <Rocket size={16} color="var(--warning)" />
             你有一场未结束的对局
@@ -267,7 +267,7 @@ export default function MultiLobby() {
                 : `第 ${currentRoom.round} 局进行中`}
             {currentRole === 'spectator' && ' · 观战身份'}
           </p>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <div className="multi-lobby-message-actions">
             <button className="btn btn-success" onClick={() => navigate('/multi/room')}>
               <Rocket size={15} />
               重连进入
@@ -285,8 +285,8 @@ export default function MultiLobby() {
       )}
 
       {createdRoom ? (
-        <div className="card" style={{ textAlign: 'center' }}>
-          <h3 style={{ justifyContent: 'center' }}>
+        <div className="card multi-lobby-created-card">
+          <h3>
             <Check size={16} color="var(--success)" />
             房间已创建
           </h3>
@@ -296,7 +296,7 @@ export default function MultiLobby() {
             {copied ? <Check size={15} /> : <Copy size={15} />}
             {copied ? '已复制' : '复制房间码'}
           </button>
-          <p className="muted" style={{ margin: '10px 0' }}>
+          <p className="muted multi-lobby-created-meta">
             数据库:{createdRoom.dbType === 'normal' ? '完整版' : '简单版'} · 赛制:BO
             {createdRoom.boType} · {createdRoom.allowSpectators ? '允许观战' : '禁止观战'}
             {' · '}{createdRoom.anonymous ? '匿名房间' : '显示玩家名'}

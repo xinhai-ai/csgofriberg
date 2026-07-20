@@ -185,11 +185,13 @@ export default function AdminPlayers() {
 
   return (
     <>
-      <div className="card">
-        <h3>选手管理(共 {total} 名)</h3>
+      <div className="card admin-players-card">
+        <div className="admin-players-heading">
+          <h3>选手管理(共 {total} 名)</h3>
+          <button className="btn btn-green" onClick={() => setEditing({ ...emptyPlayer })}>+ 新增选手</button>
+        </div>
         {message && <p className="muted">{message}</p>}
         {error && <p className="error">{error}</p>}
-        <button className="btn btn-green" onClick={() => setEditing({ ...emptyPlayer })}>+ 新增选手</button>
         <div className="admin-list-toolbar">
           <label className="admin-search">
             <Search size={16} />
@@ -249,7 +251,7 @@ export default function AdminPlayers() {
           </div>
         </div>
       </div>
-      <div className="card">
+      <div className="card admin-import-card">
         <h3>JSON 批量导入</h3>
         <p className="muted">
           粘贴选手数组,字段: nickname, nationality, region, team, age, role,
