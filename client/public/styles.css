@@ -963,6 +963,8 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
   gap: 10px;
   flex-wrap: wrap;
 }
+.match-over-extra { display: grid; gap: 6px; }
+.match-over-extra p { margin: 0; text-align: center; }
 .multi-lobby-created-meta { margin: 10px 0; }
 .join-room-form { display: grid; grid-template-columns: minmax(0, 180px) auto auto; gap: 10px; align-items: center; }
 .join-room-form .input { max-width: none !important; }

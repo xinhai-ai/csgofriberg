@@ -20,6 +20,8 @@ function makeRoom(id: string): StoredRoom {
     status: 'waiting',
     dbType: 'normal',
     boType: 3,
+    rematchAllowed: true,
+    rematchInviterKey: null,
     allowSpectators: false,
     anonymous: false,
     round: 0,

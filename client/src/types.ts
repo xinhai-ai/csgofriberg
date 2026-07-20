@@ -74,6 +74,8 @@ export interface RoomState {
   status: 'waiting' | 'playing' | 'round_over' | 'finished';
   dbType: 'easy' | 'normal';
   boType: number;
+  rematchAllowed: boolean;
+  rematchInvite: { inviterKey: string } | null;
   allowSpectators: boolean;
   anonymous: boolean;
   round: number;

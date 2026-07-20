@@ -64,6 +64,8 @@ export interface StoredRoom {
   status: RoomStatus;
   dbType: DbType;
   boType: BoType;
+  rematchAllowed: boolean;
+  rematchInviterKey: string | null;
   allowSpectators: boolean;
   anonymous: boolean;
   round: number;
@@ -145,6 +147,8 @@ function normalizeRoom(room: StoredRoom): StoredRoom {
   if (!Array.isArray(room.spectators)) room.spectators = [];
   if (typeof room.allowSpectators !== 'boolean') room.allowSpectators = false;
   if (typeof room.anonymous !== 'boolean') room.anonymous = false;
+  if (typeof room.rematchAllowed !== 'boolean') room.rematchAllowed = false;
+  room.rematchInviterKey ??= null;
   room.eventResults ??= {};
   if (Object.values(room.eventResults).some((value) => typeof value !== 'number')) {
     room.eventResults = {};

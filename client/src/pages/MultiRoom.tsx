@@ -13,6 +13,8 @@ import {
   EyeOff,
   Timer,
   Flag,
+  RotateCcw,
+  X,
 } from 'lucide-react';
 import Page from '../components/Page';
 import GuessBoard from '../components/GuessBoard';
@@ -157,6 +159,8 @@ export default function MultiRoom() {
   const [roundExpired, setRoundExpired] = useState(false);
   const [surrendering, setSurrendering] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [rematchBusy, setRematchBusy] = useState(false);
+  const [rematchNotice, setRematchNotice] = useState('');
   const [inputFocused, setInputFocused] = useState(false);
   const [guessCooldownUntil, setGuessCooldownUntil] = useState(0);
   const [cooldownClock, setCooldownClock] = useState(() => Date.now());
@@ -211,6 +215,7 @@ export default function MultiRoom() {
       setRoundOver(null);
       setOfflineNote('');
       setError('');
+      setRematchNotice('');
       setRoundExpired(false);
       applyRoomSnapshot(p.room);
     };
@@ -225,7 +230,78 @@ export default function MultiRoom() {
       setRoundExpired(true);
       setError('');
       setRoundOver(null);
+      setRematchNotice('');
       applyRoomSnapshot(p.room);
+    };
+    const onRematchUpdate = (p: {
+      roomId: string;
+      stateVersion: number;
+      outcome: 'invited' | 'cancelled' | 'declined' | 'accepted';
+      actorKey: string;
+      player?: { key: string; connected: boolean };
+    }) => {
+      setRoom((current) => {
+        if (!current || current.id !== p.roomId) return current;
+        if (p.stateVersion <= current.stateVersion) return current;
+        if (p.stateVersion !== current.stateVersion + 1) {
+          syncRoom(socket);
+          return current;
+        }
+        const next: RoomState = p.outcome === 'accepted'
+          ? {
+              ...current,
+              status: 'waiting',
+              round: 0,
+              roundId: 0,
+              roundEndsAt: null,
+              rematchInvite: null,
+              roundResult: null,
+              matchResult: null,
+              players: current.players.map((player) => ({
+                ...player,
+                ready: player.key === current.hostKey,
+                score: 0,
+                guessCount: 0,
+                guesses: [],
+              })),
+              stateVersion: p.stateVersion,
+            }
+          : {
+              ...current,
+              rematchInvite: p.outcome === 'invited'
+                ? { inviterKey: p.actorKey }
+                : null,
+              players: p.player
+                ? current.players.map((player) => player.key === p.player!.key
+                  ? { ...player, connected: p.player!.connected }
+                  : player)
+                : current.players,
+              stateVersion: p.stateVersion,
+            };
+        roomRef.current = next;
+        return next;
+      });
+      if (p.outcome === 'accepted') {
+        setGuessCooldownUntil(0);
+        setRoundExpired(true);
+        setRoundOver(null);
+        setMatchOver(null);
+        setOfflineNote('');
+      }
+      const actorIsMe = p.actorKey === myKeyRef.current;
+      if (p.outcome === 'invited') {
+        setRematchNotice(actorIsMe ? '已邀请对方再来一局' : '对方邀请你再来一局');
+      } else if (p.outcome === 'cancelled') {
+        setRematchNotice(actorIsMe ? '已取消邀请' : '对方取消了邀请');
+      } else if (p.outcome === 'declined') {
+        setRematchNotice(actorIsMe ? '已拒绝邀请' : '对方拒绝了邀请');
+      } else {
+        setRematchNotice(
+          roomRef.current?.hostKey === myKeyRef.current
+            ? '双方已同意，等待对方准备'
+            : '双方已同意，请准备后等待房主开始'
+        );
+      }
     };
     const onOffline = (p: { key: string; graceMs: number }) => {
       if (p.key !== myKeyRef.current) {
@@ -268,6 +344,7 @@ export default function MultiRoom() {
     socket.on('round:start', onRoundStart);
     socket.on('round:over', onRoundOver);
     socket.on('match:over', onMatchOver);
+    socket.on('match:rematch:update', onRematchUpdate);
     socket.on('player:offline', onOffline);
     socket.on('room:error', onRoomError);
     socket.on('game:guess:applied', onGuessApplied);
@@ -303,6 +380,7 @@ export default function MultiRoom() {
       socket.off('round:start', onRoundStart);
       socket.off('round:over', onRoundOver);
       socket.off('match:over', onMatchOver);
+      socket.off('match:rematch:update', onRematchUpdate);
       socket.off('player:offline', onOffline);
       socket.off('room:error', onRoomError);
       socket.off('game:guess:applied', onGuessApplied);
@@ -456,11 +534,41 @@ export default function MultiRoom() {
     });
   };
 
+  const updateRematch = (event: string, payload: unknown = {}) => {
+    if (rematchBusy) return;
+    setError('');
+    setRematchBusy(true);
+    const socket = getSocket();
+    let settled = false;
+    const timer = window.setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      setRematchBusy(false);
+      setError(translate('NETWORK_ERROR'));
+      syncRoom(socket);
+    }, 5_000);
+    socket.emit(event, payload, (res: any) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timer);
+      setRematchBusy(false);
+      if (res?.code) setError(translate(res.code));
+    });
+  };
+
   const me = room?.players.find((p) => p.key === myKey);
   const opponent = room?.players.find((p) => p.key !== myKey);
   const isSpectator = !!room && !me;
   const isHost = room?.hostKey === myKey;
   const playing = room?.status === 'playing';
+  const rematchInviterKey = room?.rematchInvite?.inviterKey ?? null;
+  const canRematch = Boolean(
+    room?.rematchAllowed &&
+    room.status === 'finished' &&
+    me &&
+    room.players.length === 2 &&
+    room.players.every((player) => player.connected)
+  );
   const guessCooldownRemaining = Math.max(
     0,
     guessCooldownUntil - Math.max(cooldownClock, Date.now())
@@ -557,6 +665,7 @@ export default function MultiRoom() {
             </span>
           )}
           {offlineNote && <span className="error">{offlineNote}</span>}
+          {rematchNotice && <span className="muted">{rematchNotice}</span>}
           {error && <span className="error">{error}</span>}
         </>
       }
@@ -709,15 +818,61 @@ export default function MultiRoom() {
           }
           answer={matchOver.answer}
           extra={
-            <p className="muted">
-              {MATCH_OVER_REASON[matchOver.reason] ?? matchOver.reason} · 最终比分{' '}
-              {leftPlayer?.score ?? 0} : {rightPlayer?.score ?? 0}
-            </p>
+            <div className="match-over-extra">
+              <p className="muted">
+                {MATCH_OVER_REASON[matchOver.reason] ?? matchOver.reason} · 最终比分{' '}
+                {leftPlayer?.score ?? 0} : {rightPlayer?.score ?? 0}
+              </p>
+              {rematchNotice && <p className="muted">{rematchNotice}</p>}
+            </div>
           }
           actions={
-            <button className="btn" onClick={() => void leaveRoom()}>
-              返回大厅
-            </button>
+            <>
+              {canRematch && !rematchInviterKey && (
+                <button
+                  className="btn btn-success"
+                  disabled={rematchBusy}
+                  onClick={() => updateRematch('match:rematch-invite')}
+                >
+                  <RotateCcw size={16} />
+                  邀请再来一局
+                </button>
+              )}
+              {canRematch && rematchInviterKey === myKey && (
+                <button
+                  className="btn btn-ghost"
+                  disabled={rematchBusy}
+                  onClick={() => updateRematch('match:rematch-cancel')}
+                >
+                  <X size={16} />
+                  取消邀请
+                </button>
+              )}
+              {canRematch && rematchInviterKey && rematchInviterKey !== myKey && (
+                <>
+                  <button
+                    className="btn btn-success"
+                    disabled={rematchBusy}
+                    onClick={() => updateRematch('match:rematch-respond', { accept: true })}
+                  >
+                    <Check size={16} />
+                    同意再来一局
+                  </button>
+                  <button
+                    className="btn btn-ghost"
+                    disabled={rematchBusy}
+                    onClick={() => updateRematch('match:rematch-respond', { accept: false })}
+                  >
+                    <X size={16} />
+                    拒绝
+                  </button>
+                </>
+              )}
+              <button className="btn btn-ghost" disabled={leaving} onClick={() => void leaveRoom()}>
+                <DoorOpen size={16} />
+                {leaving ? '退出中' : '返回大厅'}
+              </button>
+            </>
           }
         />
       )}

@@ -163,6 +163,10 @@ function buildPublicRoom(room: StoredRoom, viewerKey: string) {
     status: room.status === 'starting' ? 'waiting' : room.status,
     dbType: room.dbType,
     boType: room.boType,
+    rematchAllowed: room.rematchAllowed,
+    rematchInvite: room.rematchInviterKey
+      ? { inviterKey: room.rematchInviterKey }
+      : null,
     allowSpectators: room.allowSpectators,
     anonymous: room.anonymous,
     round: room.round,
@@ -355,6 +359,62 @@ async function persistMatch(room: StoredRoom, winnerKey: string | null) {
   await acknowledgeSchedule(`persist|${room.id}|0`);
 }
 
+type RematchOutcome = 'invited' | 'cancelled' | 'declined' | 'accepted';
+
+function rematchError(room: StoredRoom, identity: string, socketId: string): string | null {
+  if (!room.rematchAllowed) return 'REMATCH_NOT_ALLOWED';
+  if (room.status !== 'finished' || !room.matchResult || room.players.length !== 2) {
+    return 'REMATCH_NOT_AVAILABLE';
+  }
+  const player = room.players.find((candidate) => candidate.key === identity);
+  if (!player) return 'REMATCH_NOT_AVAILABLE';
+  if (player.socketId !== socketId) return 'STALE_CONNECTION';
+  if (!room.players.every((candidate) => candidate.connected)) return 'REMATCH_NOT_AVAILABLE';
+  return null;
+}
+
+function emitRematchUpdate(
+  io: Server,
+  room: StoredRoom,
+  outcome: RematchOutcome,
+  actorKey: string,
+  playerUpdate?: { key: string; connected: boolean }
+): void {
+  const channels = [...room.players, ...room.spectators]
+    .map((member) => identityChannel(member.key));
+  if (!channels.length) return;
+  io.to(channels).emit('match:rematch:update', {
+    roomId: room.id,
+    stateVersion: room.revision,
+    outcome,
+    actorKey,
+    ...(playerUpdate ? { player: playerUpdate } : {}),
+  });
+}
+
+function resetForRematch(room: StoredRoom): void {
+  const now = Date.now();
+  room.recordId = randomUUID();
+  room.status = 'waiting';
+  room.round = 0;
+  room.targetPlayerId = null;
+  room.roundEndsAt = null;
+  room.nextRoundAt = null;
+  room.eventResults = {};
+  room.roundResult = null;
+  room.matchResult = null;
+  room.rematchInviterKey = null;
+  room.replayRounds = [];
+  room.createdAt = now;
+  for (const player of room.players) {
+    player.ready = player.key === room.hostKey;
+    player.score = 0;
+    player.guesses = [];
+    player.lastGuessAt = null;
+    player.disconnectDeadline = null;
+  }
+}
+
 async function finishMatch(
   io: Server,
   roomId: string,
@@ -366,6 +426,7 @@ async function finishMatch(
     if (actor) {
       const player = room.players.find((candidate) => candidate.key === actor.key);
       if (!player || player.socketId !== actor.socketId) return { stale: true as const };
+      player.connected = false;
     }
     if (room.status === 'finished') return null;
     room.status = 'finished';
@@ -978,7 +1039,7 @@ export function setupSocket(io: Server) {
     const restorePromise = getRoomForIdentity(me.key, true).then(async (existing) => {
       if (!existing) return;
       let refreshed = existing;
-      if (existing.status !== 'finished') {
+      if (existing.status !== 'finished' || existing.rematchAllowed) {
         const restored = await withRoomLock(existing.id, (room) => {
           const player = room.players.find((p) => p.key === me.key);
           const spectator = room.spectators.find((p) => p.key === me.key);
@@ -1075,6 +1136,8 @@ export function setupSocket(io: Server) {
         status: 'waiting',
         dbType: payload?.dbType === 'normal' ? 'normal' : 'easy',
         boType,
+        rematchAllowed: true,
+        rematchInviterKey: null,
         allowSpectators: payload?.allowSpectators === true,
         anonymous: payload?.anonymous === true,
         round: 0,
@@ -1177,6 +1240,84 @@ export function setupSocket(io: Server) {
         });
       }
       ack?.({ room: publicRoom(role.room, me.key), role: role.role });
+    });
+
+    safeOn(socket, 'match:rematch-invite', async (_payload, ack) => {
+      await restorePromise;
+      if (!(await socketAllowedWithIp(socket, 'rematch-invite', me.key, 6, 80, 60))) {
+        return ack?.({ code: 'RATE_LIMITED' });
+      }
+      const room = await getRoomForIdentity(me.key, true);
+      if (!room) return ack?.({ code: 'REMATCH_NOT_AVAILABLE' });
+      const result = await withRoomLock(room.id, (locked) => {
+        const code = rematchError(locked, me.key, socket.id);
+        if (code) return { code };
+        if (locked.rematchInviterKey && locked.rematchInviterKey !== me.key) {
+          return { code: 'REMATCH_INVITE_PENDING' };
+        }
+        locked.rematchInviterKey = me.key;
+        return { room: locked, outcome: 'invited' as const };
+      }, (value) => 'room' in value);
+      if (!result || 'code' in result) {
+        return ack?.({ code: result?.code ?? 'REMATCH_NOT_AVAILABLE' });
+      }
+      emitRematchUpdate(io, result.room, result.outcome, me.key);
+      ack?.({ ok: true, stateVersion: result.room.revision });
+    });
+
+    safeOn(socket, 'match:rematch-cancel', async (_payload, ack) => {
+      await restorePromise;
+      if (!(await socketAllowed('rematch-cancel', me.key, 8, 60))) {
+        return ack?.({ code: 'RATE_LIMITED' });
+      }
+      const room = await getRoomForIdentity(me.key, true);
+      if (!room) return ack?.({ code: 'REMATCH_NOT_AVAILABLE' });
+      const result = await withRoomLock(room.id, (locked) => {
+        const code = rematchError(locked, me.key, socket.id);
+        if (code) return { code };
+        if (locked.rematchInviterKey !== me.key) return { code: 'REMATCH_INVITE_NOT_FOUND' };
+        locked.rematchInviterKey = null;
+        return { room: locked, outcome: 'cancelled' as const };
+      }, (value) => 'room' in value);
+      if (!result || 'code' in result) {
+        return ack?.({ code: result?.code ?? 'REMATCH_NOT_AVAILABLE' });
+      }
+      emitRematchUpdate(io, result.room, result.outcome, me.key);
+      ack?.({ ok: true, stateVersion: result.room.revision });
+    });
+
+    safeOn(socket, 'match:rematch-respond', async (payload, ack) => {
+      await restorePromise;
+      if (!(await socketAllowedWithIp(socket, 'rematch-respond', me.key, 8, 80, 60))) {
+        return ack?.({ code: 'RATE_LIMITED' });
+      }
+      if (typeof payload?.accept !== 'boolean') return ack?.({ code: 'VALIDATION_FAILED' });
+      const room = await getRoomForIdentity(me.key, true);
+      if (!room) return ack?.({ code: 'REMATCH_NOT_AVAILABLE' });
+      const result = await withRoomLock(room.id, async (locked) => {
+        const code = rematchError(locked, me.key, socket.id);
+        if (code) return { code };
+        if (!locked.rematchInviterKey) return { code: 'REMATCH_INVITE_NOT_FOUND' };
+        if (locked.rematchInviterKey === me.key) return { code: 'REMATCH_RESPONSE_NOT_ALLOWED' };
+        if (!payload.accept) {
+          locked.rematchInviterKey = null;
+          return { room: locked, outcome: 'declined' as const };
+        }
+        await persistMatch(locked, locked.matchResult!.winnerKey);
+        resetForRematch(locked);
+        return { room: locked, outcome: 'accepted' as const };
+      }, (value) => 'room' in value);
+      if (!result || 'code' in result) {
+        return ack?.({ code: result?.code ?? 'REMATCH_NOT_AVAILABLE' });
+      }
+      if (result.outcome === 'accepted') {
+        const cleanupTimer = timers.get(`cleanup:${result.room.id}`);
+        if (cleanupTimer) clearTimeout(cleanupTimer);
+        timers.delete(`cleanup:${result.room.id}`);
+        await acknowledgeSchedule(`cleanup|${result.room.id}|0`);
+      }
+      emitRematchUpdate(io, result.room, result.outcome, me.key);
+      ack?.({ ok: true, stateVersion: result.room.revision });
     });
 
     safeOn(socket, 'room:ready', async (payload, ack) => {
@@ -1364,6 +1505,29 @@ export function setupSocket(io: Server) {
       const room = await getRoomForIdentity(me.key, true);
       if (!room) return ack?.({ ok: true });
       if (room.status === 'finished') {
+        const left = await withRoomLock(room.id, (locked) => {
+          const player = locked.players.find((candidate) => candidate.key === me.key);
+          if (!player) return null;
+          if (player.socketId !== socket.id) return { stale: true as const };
+          const cancelledInvite = locked.rematchInviterKey !== null;
+          player.connected = false;
+          locked.rematchInviterKey = null;
+          return { room: locked, cancelledInvite };
+        }, (value) => Boolean(value && !('stale' in value)));
+        if (left && 'stale' in left) return ack?.({ code: 'STALE_CONNECTION' });
+        if (left) {
+          if (left.cancelledInvite) {
+            emitRematchUpdate(io, left.room, 'cancelled', me.key, {
+              key: me.key,
+              connected: false,
+            });
+          }
+          else {
+            emitRoomPatch(io, left.room, {
+              players: { updated: [{ key: me.key, connected: false }] },
+            });
+          }
+        }
         await clearIdentityRoom(me.key, room.id);
         socket.leave(room.id);
         socket.leave(spectatorChannel(room.id));
@@ -1459,6 +1623,8 @@ export function setupSocket(io: Server) {
         status: 'starting',
         dbType,
         boType: 3,
+        rematchAllowed: false,
+        rematchInviterKey: null,
         allowSpectators: false,
         anonymous: Boolean(queuedMe.anonymous || opponent.anonymous),
         round: 0,
@@ -1549,7 +1715,7 @@ export function setupSocket(io: Server) {
           queue.filter((item) => item.key !== me.key || item.socketId !== socket.id)
         );
       }
-      const disconnectTask = getRoomForIdentity(me.key).then(async (room) => {
+      const disconnectTask = getRoomForIdentity(me.key, true).then(async (room) => {
         if (!room) return;
         const result = await withRoomLock(room.id, (locked) => {
           const spectator = locked.spectators.find((p) => p.key === me.key);
@@ -1560,6 +1726,13 @@ export function setupSocket(io: Server) {
           }
           const player = locked.players.find((p) => p.key === me.key);
           if (!player || player.socketId !== socket.id) return null;
+          if (locked.status === 'finished') {
+            const cancelledInvite = locked.rematchInviterKey !== null;
+            player.connected = false;
+            player.disconnectDeadline = null;
+            locked.rematchInviterKey = null;
+            return { finished: true as const, cancelledInvite, room: locked };
+          }
           player.connected = false;
           player.disconnectDeadline = Date.now() + config.disconnectForfeitMs;
           return { deadline: player.disconnectDeadline, room: locked };
@@ -1569,6 +1742,20 @@ export function setupSocket(io: Server) {
           emitRoomPatch(io, result.room, {
             spectatorCount: connectedSpectatorCount(result.room),
           });
+          return;
+        }
+        if ('finished' in result) {
+          if (result.cancelledInvite) {
+            emitRematchUpdate(io, result.room, 'cancelled', me.key, {
+              key: me.key,
+              connected: false,
+            });
+          }
+          else {
+            emitRoomPatch(io, result.room, {
+              players: { updated: [{ key: me.key, connected: false }] },
+            });
+          }
           return;
         }
         emitRoomPatch(io, result.room, {
