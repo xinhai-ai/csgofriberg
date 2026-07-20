@@ -37,6 +37,7 @@ export default function GuessInputBar({
   const textRef = useRef('');
   const refocusAfterSubmit = useRef(false);
   const players = useRef<Suggestion[]>([]);
+  const visibleStatusText = submitting ? '正在提交...' : statusText;
 
   useEffect(() => {
     void getPlayerList().then((list) => {
@@ -173,9 +174,9 @@ export default function GuessInputBar({
           {submitting ? '提交中...' : buttonText}
         </button>
       </form>
-      {statusText !== undefined && (
+      {visibleStatusText !== undefined && (
         <div className="guess-input-feedback" role="status" aria-live="polite">
-          {statusText}
+          {visibleStatusText}
         </div>
       )}
     </>
