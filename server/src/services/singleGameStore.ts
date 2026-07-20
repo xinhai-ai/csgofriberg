@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { redis, redisKey } from '../redis';
+import { evalCommandScript, redis, redisKey } from '../redis';
 import { GuessFeedback } from '../types';
 
 export type SingleGameMode = 'easy' | 'normal';
@@ -102,15 +102,14 @@ export async function saveSingleGame(game: SingleGameState): Promise<void> {
 export async function deleteSingleGame(game: SingleGameState): Promise<void> {
   const client = requiredRedis();
   const active = activeKey(game.identityKey, game.mode);
-  await client.eval(
+  await evalCommandScript(
+    'single-game-delete-v1',
     `redis.call('ZREM', KEYS[3], ARGV[1])
      if redis.call('get', KEYS[1]) == ARGV[1] then
        return redis.call('del', KEYS[1], KEYS[2])
      end
      return redis.call('del', KEYS[2])`,
-    {
-      keys: [active, gameKey(game.id), redisKey('presence:single')],
-      arguments: [game.id],
-    }
+    [active, gameKey(game.id), redisKey('presence:single')],
+    [game.id]
   );
 }

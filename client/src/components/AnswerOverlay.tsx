@@ -16,7 +16,7 @@ export interface AnswerInfo {
 export function PlayerInfoTable({ answer }: { answer: AnswerInfo }) {
   const rows: [ReactNode, string, ReactNode][] = [
     [<Shield size={14} key="i" />, '战队', answer.team || '-'],
-    [<Globe size={14} key="i" />, '国籍', answer.nationality],
+    [<Globe size={14} key="i" />, '国家或地区', answer.nationality],
     [<Crosshair size={14} key="i" />, '位置', answer.role ? playerRoleLabel(answer.role) : '-'],
     [<Trophy size={14} key="i" />, 'Major 冠军数', answer.majorChampionships ?? 0],
     [<Calendar size={14} key="i" />, 'Major 次数', answer.majorAppearances ?? '-'],

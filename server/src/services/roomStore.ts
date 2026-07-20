@@ -114,6 +114,14 @@ function stateRedis() {
   return client;
 }
 
+function evalCachedStateScript(
+  name: string,
+  script: string,
+  options: { keys: string[]; arguments: string[] }
+): Promise<unknown> {
+  return evalStateScript(name, script, options.keys, options.arguments);
+}
+
 function normalizeRoom(room: StoredRoom): StoredRoom {
   if (!Array.isArray(room.players)) room.players = [];
   if (!Array.isArray(room.spectators)) room.spectators = [];
@@ -700,7 +708,8 @@ export async function saveRoom(room: StoredRoom): Promise<void> {
       });
     }
   }
-  const result = await client.eval(
+  const result = await evalCachedStateScript(
+    'room-save-v3',
     `local incoming = cjson.decode(ARGV[1])
      local identityCount = tonumber(ARGV[6])
      local metaKey = KEYS[4 + identityCount]
@@ -865,7 +874,8 @@ export async function deleteRoom(room: StoredRoom): Promise<void> {
     }
     return;
   }
-  await client.eval(
+  await evalCachedStateScript(
+    'room-delete-v1',
     `redis.call('DEL', KEYS[1])
      redis.call('DEL', KEYS[5], KEYS[6], KEYS[7], KEYS[8], KEYS[9])
      redis.call('ZREM', KEYS[2], ARGV[1])
@@ -897,7 +907,8 @@ export async function deleteRoom(room: StoredRoom): Promise<void> {
 export async function reserveRoomCapacity(ip: string, roomId: string): Promise<boolean> {
   const client = stateRedis();
   if (!client) return true;
-  const result = await client.eval(
+  const result = await evalCachedStateScript(
+    'room-capacity-reserve-v1',
     `redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', ARGV[1])
      redis.call('ZREMRANGEBYSCORE', KEYS[2], '-inf', ARGV[1])
      if redis.call('ZCARD', KEYS[1]) >= tonumber(ARGV[2]) then return 0 end
@@ -940,7 +951,8 @@ export async function clearIdentityRoom(identity: string, expectedRoomId?: strin
     await client.del(identityKey(identity));
     return;
   }
-  await client.eval(
+  await evalCachedStateScript(
+    'room-identity-clear-v1',
     `if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('DEL', KEYS[1]) end
      return 0`,
     { keys: [identityKey(identity)], arguments: [expectedRoomId] }
@@ -957,7 +969,8 @@ async function acquireRedisLock(id: string): Promise<(() => Promise<void>) | nul
   do {
     if (await client.set(key, token, { NX: true, PX: 15_000 })) {
       return async () => {
-        await client.eval(
+        await evalCachedStateScript(
+          'room-lock-release-v1',
           'if redis.call("get", KEYS[1]) == ARGV[1] then return redis.call("del", KEYS[1]) else return 0 end',
           { keys: [key], arguments: [token] }
         );
@@ -1028,7 +1041,8 @@ export async function queueOrTakeOpponent(
   if (!client) return null;
   const queueKey = redisKey(`matchmaking:${dbType}`);
   const profilePrefix = redisKey('match-profile:');
-  const result = await client.eval(
+  const result = await evalCachedStateScript(
+    'matchmaking-take-or-queue-v1',
     `local candidates = redis.call('ZRANGE', KEYS[1], 0, 20)
      for _, candidate in ipairs(candidates) do
        if candidate ~= ARGV[1] and redis.call('ZREM', KEYS[1], candidate) == 1 then
@@ -1063,7 +1077,8 @@ export async function queueOrTakeOpponent(
 export async function requeueCandidate(dbType: DbType, identity: QueuedIdentity): Promise<void> {
   const client = stateRedis();
   if (!client) return;
-  await client.eval(
+  await evalCachedStateScript(
+    'matchmaking-requeue-v1',
     `if redis.call('EXISTS', KEYS[3]) == 0 then return 0 end
      redis.call('ZADD', KEYS[1], ARGV[2], ARGV[1])
      redis.call('SET', KEYS[2], ARGV[3], 'EX', 300)
@@ -1089,7 +1104,8 @@ export async function cancelQueue(identity: string, socketId?: string): Promise<
   const client = stateRedis();
   if (!client) return;
   if (socketId) {
-    await client.eval(
+    await evalCachedStateScript(
+      'matchmaking-cancel-socket-v1',
       `local profile = redis.call('GET', KEYS[3])
        if not profile then return 0 end
        local decodedOk, decoded = pcall(cjson.decode, profile)
@@ -1135,7 +1151,8 @@ export async function claimDueSchedules(limit = 100): Promise<string[]> {
   const client = stateRedis();
   if (!client) return [];
   const now = Date.now();
-  return client.eval(
+  return evalCachedStateScript(
+    'room-schedule-claim-v1',
     `local items = redis.call('ZRANGEBYSCORE', KEYS[1], '-inf', ARGV[1], 'LIMIT', 0, ARGV[2])
      for _, item in ipairs(items) do
        redis.call('ZADD', KEYS[1], 'XX', ARGV[3], item)

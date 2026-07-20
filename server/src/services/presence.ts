@@ -1,4 +1,4 @@
-import { redis, redisKey } from '../redis';
+import { evalCommandScript, redis, redisKey } from '../redis';
 
 export const ONLINE_STALE_MS = 150_000;
 
@@ -13,7 +13,8 @@ export async function getPresenceStats(): Promise<PresenceStats> {
   const client = redis();
   if (!client) throw new Error('REDIS_UNAVAILABLE');
   const now = Date.now();
-  const result = await client.eval(
+  const result = await evalCommandScript(
+    'presence-stats-v1',
     `redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', ARGV[1])
      redis.call('ZREMRANGEBYSCORE', KEYS[2], '-inf', ARGV[2])
      redis.call('ZREMRANGEBYSCORE', KEYS[3], '-inf', ARGV[2])
@@ -22,14 +23,12 @@ export async function getPresenceStats(): Promise<PresenceStats> {
        redis.call('ZCARD', KEYS[2]),
        redis.call('ZCARD', KEYS[3])
      }`,
-    {
-      keys: [
-        redisKey('presence:online'),
-        redisKey('presence:rooms'),
-        redisKey('presence:single'),
-      ],
-      arguments: [String(now - ONLINE_STALE_MS), String(now)],
-    }
+    [
+      redisKey('presence:online'),
+      redisKey('presence:rooms'),
+      redisKey('presence:single'),
+    ],
+    [String(now - ONLINE_STALE_MS), String(now)]
   ) as number[];
   return {
     onlineUsers: Number(result[0] ?? 0),

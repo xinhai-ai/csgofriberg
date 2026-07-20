@@ -148,7 +148,7 @@ export default function AdminPlayers() {
 
   const columns: Column<AdminPlayer>[] = [
     { key: 'nickname', title: '昵称' },
-    { key: 'nationality', title: '国籍' },
+    { key: 'nationality', title: '国家或地区' },
     { key: 'region', title: '赛区' },
     { key: 'team', title: '队伍' },
     { key: 'birth_year', title: '出生年' },

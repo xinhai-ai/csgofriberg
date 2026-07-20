@@ -159,7 +159,7 @@ export default function Home() {
             to="/search"
             icon={<Search size={22} />}
             label="查选手"
-            description="队伍、国籍与 Major 履历"
+            description="队伍、国家或地区与 Major 履历"
             color="#65a8ff"
           />
           <MenuCard

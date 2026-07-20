@@ -9,7 +9,7 @@ function textAttr(guess: string, target: string): AttributeFeedback {
   return { value: guess, level: guess === target ? 'correct' : 'wrong' };
 }
 
-/** 国籍: 相同 correct;不同但同赛区 close */
+/** 国家或地区:相同 correct;不同但同赛区 close */
 function nationalityAttr(guess: Player, target: Player): AttributeFeedback {
   if (guess.nationality === target.nationality)
     return { value: guess.nationality, level: 'correct' };

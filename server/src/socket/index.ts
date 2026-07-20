@@ -33,7 +33,13 @@ import {
   schedule,
   withRoomLock,
 } from '../services/roomStore';
-import { isRedisAvailable, isRedisTimeoutError, redis, redisKey } from '../redis';
+import {
+  evalCommandScript,
+  isRedisAvailable,
+  isRedisTimeoutError,
+  redis,
+  redisKey,
+} from '../redis';
 import { enqueueMatchResult } from '../services/matchResultQueue';
 import { getPresenceStats, ONLINE_STALE_MS, PresenceStats } from '../services/presence';
 import { GuessFeedback } from '../types';
@@ -655,7 +661,8 @@ async function socketAllowedWithIp(
 async function acquireConnectionSlot(ip: string, identity: string, socketId: string): Promise<boolean> {
   const client = redis();
   if (!client) return true;
-  const result = await client.eval(
+  const result = await evalCommandScript(
+    'connection-slot-acquire-v1',
     `redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', ARGV[1])
      redis.call('ZREMRANGEBYSCORE', KEYS[2], '-inf', ARGV[1])
      local ipCount = redis.call('ZCARD', KEYS[1])
@@ -667,22 +674,20 @@ async function acquireConnectionSlot(ip: string, identity: string, socketId: str
      redis.call('SET', KEYS[4], '1', 'EX', 180)
      redis.call('expire', KEYS[1], 900); redis.call('expire', KEYS[2], 900)
      return 1`,
-    {
-      keys: [
-        redisKey(`connections:ip:${ip}`),
-        redisKey(`connections:identity:${identity}`),
-        redisKey('presence:online'),
-        redisKey(`connections:socket:${socketId}`),
-      ],
-      arguments: [
-        String(Date.now() - ONLINE_STALE_MS),
-        String(MAX_CONNECTIONS_PER_IP),
-        String(MAX_CONNECTIONS_PER_IDENTITY),
-        String(Date.now()),
-        socketId,
-        identity,
-      ],
-    }
+    [
+      redisKey(`connections:ip:${ip}`),
+      redisKey(`connections:identity:${identity}`),
+      redisKey('presence:online'),
+      redisKey(`connections:socket:${socketId}`),
+    ],
+    [
+      String(Date.now() - ONLINE_STALE_MS),
+      String(MAX_CONNECTIONS_PER_IP),
+      String(MAX_CONNECTIONS_PER_IDENTITY),
+      String(Date.now()),
+      socketId,
+      identity,
+    ]
   );
   return Number(result) === 1;
 }
@@ -690,7 +695,8 @@ async function acquireConnectionSlot(ip: string, identity: string, socketId: str
 async function releaseConnectionSlot(ip: string, identity: string, socketId: string): Promise<void> {
   const client = redis();
   if (!client) return;
-  await client.eval(
+  await evalCommandScript(
+    'connection-slot-release-v1',
     `redis.call('ZREM', KEYS[1], ARGV[1])
      redis.call('ZREM', KEYS[2], ARGV[1])
      redis.call('ZREMRANGEBYSCORE', KEYS[2], '-inf', ARGV[3])
@@ -701,20 +707,18 @@ async function releaseConnectionSlot(ip: string, identity: string, socketId: str
        redis.call('ZADD', KEYS[3], ARGV[4], ARGV[2])
      end
      return 1`,
-    {
-      keys: [
-        redisKey(`connections:ip:${ip}`),
-        redisKey(`connections:identity:${identity}`),
-        redisKey('presence:online'),
-        redisKey(`connections:socket:${socketId}`),
-      ],
-      arguments: [
-        socketId,
-        identity,
-        String(Date.now() - ONLINE_STALE_MS),
-        String(Date.now()),
-      ],
-    }
+    [
+      redisKey(`connections:ip:${ip}`),
+      redisKey(`connections:identity:${identity}`),
+      redisKey('presence:online'),
+      redisKey(`connections:socket:${socketId}`),
+    ],
+    [
+      socketId,
+      identity,
+      String(Date.now() - ONLINE_STALE_MS),
+      String(Date.now()),
+    ]
   );
 }
 
@@ -725,7 +729,8 @@ async function refreshConnectionSlots(
   const client = redis();
   if (!client) return;
   const now = Date.now();
-  await client.eval(
+  await evalCommandScript(
+    'connection-slot-refresh-v1',
     `for index = 2, #ARGV, 3 do
        local ip = ARGV[index]
        local identity = ARGV[index + 1]
@@ -740,18 +745,16 @@ async function refreshConnectionSlots(
        redis.call('EXPIRE', identityKey, 900)
      end
      return #ARGV`,
-    {
-      keys: [
-        redisKey('presence:online'),
-        redisKey('connections:ip:'),
-        redisKey('connections:identity:'),
-        redisKey('connections:socket:'),
-      ],
-      arguments: [
-        String(now),
-        ...entries.flatMap((entry) => [entry.ip, entry.identity, entry.socketId]),
-      ],
-    }
+    [
+      redisKey('presence:online'),
+      redisKey('connections:ip:'),
+      redisKey('connections:identity:'),
+      redisKey('connections:socket:'),
+    ],
+    [
+      String(now),
+      ...entries.flatMap((entry) => [entry.ip, entry.identity, entry.socketId]),
+    ]
   );
 }
 

@@ -104,7 +104,7 @@ export default function PlayerEditForm({ initial, onSubmit, onCancel }: Props) {
               <input ref={firstInputRef} className="input" value={form.nickname} onChange={(event) => set({ nickname: event.target.value })} required />
             </label>
             <label className="admin-player-field">
-              <span>国籍 *</span>
+              <span>国家或地区 *</span>
               <input className="input" value={form.nationality} onChange={(event) => set({ nationality: event.target.value })} required />
             </label>
             <label className="admin-player-field">

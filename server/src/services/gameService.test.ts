@@ -29,12 +29,12 @@ describe('compareGuess', () => {
     expect(Object.values(fb.attributes).every((a) => a.level === 'correct')).toBe(true);
   });
 
-  it('同赛区不同国籍给 close', () => {
+  it('同赛区不同国家或地区给 close', () => {
     const guess = makePlayer({ id: 2, nationality: '丹麦', region: '欧洲' });
     expect(compareGuess(guess, target).attributes.nationality.level).toBe('close');
   });
 
-  it('不同赛区国籍给 wrong', () => {
+  it('不同赛区的国家或地区给 wrong', () => {
     const guess = makePlayer({ id: 2, nationality: '巴西', region: '南美' });
     const fb = compareGuess(guess, target);
     expect(fb.attributes.nationality.level).toBe('wrong');

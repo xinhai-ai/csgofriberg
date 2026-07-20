@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { redis, redisKey } from '../redis';
+import { evalCommandScript, redis, redisKey } from '../redis';
 
 const localLocks = new Map<string, Promise<void>>();
 
@@ -13,9 +13,11 @@ export async function withKeyLock<T>(key: string, handler: () => Promise<T>): Pr
         try {
           return await handler();
         } finally {
-          await client.eval(
+          await evalCommandScript(
+            'key-lock-release-v1',
             'if redis.call("get", KEYS[1]) == ARGV[1] then return redis.call("del", KEYS[1]) else return 0 end',
-            { keys: [lockKey], arguments: [token] }
+            [lockKey],
+            [token]
           );
         }
       }
