@@ -151,7 +151,7 @@ export default function AdminPlayers() {
     { key: 'nationality', title: '国家或地区' },
     { key: 'region', title: '赛区' },
     { key: 'team', title: '队伍' },
-    { key: 'birth_year', title: '出生年' },
+    { key: 'age', title: '年龄' },
     { key: 'role', title: '位置', render: (p) => playerRoleLabel(p.role) },
     { key: 'major_championships', title: 'Major 冠军' },
     { key: 'major_appearances', title: 'Major' },
@@ -252,7 +252,7 @@ export default function AdminPlayers() {
       <div className="card">
         <h3>JSON 批量导入</h3>
         <p className="muted">
-          粘贴选手数组,字段: nickname, nationality, region, team, birth_year, role,
+          粘贴选手数组,字段: nickname, nationality, region, team, age, role,
           major_championships, major_appearances, is_easy, is_active, is_enabled。按昵称去重,已存在则更新。
         </p>
         <textarea
@@ -260,7 +260,7 @@ export default function AdminPlayers() {
           rows={6}
           value={importText}
           onChange={(e) => setImportText(e.target.value)}
-          placeholder='[{"nickname":"s1mple","nationality":"乌克兰","region":"欧洲","team":"NAVI","birth_year":1997,"role":"AWPer","major_championships":1,"major_appearances":12,"is_easy":true,"is_active":true,"is_enabled":true}]'
+          placeholder='[{"nickname":"s1mple","nationality":"乌克兰","region":"欧洲","team":"NAVI","age":29,"role":"AWPer","major_championships":1,"major_appearances":12,"is_easy":true,"is_active":true,"is_enabled":true}]'
         />
         <button className="btn" style={{ marginTop: 8 }} onClick={() => void doImport()} disabled={!importText.trim()}>
           导入

@@ -17,7 +17,6 @@ const requiredColumns = [
   '分工',
   'major冠军数',
   '参加major次数',
-  '生日',
 ];
 
 const regions = {
@@ -86,7 +85,6 @@ function parsePipeTable(file) {
     });
 }
 
-const inferredBirthYears = [];
 const unknownNationalities = new Set();
 const unknownRoles = new Set();
 const seenNicknames = new Set();
@@ -110,13 +108,9 @@ const players = fullRows.map((row) => {
       'major appearances',
       nickname
     );
-    const birthday = row['生日'] || '';
-    const birthdayYear = birthday.match(/(?:19|20)\d{2}/)?.[0];
-    const birthYear = birthdayYear ? Number(birthdayYear) : 2026 - age;
     const region = regionMap[nationality];
     const role = roleMap[sourceRole];
 
-    if (!birthdayYear) inferredBirthYears.push({ nickname, age, birth_year: birthYear });
     if (!region) unknownNationalities.add(nationality);
     if (!role) unknownRoles.add(sourceRole);
     const nicknameKey = nickname.toLocaleLowerCase('en-US');
@@ -128,7 +122,7 @@ const players = fullRows.map((row) => {
       nationality,
       region: region || '未知',
       team,
-      birth_year: birthYear,
+      age,
       role: role || 'Rifler',
       major_championships: majorChampionships,
       major_appearances: majorAppearances,
@@ -166,9 +160,8 @@ const report = {
   source_easy_player_count: easyRows.length,
   easy_player_count: players.filter((player) => player.is_easy).length,
   inactive_count: players.filter((player) => !player.is_active).length,
-  inferred_birth_years: inferredBirthYears,
   rules: {
-    birth_year: '优先读取生日年份；缺失时使用 2026 - 原始年龄。',
+    age: '按表头读取年龄列，导入后由管理员手动维护。',
     major_championships: '按表头读取 major冠军数 列。',
     major_appearances: '按表头读取 参加major次数 列。',
     role: '仅保留 Rifler、AWPer、Coach 三种英文值，前端统一映射为中文。',

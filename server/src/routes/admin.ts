@@ -37,7 +37,7 @@ const playerSchema = z.object({
   nationality: z.string().min(1).max(64),
   region: z.string().max(32).default(''),
   team: z.string().max(64).default(''),
-  birth_year: z.number().int().min(1970).max(2015),
+  age: z.number().int().min(10).max(100),
   role: z.enum(playerRoles).default('Rifler'),
   major_championships: z.number().int().min(0).default(0),
   major_appearances: z.number().int().min(0).default(0),

@@ -4,7 +4,7 @@
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "Natus Vincere",
-    "birth_year": 1997,
+    "age": 29,
     "role": "AWPer",
     "major_appearances": 12,
     "major_championships": 1
@@ -14,7 +14,7 @@
     "nationality": "法国",
     "region": "欧洲",
     "team": "Vitality",
-    "birth_year": 2000,
+    "age": 26,
     "role": "AWPer",
     "major_appearances": 8,
     "major_championships": 3
@@ -24,7 +24,7 @@
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "Astralis",
-    "birth_year": 1995,
+    "age": 31,
     "role": "AWPer",
     "major_appearances": 15,
     "major_championships": 4
@@ -34,7 +34,7 @@
     "nationality": "波黑",
     "region": "欧洲",
     "team": "Falcons",
-    "birth_year": 1997,
+    "age": 29,
     "role": "Rifler",
     "major_appearances": 13,
     "major_championships": 0
@@ -44,7 +44,7 @@
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "Team Spirit",
-    "birth_year": 2007,
+    "age": 19,
     "role": "Rifler",
     "major_appearances": 3,
     "major_championships": 1
@@ -54,7 +54,7 @@
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "Falcons",
-    "birth_year": 2005,
+    "age": 21,
     "role": "AWPer",
     "major_appearances": 5,
     "major_championships": 1
@@ -64,7 +64,7 @@
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "Team Spirit",
-    "birth_year": 2001,
+    "age": 25,
     "role": "AWPer",
     "major_appearances": 6,
     "major_championships": 1
@@ -74,7 +74,7 @@
     "nationality": "乌克兰",
     "region": "欧洲",
     "team": "Natus Vincere",
-    "birth_year": 2003,
+    "age": 23,
     "role": "Rifler",
     "major_appearances": 7,
     "major_championships": 2
@@ -84,7 +84,7 @@
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "Virtus.pro",
-    "birth_year": 1998,
+    "age": 28,
     "role": "Rifler",
     "major_appearances": 11,
     "major_championships": 1
@@ -94,7 +94,7 @@
     "nationality": "加拿大",
     "region": "北美",
     "team": "Team Liquid",
-    "birth_year": 1999,
+    "age": 27,
     "role": "Rifler",
     "major_appearances": 11,
     "major_championships": 1
@@ -104,7 +104,7 @@
     "nationality": "爱沙尼亚",
     "region": "欧洲",
     "team": "Vitality",
-    "birth_year": 1999,
+    "age": 27,
     "role": "Rifler",
     "major_appearances": 11,
     "major_championships": 3
@@ -114,7 +114,7 @@
     "nationality": "挪威",
     "region": "欧洲",
     "team": "FaZe Clan",
-    "birth_year": 1994,
+    "age": 32,
     "role": "Rifler",
     "major_appearances": 16,
     "major_championships": 1
@@ -124,7 +124,7 @@
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "FaZe Clan",
-    "birth_year": 1990,
+    "age": 36,
     "role": "Rifler",
     "major_appearances": 19,
     "major_championships": 2
@@ -134,7 +134,7 @@
     "nationality": "法国",
     "region": "欧洲",
     "team": "Vitality",
-    "birth_year": 1993,
+    "age": 33,
     "role": "Rifler",
     "major_appearances": 17,
     "major_championships": 4
@@ -144,7 +144,7 @@
     "nationality": "拉脱维亚",
     "region": "欧洲",
     "team": "FaZe Clan",
-    "birth_year": 2001,
+    "age": 25,
     "role": "AWPer",
     "major_appearances": 8,
     "major_championships": 1
@@ -154,18 +154,18 @@
     "nationality": "巴西",
     "region": "南美",
     "team": "Legacy",
-    "birth_year": 1994,
+    "age": 32,
     "role": "Rifler",
     "major_appearances": 13,
-    "is_active": true,
-    "major_championships": 2
+    "major_championships": 2,
+    "is_active": true
   },
   {
     "nickname": "FalleN",
     "nationality": "巴西",
     "region": "南美",
     "team": "FURIA",
-    "birth_year": 1991,
+    "age": 35,
     "role": "Rifler",
     "major_appearances": 16,
     "major_championships": 2
@@ -175,7 +175,7 @@
     "nationality": "巴西",
     "region": "南美",
     "team": "FURIA",
-    "birth_year": 1999,
+    "age": 27,
     "role": "Rifler",
     "major_appearances": 8,
     "major_championships": 0
@@ -185,7 +185,7 @@
     "nationality": "巴西",
     "region": "南美",
     "team": "FURIA",
-    "birth_year": 1999,
+    "age": 27,
     "role": "Rifler",
     "major_appearances": 8,
     "major_championships": 0
@@ -195,7 +195,7 @@
     "nationality": "美国",
     "region": "北美",
     "team": "Complexity",
-    "birth_year": 1997,
+    "age": 29,
     "role": "Rifler",
     "major_appearances": 13,
     "major_championships": 0
@@ -205,7 +205,7 @@
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "Astralis",
-    "birth_year": 2002,
+    "age": 24,
     "role": "Rifler",
     "major_appearances": 7,
     "major_championships": 0
@@ -215,7 +215,7 @@
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "Astralis",
-    "birth_year": 2003,
+    "age": 23,
     "role": "Rifler",
     "major_appearances": 5,
     "major_championships": 0
@@ -225,7 +225,7 @@
     "nationality": "芬兰",
     "region": "欧洲",
     "team": "Natus Vincere",
-    "birth_year": 1997,
+    "age": 29,
     "role": "Rifler",
     "major_appearances": 9,
     "major_championships": 1
@@ -235,7 +235,7 @@
     "nationality": "立陶宛",
     "region": "欧洲",
     "team": "Natus Vincere",
-    "birth_year": 1999,
+    "age": 27,
     "role": "Rifler",
     "major_appearances": 4,
     "major_championships": 1
@@ -245,7 +245,7 @@
     "nationality": "罗马尼亚",
     "region": "欧洲",
     "team": "Natus Vincere",
-    "birth_year": 1999,
+    "age": 27,
     "role": "Rifler",
     "major_appearances": 4,
     "major_championships": 1
@@ -255,7 +255,7 @@
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "Team Spirit",
-    "birth_year": 1998,
+    "age": 28,
     "role": "Rifler",
     "major_appearances": 7,
     "major_championships": 1
@@ -265,7 +265,7 @@
     "nationality": "俄罗斯",
     "region": "独联体",
     "team": "Team Spirit",
-    "birth_year": 2003,
+    "age": 23,
     "role": "Rifler",
     "major_appearances": 6,
     "major_championships": 1
@@ -275,7 +275,7 @@
     "nationality": "以色列",
     "region": "欧洲",
     "team": "Vitality",
-    "birth_year": 2003,
+    "age": 23,
     "role": "Rifler",
     "major_appearances": 5,
     "major_championships": 2
@@ -285,7 +285,7 @@
     "nationality": "以色列",
     "region": "欧洲",
     "team": "Vitality",
-    "birth_year": 2000,
+    "age": 26,
     "role": "Rifler",
     "major_appearances": 6,
     "major_championships": 1
@@ -295,7 +295,7 @@
     "nationality": "波黑",
     "region": "欧洲",
     "team": "G2 Esports",
-    "birth_year": 1996,
+    "age": 30,
     "role": "Rifler",
     "major_appearances": 10,
     "major_championships": 0
@@ -305,7 +305,7 @@
     "nationality": "危地马拉",
     "region": "北美",
     "team": "G2 Esports",
-    "birth_year": 2002,
+    "age": 24,
     "role": "Rifler",
     "major_appearances": 3,
     "major_championships": 0
@@ -315,7 +315,7 @@
     "nationality": "波兰",
     "region": "欧洲",
     "team": "G2 Esports",
-    "birth_year": 1993,
+    "age": 33,
     "role": "Rifler",
     "major_appearances": 15,
     "major_championships": 1
@@ -325,7 +325,7 @@
     "nationality": "土耳其",
     "region": "欧洲",
     "team": "Eternal Fire",
-    "birth_year": 1995,
+    "age": 31,
     "role": "Rifler",
     "major_appearances": 6,
     "major_championships": 0
@@ -335,76 +335,76 @@
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "退役",
-    "birth_year": 1992,
+    "age": 34,
     "role": "Rifler",
     "major_appearances": 13,
-    "is_active": false,
-    "major_championships": 2
+    "major_championships": 2,
+    "is_active": false
   },
   {
     "nickname": "GeT_RiGhT",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "退役",
-    "birth_year": 1990,
+    "age": 36,
     "role": "Rifler",
     "major_appearances": 11,
-    "is_active": false,
-    "major_championships": 1
+    "major_championships": 1,
+    "is_active": false
   },
   {
     "nickname": "f0rest",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "退役",
-    "birth_year": 1988,
+    "age": 38,
     "role": "Rifler",
     "major_appearances": 13,
-    "is_active": false,
-    "major_championships": 1
+    "major_championships": 1,
+    "is_active": false
   },
   {
     "nickname": "friberg",
     "nationality": "瑞典",
     "region": "欧洲",
     "team": "退役",
-    "birth_year": 1991,
+    "age": 35,
     "role": "Rifler",
     "major_appearances": 12,
-    "is_active": false,
-    "major_championships": 1
+    "major_championships": 1,
+    "is_active": false
   },
   {
     "nickname": "kennyS",
     "nationality": "法国",
     "region": "欧洲",
     "team": "退役",
-    "birth_year": 1995,
+    "age": 31,
     "role": "AWPer",
     "major_appearances": 12,
-    "is_active": false,
-    "major_championships": 1
+    "major_championships": 1,
+    "is_active": false
   },
   {
     "nickname": "shox",
     "nationality": "法国",
     "region": "欧洲",
     "team": "退役",
-    "birth_year": 1992,
+    "age": 34,
     "role": "Rifler",
     "major_appearances": 15,
-    "is_active": false,
-    "major_championships": 1
+    "major_championships": 1,
+    "is_active": false
   },
   {
     "nickname": "dupreeh",
     "nationality": "丹麦",
     "region": "欧洲",
     "team": "退役",
-    "birth_year": 1993,
+    "age": 33,
     "role": "Rifler",
     "major_appearances": 18,
-    "is_active": false,
-    "major_championships": 5
+    "major_championships": 5,
+    "is_active": false
   }
 ]

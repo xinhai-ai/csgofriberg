@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { compareGuess, completeGuessFeedback, ageOf } from './gameService';
+import { compareGuess, completeGuessFeedback } from './gameService';
 import { Player } from '../types';
 
 function makePlayer(overrides: Partial<Player>): Player {
@@ -9,7 +9,7 @@ function makePlayer(overrides: Partial<Player>): Player {
     nationality: '瑞典',
     region: '欧洲',
     team: 'NIP',
-    birth_year: 1991,
+    age: 35,
     role: 'Rifler',
     major_championships: 1,
     major_appearances: 12,
@@ -42,7 +42,7 @@ describe('compareGuess', () => {
   });
 
   it('年龄相差 3 岁给 close 并带方向提示', () => {
-    const guess = makePlayer({ id: 2, birth_year: target.birth_year + 3 });
+    const guess = makePlayer({ id: 2, age: target.age - 3 });
     const fb = compareGuess(guess, target);
     expect(fb.attributes.age.level).toBe('close');
     // 猜的人更年轻,目标年龄更大
@@ -50,7 +50,7 @@ describe('compareGuess', () => {
   });
 
   it('年龄相差 4 岁给 wrong', () => {
-    const guess = makePlayer({ id: 2, birth_year: target.birth_year + 4 });
+    const guess = makePlayer({ id: 2, age: target.age - 4 });
     expect(compareGuess(guess, target).attributes.age.level).toBe('wrong');
   });
 
@@ -97,9 +97,5 @@ describe('compareGuess', () => {
   it('现役状态不同给 wrong', () => {
     const guess = makePlayer({ id: 2, is_active: false });
     expect(compareGuess(guess, target).attributes.isActive.level).toBe('wrong');
-  });
-
-  it('ageOf 按当前年份计算', () => {
-    expect(ageOf(makePlayer({ birth_year: new Date().getFullYear() - 25 }))).toBe(25);
   });
 });

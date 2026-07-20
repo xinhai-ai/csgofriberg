@@ -1,6 +1,5 @@
 import { Player, GuessFeedback, AttributeFeedback } from '../types';
 
-const CURRENT_YEAR = new Date().getFullYear();
 const AGE_CLOSE_RANGE = 3;
 const MAJOR_CHAMPIONSHIPS_CLOSE_RANGE = 1;
 const MAJOR_APPEARANCES_CLOSE_RANGE = 1;
@@ -32,10 +31,6 @@ function numberAttr(
   };
 }
 
-export function ageOf(p: Player): number {
-  return CURRENT_YEAR - p.birth_year;
-}
-
 /** 逐属性对比猜测选手与目标选手,产出反馈 */
 export function compareGuess(guess: Player, target: Player): GuessFeedback {
   const correct = guess.id === target.id;
@@ -47,7 +42,7 @@ export function compareGuess(guess: Player, target: Player): GuessFeedback {
       nationality: nationalityAttr(guess, target),
       region: textAttr(guess.region, target.region),
       team: textAttr(guess.team, target.team),
-      age: numberAttr(ageOf(guess), ageOf(target), AGE_CLOSE_RANGE),
+      age: numberAttr(guess.age, target.age, AGE_CLOSE_RANGE),
       role: textAttr(guess.role, target.role),
       majorChampionships: numberAttr(
         guess.major_championships,

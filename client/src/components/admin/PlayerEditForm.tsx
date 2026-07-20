@@ -9,7 +9,7 @@ export interface PlayerForm {
   nationality: string;
   region: string;
   team: string;
-  birth_year: number;
+  age: number;
   role: string;
   major_championships: number;
   major_appearances: number;
@@ -23,7 +23,7 @@ export const emptyPlayer: PlayerForm = {
   nationality: '',
   region: '',
   team: '',
-  birth_year: 2000,
+  age: 25,
   role: 'Rifler',
   major_championships: 0,
   major_appearances: 0,
@@ -116,8 +116,8 @@ export default function PlayerEditForm({ initial, onSubmit, onCancel }: Props) {
               <input className="input" value={form.team} onChange={(event) => set({ team: event.target.value })} />
             </label>
             <label className="admin-player-field">
-              <span>出生年份 *</span>
-              <input className="input" type="number" min="1970" max="2015" value={form.birth_year} onChange={(event) => set({ birth_year: Number(event.target.value) })} required />
+              <span>年龄 *</span>
+              <input className="input" type="number" min="10" max="100" value={form.age} onChange={(event) => set({ age: Number(event.target.value) })} required />
             </label>
             <label className="admin-player-field">
               <span>选手位置</span>

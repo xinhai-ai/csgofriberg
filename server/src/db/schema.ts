@@ -30,7 +30,7 @@ export async function ensureSchema(instance: Knex = db): Promise<void> {
       t.string('nationality', 64).notNullable();
       t.string('region', 32).notNullable().defaultTo('');
       t.string('team', 64).notNullable().defaultTo('');
-      t.integer('birth_year').notNullable();
+      t.integer('age').notNullable();
       t.string('role', 32).notNullable().defaultTo('Rifler');
       t.integer('major_championships').notNullable().defaultTo(0);
       t.integer('major_appearances').notNullable().defaultTo(0);
@@ -38,6 +38,33 @@ export async function ensureSchema(instance: Knex = db): Promise<void> {
       t.boolean('is_active').notNullable().defaultTo(true);
       t.boolean('is_enabled').notNullable().defaultTo(true);
       t.timestamp('created_at').notNullable().defaultTo(instance.fn.now());
+    });
+  }
+  const hasPlayerAge = await instance.schema.hasColumn('players', 'age');
+  const hasPlayerBirthYear = await instance.schema.hasColumn('players', 'birth_year');
+  if (!hasPlayerAge) {
+    await instance.schema.alterTable('players', (t) => {
+      t.integer('age').nullable();
+    });
+  }
+  if (hasPlayerBirthYear) {
+    const currentYear = new Date().getFullYear();
+    const players = await instance('players').select('id', 'age', 'birth_year');
+    for (const player of players) {
+      if (player.age != null) continue;
+      const age = currentYear - Number(player.birth_year);
+      if (!Number.isInteger(age) || age < 0) {
+        throw new Error(`INVALID_PLAYER_BIRTH_YEAR:${player.id}`);
+      }
+      await instance('players').where({ id: player.id }).update({ age });
+    }
+  }
+  const missingPlayerAge = await instance('players').whereNull('age').first('id');
+  if (missingPlayerAge) throw new Error(`MISSING_PLAYER_AGE:${missingPlayerAge.id}`);
+  if (!hasPlayerAge || hasPlayerBirthYear) {
+    await instance.schema.alterTable('players', (t) => {
+      t.integer('age').notNullable().alter();
+      if (hasPlayerBirthYear) t.dropColumn('birth_year');
     });
   }
   if (!(await instance.schema.hasColumn('players', 'major_championships'))) {

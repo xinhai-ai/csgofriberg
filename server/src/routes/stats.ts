@@ -54,7 +54,7 @@ function answerView(target: Player) {
     team: target.team,
     nationality: target.nationality,
     region: target.region,
-    age: new Date().getFullYear() - target.birth_year,
+    age: target.age,
     role: target.role,
     majorChampionships: target.major_championships,
     majorAppearances: target.major_appearances,

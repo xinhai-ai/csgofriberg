@@ -9,7 +9,7 @@ afterEach(async () => {
 });
 
 describe('player schema migration', () => {
-  it('removes real names and adds player-pool fields without losing players', async () => {
+  it('replaces birth years with fixed ages without losing players', async () => {
     const instance = knex({
       client: 'better-sqlite3',
       connection: { filename: ':memory:' },
@@ -46,8 +46,12 @@ describe('player schema migration', () => {
     expect(await instance.schema.hasColumn('players', 'major_championships')).toBe(true);
     expect(await instance.schema.hasColumn('players', 'is_easy')).toBe(true);
     expect(await instance.schema.hasColumn('players', 'is_enabled')).toBe(true);
+    expect(await instance.schema.hasColumn('players', 'age')).toBe(true);
+    expect(await instance.schema.hasColumn('players', 'birth_year')).toBe(false);
     expect(await instance.schema.hasTable('app_migrations')).toBe(true);
     const player = await instance('players').where({ nickname: 'legacy' }).first();
+    expect(player.age).toBe(new Date().getFullYear() - 1990);
+    expect((await instance('players').columnInfo('age')).nullable).toBe(false);
     expect(player.major_championships).toBe(0);
     expect(player.is_easy).toBe(0);
     expect(player.is_enabled).toBe(1);

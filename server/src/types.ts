@@ -13,7 +13,7 @@ export interface Player {
   nationality: string;
   region: string;
   team: string;
-  birth_year: number;
+  age: number;
   role: string;
   major_championships: number;
   major_appearances: number;

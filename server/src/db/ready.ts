@@ -7,6 +7,7 @@ const REQUIRED_COLUMNS: Record<string, string[]> = {
   players: [
     'id',
     'nickname',
+    'age',
     'major_championships',
     'major_appearances',
     'is_easy',

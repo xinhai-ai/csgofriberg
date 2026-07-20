@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { asyncHandler } from '../middleware/common';
-import { ageOf } from '../services/gameService';
 import { getPublicPlayerList, searchCachedPlayers } from '../services/playerCache';
 import { rateLimit } from '../middleware/rateLimit';
 
@@ -48,7 +47,7 @@ router.get(
         nationality: p.nationality,
         region: p.region,
         team: p.team,
-        age: ageOf(p),
+        age: p.age,
         role: p.role,
         majorChampionships: p.major_championships,
         majorAppearances: p.major_appearances,

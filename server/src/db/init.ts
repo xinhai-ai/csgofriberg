@@ -17,7 +17,7 @@ export async function seedPlayersIfEmpty(): Promise<void> {
     nationality: p.nationality,
     region: p.region ?? '',
     team: p.team ?? '',
-    birth_year: p.birth_year,
+    age: p.age,
     role: p.role ?? 'Rifler',
     major_championships: p.major_championships ?? 0,
     major_appearances: p.major_appearances ?? 0,
