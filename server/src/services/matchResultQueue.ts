@@ -25,7 +25,7 @@ let pendingClaimCursor = '0-0';
 
 async function persist(payload: MatchResultPayload): Promise<void> {
   const winner = payload.players.find((player) => player.key === payload.winnerKey);
-  await db.transaction(async (trx) => {
+  const insertedMatch = await db.transaction(async (trx) => {
     const inserted = await trx('match_records')
       .insert({
         room_id: payload.roomId,
@@ -42,7 +42,7 @@ async function persist(payload: MatchResultPayload): Promise<void> {
       .onConflict('room_id')
       .ignore()
       .returning('id');
-    if (!inserted.length) return;
+    if (!inserted.length) return false;
     const matchId = typeof inserted[0] === 'object' ? inserted[0].id : inserted[0];
     await trx('match_players').insert(
       payload.players.map((player) => ({
@@ -54,8 +54,9 @@ async function persist(payload: MatchResultPayload): Promise<void> {
         is_winner: player.key === payload.winnerKey,
       }))
     );
+    return true;
   });
-  await invalidateCached('leaderboard', 'stats:global');
+  if (insertedMatch) await invalidateCached('leaderboard', 'stats:global');
 }
 
 export async function enqueueMatchResult(payload: MatchResultPayload): Promise<void> {

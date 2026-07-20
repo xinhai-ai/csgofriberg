@@ -1033,6 +1033,33 @@ function syncResultRoomVersion<T>(result: T, room: StoredRoom): void {
   snapshot.updatedAt = room.updatedAt;
 }
 
+export async function removeExpiredSpectators(
+  roomId: string,
+  identities: string[],
+  now = Date.now()
+): Promise<{ room: StoredRoom; removedKeys: string[] } | null> {
+  const candidates = new Set(identities);
+  const result = await withRoomLock(roomId, (room) => {
+    const removedKeys: string[] = [];
+    room.spectators = room.spectators.filter((spectator) => {
+      if (
+        candidates.has(spectator.key) &&
+        !spectator.connected &&
+        spectator.disconnectDeadline !== null &&
+        spectator.disconnectDeadline <= now
+      ) {
+        removedKeys.push(spectator.key);
+        return false;
+      }
+      return true;
+    });
+    return { room, removedKeys };
+  }, (value) => value.removedKeys.length > 0);
+  if (!result) return null;
+  await Promise.all(result.removedKeys.map((identity) => clearIdentityRoom(identity, roomId)));
+  return result;
+}
+
 export async function queueOrTakeOpponent(
   dbType: DbType,
   identity: QueuedIdentity

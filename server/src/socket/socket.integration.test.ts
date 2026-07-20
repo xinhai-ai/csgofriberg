@@ -386,12 +386,15 @@ describe('multiplayer socket integration', () => {
       expect(created.room.allowSpectators).toBe(false);
       expect(created.room.anonymous).toBe(false);
       await emit(b, 'room:join', { roomId: created.room.id });
+      const beforeRejectedJoin = await getRoom(created.room.id);
 
       const rejected = await emit(spectator, 'room:join', {
         roomId: created.room.id,
         spectate: true,
       });
       expect(rejected.code).toBe('SPECTATING_DISABLED');
+      const afterRejectedJoin = await getRoom(created.room.id);
+      expect(afterRejectedJoin?.revision).toBe(beforeRejectedJoin?.revision);
 
       const synced = await emit(a, 'room:sync');
       expect(synced.room.spectators).toHaveLength(0);

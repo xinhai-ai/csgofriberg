@@ -3,6 +3,7 @@ import {
   StoredRoom,
   deleteRoom,
   getRoomForIdentity,
+  removeExpiredSpectators,
   saveRoom,
   withRoomLock,
 } from './roomStore';
@@ -100,6 +101,35 @@ describe('roomStore local fallback', () => {
     await expect(saveRoom(stale)).rejects.toThrow('STALE_ROOM_WRITE');
     expect((await getRoomForIdentity('u:1'))?.players[0].score).toBe(2);
     const current = await getRoomForIdentity('u:1');
+    if (current) await deleteRoom(current);
+  });
+
+  it('removes multiple expired spectators in one room update', async () => {
+    const room = makeRoom(`SPECTATORS${Date.now()}`);
+    const now = Date.now();
+    room.allowSpectators = true;
+    room.spectators = [
+      {
+        key: 'g:s1', userId: null, name: 's1', socketId: 'socket-s1',
+        connected: false, disconnectDeadline: now - 1,
+      },
+      {
+        key: 'g:s2', userId: null, name: 's2', socketId: 'socket-s2',
+        connected: false, disconnectDeadline: now - 1,
+      },
+      {
+        key: 'g:s3', userId: null, name: 's3', socketId: 'socket-s3',
+        connected: true, disconnectDeadline: null,
+      },
+    ];
+    await saveRoom(room);
+
+    const result = await removeExpiredSpectators(room.id, ['g:s1', 'g:s2'], now);
+    expect(result?.removedKeys).toEqual(['g:s1', 'g:s2']);
+    expect((await getRoomForIdentity('u:1'))?.spectators.map((spectator) => spectator.key))
+      .toEqual(['g:s3']);
+
+    const current = await import('./roomStore').then(({ getRoom }) => getRoom(room.id));
     if (current) await deleteRoom(current);
   });
 });

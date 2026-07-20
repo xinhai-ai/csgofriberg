@@ -27,6 +27,7 @@ import {
   isSocketAlive,
   queueOrTakeOpponent,
   requeueCandidate,
+  removeExpiredSpectators,
   releaseRoomCapacity,
   reserveRoomCapacity,
   saveRoom,
@@ -292,6 +293,7 @@ async function persistMatch(room: StoredRoom, winnerKey: string | null) {
       score: player.score,
     })),
   });
+  await acknowledgeSchedule(`persist|${room.id}|0`);
 }
 
 async function finishMatch(
@@ -397,7 +399,7 @@ async function finishRound(
     };
     if (matchOver) room.matchResult = { winnerKey, reason: 'score' };
     return { room, matchOver };
-  });
+  }, (value) => Boolean(value));
   if (!result) return;
   const { room, matchOver } = result;
   emitRoomViews(io, room, 'round:over', (viewerKey) => ({
@@ -597,6 +599,31 @@ async function handleScheduledItem(io: Server, item: string): Promise<void> {
     return;
   }
   await acknowledgeSchedule(item);
+}
+
+async function handleScheduledGroup(io: Server, items: string[]): Promise<void> {
+  const spectatorItems = items.filter((item) => item.startsWith('spectator|'));
+  if (spectatorItems.length) {
+    const roomId = spectatorItems[0].split('|')[1] ?? '';
+    const identities = spectatorItems
+      .map((item) => item.split('|')[2] ?? '')
+      .filter(Boolean);
+    const result = roomId
+      ? await removeExpiredSpectators(roomId, identities)
+      : null;
+    if (result?.removedKeys.length) {
+      if (!result.room.players.length && !result.room.spectators.length) {
+        await deleteRoom(result.room);
+      } else {
+        emitRoomState(io, result.room);
+      }
+    }
+    await Promise.all(spectatorItems.map(acknowledgeSchedule));
+  }
+
+  for (const item of items) {
+    if (!item.startsWith('spectator|')) await handleScheduledItem(io, item);
+  }
 }
 
 function safeOn(
@@ -822,7 +849,7 @@ export function setupSocket(io: Server) {
           byRoom.set(roomId, group);
         }
         await processGroupsWithLimit([...byRoom.values()], 8, async (group) => {
-          for (const item of group) await handleScheduledItem(io, item);
+          await handleScheduledGroup(io, group);
         });
       })
       .then(() => undefined)
@@ -1048,7 +1075,7 @@ export function setupSocket(io: Server) {
           player.socketId = socket.id;
           player.connected = true;
           player.disconnectDeadline = null;
-          return { role: 'player' as const };
+          return { role: 'player' as const, room };
         }
         const existingSpectator = room.spectators.find((p) => p.key === me.key);
         const asSpectator = Boolean(
@@ -1072,19 +1099,17 @@ export function setupSocket(io: Server) {
               disconnectDeadline: null,
             });
           }
-          return { role: 'spectator' as const };
+          return { role: 'spectator' as const, room };
         }
         room.players.push(makePlayer(me, socket.id, false));
-        return { role: 'player' as const };
-      });
+        return { role: 'player' as const, room };
+      }, (value) => 'role' in value);
       if (!role) return ack?.({ code: 'ROOM_NOT_FOUND' });
       if ('code' in role) return ack?.({ code: role.code });
       socket.join(roomId);
       socket.data.roomId = roomId;
-      const room = await getRoom(roomId);
-      if (!room) return ack?.({ code: 'ROOM_NOT_FOUND' });
-      emitRoomState(io, room);
-      ack?.({ room: publicRoom(room, me.key), role: role.role });
+      emitRoomState(io, role.room);
+      ack?.({ room: publicRoom(role.room, me.key), role: role.role });
     });
 
     safeOn(socket, 'room:ready', async (payload, ack) => {
@@ -1101,12 +1126,11 @@ export function setupSocket(io: Server) {
         if (!player) return false;
         if (player.socketId !== socket.id) return 'STALE_CONNECTION' as const;
         player.ready = typeof payload?.ready === 'boolean' ? payload.ready : !player.ready;
-        return true;
-      }, (value) => value === true);
+        return { room: locked };
+      }, (value) => typeof value === 'object');
       if (changed === 'STALE_CONNECTION') return ack?.({ code: changed });
       if (!changed) return ack?.({ code: 'NOT_IN_WAITING_ROOM' });
-      const refreshed = await getRoom(room.id);
-      if (refreshed) emitRoomState(io, refreshed);
+      emitRoomState(io, changed.room);
       ack?.({ ok: true });
     });
 
@@ -1128,7 +1152,7 @@ export function setupSocket(io: Server) {
         if (!locked.players.every((p) => p.ready && p.connected)) return 'PLAYERS_NOT_READY';
         locked.status = 'starting';
         return 'OK';
-      });
+      }, (value) => value === 'OK');
       if (result === 'ALREADY_STARTED') {
         if (room.status === 'starting') await startRound(io, room.id);
         const current = await getRoom(room.id);
@@ -1305,7 +1329,7 @@ export function setupSocket(io: Server) {
           if (locked.players.length && locked.hostKey === me.key) locked.hostKey = locked.players[0].key;
           if (locked.players.length === 1) locked.players[0].ready = true;
           return 'LEFT' as const;
-        });
+        }, (value) => value === 'LEFT');
         if (left === 'STALE_CONNECTION') return ack?.({ code: left });
         await clearIdentityRoom(me.key, room.id);
         const refreshed = await getRoom(room.id);
@@ -1463,7 +1487,7 @@ export function setupSocket(io: Server) {
           player.connected = false;
           player.disconnectDeadline = Date.now() + config.disconnectForfeitMs;
           return { deadline: player.disconnectDeadline, room: locked };
-        });
+        }, (value) => Boolean(value));
         if (!result) return;
         if ('spectator' in result || 'removed' in result) {
           if ('spectator' in result) {
