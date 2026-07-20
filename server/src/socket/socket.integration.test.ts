@@ -21,12 +21,11 @@ let stopSocket: (() => Promise<void>) | undefined;
 const createdRoomIds: string[] = [];
 const TEST_USER_AGENT = 'csgofriberg-socket-test';
 
-function connect(cookie: string, roomProtocol?: number): Promise<ClientSocket> {
+function connect(cookie: string): Promise<ClientSocket> {
   return new Promise((resolve, reject) => {
     const socket = clientIo(baseUrl, {
       transports: ['websocket'],
       extraHeaders: { Cookie: cookie, 'User-Agent': TEST_USER_AGENT },
-      ...(roomProtocol ? { auth: { roomProtocol } } : {}),
     });
     socket.once('connect', () => resolve(socket));
     socket.once('connect_error', reject);
@@ -148,7 +147,10 @@ describe('multiplayer socket integration', () => {
         emit(a, 'game:guess', { playerId: targetId, roundId: synced.room.roundId, eventId }),
         emit(b, 'game:guess', { playerId: targetId, roundId: synced.room.roundId, eventId: `valid-${stamp}-0002` }),
       ]);
-      expect(results.filter((result) => result.feedback?.correct)).toHaveLength(2);
+      expect(results.every((result) => result.feedback === undefined)).toBe(true);
+      results.filter((result) => !result.code).forEach((result) => {
+        expect(result.cooldownMs).toEqual(expect.any(Number));
+      });
       const finalRoom = await getRoom(created.room.id);
       expect(finalRoom).not.toBeNull();
       expect(finalRoom!.players.reduce((sum: number, player: any) => sum + player.score, 0)).toBe(1);
@@ -158,17 +160,23 @@ describe('multiplayer socket integration', () => {
     }
   });
 
-  it('uses room patches and event-only guess feedback for protocol 2', async () => {
+  it('uses room patches and event-only guess feedback', async () => {
     const stamp = Date.now();
     const tokenA = jwt.sign({ key: `patch-a-${stamp}`, typ: 'guest' }, config.jwtSecret, { expiresIn: '1h' });
     const tokenB = jwt.sign({ key: `patch-b-${stamp}`, typ: 'guest' }, config.jwtSecret, { expiresIn: '1h' });
-    const a = await connect(withPowCookie(`csgofriberg_guest=${tokenA}`), 2);
-    const b = await connect(withPowCookie(`csgofriberg_guest=${tokenB}`), 2);
-    let legacyStateEvents = 0;
-    a.on('room:state', () => { legacyStateEvents += 1; });
+    const tokenSpectator = jwt.sign({ key: `patch-spectator-${stamp}`, typ: 'guest' }, config.jwtSecret, { expiresIn: '1h' });
+    const a = await connect(withPowCookie(`csgofriberg_guest=${tokenA}`));
+    const b = await connect(withPowCookie(`csgofriberg_guest=${tokenB}`));
+    const spectator = await connect(withPowCookie(`csgofriberg_guest=${tokenSpectator}`));
+    let appliedEvents = 0;
+    let roundOverEvents = 0;
+    a.on('game:guess:applied', () => { appliedEvents += 1; });
+    a.on('round:over', () => { roundOverEvents += 1; });
     try {
-      const created = await emit(a, 'room:create', { dbType: 'easy', boType: 1 });
+      const created = await emit(a, 'room:create', { dbType: 'easy', boType: 1, allowSpectators: true });
       createdRoomIds.push(created.room.id);
+      expect(created.room.spectatorCount).toBe(0);
+      expect(created.room).not.toHaveProperty('spectators');
 
       const joinedPatchPromise = onceEvent(a, 'room:patch');
       await emit(b, 'room:join', { roomId: created.room.id });
@@ -186,26 +194,40 @@ describe('multiplayer socket integration', () => {
         key: `g:patch-b-${stamp}`,
         ready: true,
       }));
-      expect(legacyStateEvents).toBe(0);
+      const spectatorPatchPromise = onceEvent(a, 'room:patch');
+      const spectatorJoined = await emit(spectator, 'room:join', {
+        roomId: created.room.id,
+        spectate: true,
+      });
+      const spectatorPatch = await spectatorPatchPromise;
+      expect(spectatorPatch.spectatorCount).toBe(1);
+      expect(spectatorPatch.spectators).toBeUndefined();
+      expect(spectatorJoined.room.spectatorCount).toBe(1);
+      expect(spectatorJoined.room.spectators).toBeUndefined();
 
       expect((await emit(a, 'game:start')).ok).toBe(true);
       const active = await getRoom(created.room.id);
       expect(active?.targetPlayerId).toEqual(expect.any(Number));
       const eventId = `patch-guess-${stamp}`;
-      const appliedPromise = onceEvent(a, 'game:guess:applied');
+      const matchOverPromise = onceEvent(a, 'match:over');
       const guessAck = await emit(a, 'game:guess', {
         playerId: active!.targetPlayerId,
         roundId: active!.round,
         eventId,
       });
-      const applied = await appliedPromise;
-      expect(guessAck).toMatchObject({ ok: true, eventId });
+      const matchOver = await matchOverPromise;
+      expect(guessAck).toMatchObject({ cooldownMs: expect.any(Number) });
+      expect(guessAck.eventId).toBeUndefined();
       expect(guessAck.feedback).toBeUndefined();
       expect(guessAck.room).toBeUndefined();
-      expect(applied.feedback.correct).toBe(true);
+      expect(Object.keys(matchOver)).toEqual(['room']);
+      expect(matchOver.room.matchResult).toMatchObject({ reason: 'score' });
+      expect(appliedEvents).toBe(0);
+      expect(roundOverEvents).toBe(0);
     } finally {
       a.disconnect();
       b.disconnect();
+      spectator.disconnect();
     }
   });
 
@@ -281,17 +303,24 @@ describe('multiplayer socket integration', () => {
         roundId: syncedA.room.roundId,
         eventId: `hidden-${stamp}-0001`,
       });
-      expect(guessed.feedback.playerId).toBe(wrongGuess.id);
+      expect(guessed.feedback).toBeUndefined();
+      expect(guessed.cooldownMs).toEqual(expect.any(Number));
 
       const hiddenUpdate = await opponentEvent;
       expect(hiddenUpdate.feedback).toMatchObject({ hidden: true, correct: false });
+      expect(hiddenUpdate.eventId).toBeUndefined();
+      expect(hiddenUpdate.guessCount).toBeUndefined();
       expect(hiddenUpdate.feedback).not.toHaveProperty('playerId');
       expect(hiddenUpdate.feedback).not.toHaveProperty('nickname');
+      expect(hiddenUpdate.feedback.attributes).not.toHaveProperty('region');
       expect(hiddenUpdate.feedback.attributes.team).not.toHaveProperty('value');
 
       const spectatorUpdate = await spectatorEvent;
       expect(spectatorUpdate.feedback.playerId).toBe(wrongGuess.id);
+      expect(spectatorUpdate.eventId).toBeUndefined();
+      expect(spectatorUpdate.guessCount).toBeUndefined();
       expect(spectatorUpdate.feedback.nickname).toEqual(expect.any(String));
+      expect(spectatorUpdate.feedback.attributes).not.toHaveProperty('region');
       expect(spectatorUpdate.feedback.attributes.team).toHaveProperty('value');
 
       const syncedB = await emit(b, 'room:sync');
@@ -340,12 +369,15 @@ describe('multiplayer socket integration', () => {
         .select('id')
         .limit(2);
 
+      const firstAppliedPromise = onceEvent(a, 'game:guess:applied');
       const first = await emit(a, 'game:guess', {
         playerId: wrongGuesses[0].id,
         roundId: synced.room.roundId,
         eventId: `script-${stamp}-0001`,
       });
-      expect(first.feedback.playerId).toBe(wrongGuesses[0].id);
+      const firstApplied = await firstAppliedPromise;
+      expect(first.feedback).toBeUndefined();
+      expect(firstApplied.feedback.playerId).toBe(wrongGuesses[0].id);
       expect(first).not.toHaveProperty('room');
       const identityA = `g:script-a-${stamp}`;
       const snapshotAfterFirst = JSON.parse(
@@ -384,12 +416,15 @@ describe('multiplayer socket integration', () => {
       expect(coolingDown.retryAfterMs).toBeLessThanOrEqual(3_000);
       await new Promise((resolve) => setTimeout(resolve, coolingDown.retryAfterMs + 25));
 
+      const secondAppliedPromise = onceEvent(a, 'game:guess:applied');
       const second = await emit(a, 'game:guess', {
         playerId: wrongGuesses[1].id,
         roundId: synced.room.roundId,
         eventId: `script-${stamp}-0003`,
       });
-      expect(second.feedback.playerId).toBe(wrongGuesses[1].id);
+      const secondApplied = await secondAppliedPromise;
+      expect(second.feedback).toBeUndefined();
+      expect(secondApplied.feedback.playerId).toBe(wrongGuesses[1].id);
       expect(second).not.toHaveProperty('room');
 
       for (let index = 4; index <= 12; index += 1) {
@@ -437,9 +472,9 @@ describe('multiplayer socket integration', () => {
       createdRoomIds.push(created.room.id);
       expect(created.room.allowSpectators).toBe(false);
       expect(created.room.anonymous).toBe(false);
-      const legacyStatePromise = onceEvent(a, 'room:state');
+      const joinedPatchPromise = onceEvent(a, 'room:patch');
       await emit(b, 'room:join', { roomId: created.room.id });
-      expect((await legacyStatePromise).players).toHaveLength(2);
+      expect((await joinedPatchPromise).players.added).toHaveLength(1);
       const beforeRejectedJoin = await getRoom(created.room.id);
 
       const rejected = await emit(spectator, 'room:join', {
@@ -451,7 +486,7 @@ describe('multiplayer socket integration', () => {
       expect(afterRejectedJoin?.revision).toBe(beforeRejectedJoin?.revision);
 
       const synced = await emit(a, 'room:sync');
-      expect(synced.room.spectators).toHaveLength(0);
+      expect(synced.room.spectatorCount).toBe(0);
     } finally {
       a.disconnect();
       b.disconnect();
@@ -566,9 +601,7 @@ describe('multiplayer socket integration', () => {
       const restored = await emit(spectator, 'room:sync');
       expect(restored.role).toBe('spectator');
       expect(restored.room.id).toBe(created.room.id);
-      expect(restored.room.spectators).toContainEqual(expect.objectContaining({
-        key: `g:${spectatorKey}`,
-      }));
+      expect(restored.room.spectatorCount).toBe(1);
     } finally {
       owner.disconnect();
       spectator.disconnect();
@@ -677,22 +710,21 @@ describe('multiplayer socket integration', () => {
       await emit(a, 'game:start');
       const before = await emit(a, 'room:sync');
       const stored = JSON.parse((await redis()!.get(redisKey(`room:${created.room.id}`)))!);
+      const matchOverPromise = onceEvent(a, 'match:over');
       const guessed = await emit(a, 'game:guess', {
         playerId: stored.targetPlayerId,
         roundId: before.room.roundId,
         eventId: `result-${stamp}-0001`,
       });
-      expect(guessed.room.status).toBe('finished');
+      const matchOver = await matchOverPromise;
+      expect(guessed.room).toBeUndefined();
+      expect(matchOver.room.status).toBe('finished');
       const restored = await emit(a, 'room:sync');
       expect(restored.room.matchResult).toMatchObject({
         winnerKey: `g:${keyA}`,
         reason: 'score',
       });
-      expect(restored.room.roundResult).toMatchObject({
-        winnerKey: `g:${keyA}`,
-        reason: 'guessed',
-        matchOver: true,
-      });
+      expect(restored.room.roundResult).toBeNull();
     } finally {
       a.disconnect();
       b.disconnect();
@@ -747,19 +779,24 @@ describe('multiplayer socket integration', () => {
       await emit(b, 'room:ready', { ready: true });
       await emit(a, 'game:start');
       const active = await emit(a, 'room:sync');
+      let matchOverEvents = 0;
+      b.on('match:over', () => { matchOverEvents += 1; });
+      const roundOverPromise = onceEvent(b, 'round:over');
       const results = await Promise.all([
         emit(a, 'game:surrender-round', { roundId: active.room.roundId }),
         emit(a, 'game:surrender-round', { roundId: active.room.roundId }),
       ]);
+      const roundOver = await roundOverPromise;
       expect(results.filter((result) => result.ok)).toHaveLength(1);
       expect(results.some((result) => result.code === 'NO_ACTIVE_ROUND')).toBe(true);
+      expect(Object.keys(roundOver)).toEqual(['room']);
+      expect(matchOverEvents).toBe(0);
 
       const synced = await emit(b, 'room:sync');
       expect(synced.room.status).toBe('round_over');
       expect(synced.room.roundResult).toMatchObject({
         winnerKey: `g:${keyB}`,
         reason: 'surrender',
-        matchOver: false,
       });
       expect(synced.room.players.find((player: any) => player.key === `g:${keyB}`).score).toBe(1);
       expect(synced.room.players.find((player: any) => player.key === `g:${keyA}`).score).toBe(0);

@@ -289,7 +289,6 @@ export type ApplyRoomGuessResult =
       shouldFinish: boolean;
       matchOver: boolean;
       revision: number;
-      guessCount: number;
       playerKeys: string[];
       room?: StoredRoom;
     }
@@ -298,7 +297,6 @@ export type ApplyRoomGuessResult =
       feedback: GuessFeedback;
       round: number;
       revision: number;
-      guessCount: number;
     }
   | { kind: 'error'; code: string; reason?: string; retryAfterMs?: number };
 
@@ -341,7 +339,7 @@ if previousIndex then
   end
   return cjson.encode({
     kind='duplicate', feedback=previous, round=tonumber(meta[3]),
-    revision=tonumber(meta[5] or 0), guessCount=#guesses
+    revision=tonumber(meta[5] or 0)
   })
 end
 if meta[1] ~= 'playing' or not meta[2] or meta[2] == '' then
@@ -439,7 +437,7 @@ local playerKeys = redis.call('HKEYS', KEYS[7])
 return cjson.encode({
   kind='applied', feedback=feedback, round=tonumber(meta[3]),
   correct=feedback.correct == true, shouldFinish=shouldFinish, matchOver=matchOver,
-  revision=revision, guessCount=guessCount, playerKeys=playerKeys
+  revision=revision, playerKeys=playerKeys
 })
 `;
 
@@ -498,7 +496,6 @@ export async function applyRoomGuess(input: ApplyRoomGuessInput): Promise<ApplyR
               feedback: previous,
               round: room.round,
               revision: room.revision,
-              guessCount: player.guesses.length,
             }
           : { kind: 'error', code: 'NO_ACTIVE_ROUND', reason: 'event_result_missing' };
       }
@@ -562,7 +559,6 @@ export async function applyRoomGuess(input: ApplyRoomGuessInput): Promise<ApplyR
         shouldFinish,
         matchOver,
         revision: room.revision,
-        guessCount: player.guesses.length,
         playerKeys: room.players.map((candidate) => candidate.key),
         room,
       };

@@ -53,7 +53,6 @@ const MULTI_GUESS_INTERVAL_MS = 3_000;
 const FINISHED_ROOM_TTL_MS = 5 * 60_000;
 const LOCAL_GUESS_LIMIT = 12;
 const LOCAL_GUESS_WINDOW_MS = 10_000;
-const PATCH_ROOM_PROTOCOL = 2;
 const localGuessBuckets = new Map<string, { count: number; expiresAt: number }>();
 
 function allowLocalGuess(identity: string): boolean {
@@ -112,16 +111,8 @@ function identityChannel(key: string): string {
   return `identity:${key}`;
 }
 
-function identityProtocolChannel(key: string, protocol: 1 | 2): string {
-  return `${identityChannel(key)}:v${protocol}`;
-}
-
 function spectatorChannel(roomId: string): string {
   return `room:${roomId}:spectators`;
-}
-
-function roomProtocol(socket: Socket): 1 | 2 {
-  return socket.data.roomProtocol === PATCH_ROOM_PROTOCOL ? 2 : 1;
 }
 
 function joinRoomChannels(socket: Socket, room: StoredRoom, identity: string): void {
@@ -131,6 +122,11 @@ function joinRoomChannels(socket: Socket, room: StoredRoom, identity: string): v
   } else {
     socket.leave(spectatorChannel(room.id));
   }
+}
+
+function visibleGuess(feedback: GuessFeedback) {
+  const { region: _region, ...attributes } = feedback.attributes;
+  return { ...feedback, attributes };
 }
 
 function hiddenGuess(feedback: GuessFeedback) {
@@ -143,7 +139,6 @@ function hiddenGuess(feedback: GuessFeedback) {
     correct: feedback.correct,
     attributes: {
       nationality: hideAttribute(feedback.attributes.nationality),
-      region: hideAttribute(feedback.attributes.region),
       team: hideAttribute(feedback.attributes.team),
       age: hideAttribute(feedback.attributes.age),
       role: hideAttribute(feedback.attributes.role),
@@ -152,6 +147,10 @@ function hiddenGuess(feedback: GuessFeedback) {
       isActive: hideAttribute(feedback.attributes.isActive),
     },
   };
+}
+
+function connectedSpectatorCount(room: StoredRoom): number {
+  return room.spectators.reduce((count, spectator) => count + (spectator.connected ? 1 : 0), 0);
 }
 
 function buildPublicRoom(room: StoredRoom, viewerKey: string) {
@@ -171,20 +170,14 @@ function buildPublicRoom(room: StoredRoom, viewerKey: string) {
     roundEndsAt: room.roundEndsAt,
     roundId: room.round,
     stateVersion: room.revision,
-    spectators: room.spectators
-      .filter((spectator) => spectator.connected)
-      .map((spectator) => ({ key: spectator.key, name: spectator.name })),
-    roundResult: room.roundResult
-      ? {
+    spectatorCount: connectedSpectatorCount(room),
+    roundResult: room.matchResult || !room.roundResult
+      ? null
+      : {
           winnerKey: room.roundResult.winnerKey,
           reason: room.roundResult.reason,
           answer: answerView(room.targetPlayerId),
-          matchOver: room.roundResult.matchOver,
-          nextRoundInMs: room.roundResult.nextRoundAt
-            ? Math.max(0, room.roundResult.nextRoundAt - Date.now())
-            : undefined,
-        }
-      : null,
+        },
     matchResult: room.matchResult
       ? {
           winnerKey: room.matchResult.winnerKey,
@@ -205,7 +198,7 @@ function buildPublicRoom(room: StoredRoom, viewerKey: string) {
         score: p.score,
         guessCount: guesses.length,
         guesses: viewerIsSpectator || p.key === viewerKey
-          ? guesses
+          ? guesses.map(visibleGuess)
           : guesses.map(hiddenGuess),
       };
     }),
@@ -220,10 +213,7 @@ type RoomPatchChanges = {
     updated?: Array<Partial<PublicRoom['players'][number]> & { key: string }>;
     removed?: string[];
   };
-  spectators?: {
-    added?: PublicRoom['spectators'];
-    removed?: string[];
-  };
+  spectatorCount?: number;
 };
 const publicRoomCache = new WeakMap<StoredRoom, {
   revision: number;
@@ -261,18 +251,10 @@ function emitRoomViews<T>(
 }
 
 function emitRoomPatch(io: Server, room: StoredRoom, changes: RoomPatchChanges): void {
-  for (const player of room.players) {
-    io.to(identityProtocolChannel(player.key, 1)).emit('room:state', publicRoom(room, player.key));
-  }
-  if (room.spectators.length) {
-    const legacyChannels = room.spectators.map((spectator) => identityProtocolChannel(spectator.key, 1));
-    io.to(legacyChannels).emit('room:state', publicRoom(room, room.spectators[0].key));
-  }
-
-  const patchChannels = [...room.players, ...room.spectators]
-    .map((member) => identityProtocolChannel(member.key, 2));
-  if (!patchChannels.length) return;
-  io.to(patchChannels).emit('room:patch', {
+  const channels = [...room.players, ...room.spectators]
+    .map((member) => identityChannel(member.key));
+  if (!channels.length) return;
+  io.to(channels).emit('room:patch', {
     roomId: room.id,
     baseVersion: Math.max(0, room.revision - 1),
     stateVersion: room.revision,
@@ -370,9 +352,6 @@ async function finishMatch(
   if (!result) return 'ignored';
   if ('stale' in result) return 'stale';
   emitRoomViews(io, result.room, 'match:over', (viewerKey) => ({
-    winnerKey,
-    reason,
-    answer: answerView(result.room.targetPlayerId),
     room: publicRoom(result.room, viewerKey),
   }));
   void persistMatch(result.room, winnerKey).catch((err) => console.error('[match:persist]', err));
@@ -452,19 +431,8 @@ async function finishRound(
   }, (value) => Boolean(value));
   if (!result) return;
   const { room, matchOver } = result;
-  emitRoomViews(io, room, 'round:over', (viewerKey) => ({
-    winnerKey,
-    reason,
-    answer: answerView(room.targetPlayerId),
-    matchOver,
-    nextRoundInMs: matchOver ? undefined : NEXT_ROUND_DELAY_MS,
-    room: publicRoom(room, viewerKey),
-  }));
   if (matchOver) {
     emitRoomViews(io, room, 'match:over', (viewerKey) => ({
-      winnerKey,
-      reason: 'score',
-      answer: answerView(room.targetPlayerId),
       room: publicRoom(room, viewerKey),
     }));
     void persistMatch(room, winnerKey).catch((err) => console.error('[match:persist]', err));
@@ -473,6 +441,9 @@ async function finishRound(
     });
     return;
   }
+  emitRoomViews(io, room, 'round:over', (viewerKey) => ({
+    room: publicRoom(room, viewerKey),
+  }));
   setLocalTimer(`next:${roomId}`, NEXT_ROUND_DELAY_MS, () => startRound(io, roomId));
 }
 
@@ -514,19 +485,8 @@ async function surrenderRound(
   if (!result) return null;
   if ('stale' in result) return 'stale';
   const winnerKey = result.room.roundResult?.winnerKey ?? null;
-  emitRoomViews(io, result.room, 'round:over', (viewerKey) => ({
-    winnerKey,
-    reason: 'surrender',
-    answer: answerView(result.room.targetPlayerId),
-    matchOver: result.matchOver,
-    nextRoundInMs: result.matchOver ? undefined : NEXT_ROUND_DELAY_MS,
-    room: publicRoom(result.room, viewerKey),
-  }));
   if (result.matchOver) {
     emitRoomViews(io, result.room, 'match:over', (viewerKey) => ({
-      winnerKey,
-      reason: 'score',
-      answer: answerView(result.room.targetPlayerId),
       room: publicRoom(result.room, viewerKey),
     }));
     void persistMatch(result.room, winnerKey).catch((err) => console.error('[match:persist]', err));
@@ -534,6 +494,9 @@ async function surrenderRound(
       return cleanupRoom(roomId);
     });
   } else {
+    emitRoomViews(io, result.room, 'round:over', (viewerKey) => ({
+      room: publicRoom(result.room, viewerKey),
+    }));
     setLocalTimer(`next:${roomId}`, NEXT_ROUND_DELAY_MS, () => startRound(io, roomId));
   }
   return result;
@@ -628,7 +591,7 @@ async function processSchedule(io: Server, item: string): Promise<number | null>
           await deleteRoom(updated.room);
         } else {
           emitRoomPatch(io, updated.room, {
-            spectators: { removed: [discriminator] },
+            spectatorCount: connectedSpectatorCount(updated.room),
           });
         }
       }
@@ -676,7 +639,7 @@ async function handleScheduledGroup(io: Server, items: string[]): Promise<void> 
         await deleteRoom(result.room);
       } else {
         emitRoomPatch(io, result.room, {
-          spectators: { removed: result.removedKeys },
+          spectatorCount: connectedSpectatorCount(result.room),
         });
       }
     }
@@ -964,9 +927,6 @@ export function setupSocket(io: Server) {
       }
       socket.data.identity = identity;
       socket.data.ip = ip;
-      socket.data.roomProtocol = Number(socket.handshake.auth?.roomProtocol) === PATCH_ROOM_PROTOCOL
-        ? PATCH_ROOM_PROTOCOL
-        : 1;
       socket.data.connectionSlot = true;
       next();
     } catch (err) {
@@ -986,7 +946,6 @@ export function setupSocket(io: Server) {
       socketId: socket.id,
     });
     socket.join(identityChannel(me.key));
-    socket.join(identityProtocolChannel(me.key, roomProtocol(socket)));
     const restorePromise = getRoomForIdentity(me.key, true).then(async (existing) => {
       if (!existing) return;
       let refreshed = existing;
@@ -1015,7 +974,7 @@ export function setupSocket(io: Server) {
         refreshed = restored.room;
         emitRoomPatch(io, refreshed, restored.role === 'player'
           ? { players: { updated: [{ key: me.key, connected: true }] } }
-          : { spectators: { added: [{ key: me.key, name: me.name }] } });
+          : { spectatorCount: connectedSpectatorCount(refreshed) });
       }
       joinRoomChannels(socket, refreshed, me.key);
       socket.data.roomId = refreshed.id;
@@ -1182,9 +1141,8 @@ export function setupSocket(io: Server) {
           ? { players: { updated: [{ key: me.key, connected: true }] } }
           : { players: { added: player ? [player] : [] } });
       } else {
-        const spectator = joinedView.spectators.find((candidate) => candidate.key === me.key);
         emitRoomPatch(io, role.room, {
-          spectators: { added: spectator ? [spectator] : [] },
+          spectatorCount: connectedSpectatorCount(role.room),
         });
       }
       ack?.({ room: publicRoom(role.room, me.key), role: role.role });
@@ -1303,62 +1261,32 @@ export function setupSocket(io: Server) {
         roomId,
         roundId: result.round,
         key: me.key,
-        eventId,
-        guessCount: result.guessCount,
         stateVersion: result.revision,
       };
       if (result.kind === 'duplicate') {
-        ack?.(roomProtocol(socket) === PATCH_ROOM_PROTOCOL
-          ? {
-              ok: true,
-              duplicate: true,
-              eventId,
-              stateVersion: result.revision,
-            }
-          : { feedback: result.feedback });
-        socket.emit('game:guess:applied', { ...delta, feedback: result.feedback });
+        ack?.({ cooldownMs: MULTI_GUESS_INTERVAL_MS });
+        socket.emit('game:guess:applied', { ...delta, feedback: visibleGuess(result.feedback) });
         return;
       }
       const finishedRoom = result.shouldFinish ? result.room : undefined;
-      ack?.(roomProtocol(socket) === PATCH_ROOM_PROTOCOL
-        ? {
-            ok: true,
-            eventId,
-            cooldownMs: MULTI_GUESS_INTERVAL_MS,
-            stateVersion: result.revision,
-          }
-        : {
-            feedback: result.feedback,
-            cooldownMs: MULTI_GUESS_INTERVAL_MS,
-            room: finishedRoom ? publicRoom(finishedRoom, me.key) : undefined,
+      ack?.({ cooldownMs: MULTI_GUESS_INTERVAL_MS });
+      if (!result.shouldFinish) {
+        for (const playerKey of result.playerKeys) {
+          io.to(identityChannel(playerKey)).emit('game:guess:applied', {
+            ...delta,
+            feedback: playerKey === me.key ? visibleGuess(result.feedback) : hiddenGuess(result.feedback),
           });
-      for (const playerKey of result.playerKeys) {
-        io.to(identityChannel(playerKey)).emit('game:guess:applied', {
+        }
+        io.to(spectatorChannel(roomId)).emit('game:guess:applied', {
           ...delta,
-          feedback: playerKey === me.key ? result.feedback : hiddenGuess(result.feedback),
+          feedback: visibleGuess(result.feedback),
         });
       }
-      io.to(spectatorChannel(roomId)).emit('game:guess:applied', {
-        ...delta,
-        feedback: result.feedback,
-      });
       if (result.shouldFinish) {
         if (!finishedRoom) throw new Error('MISSING_FINISHED_ROOM_SNAPSHOT');
         const winnerKey = result.correct ? me.key : null;
-        const reason = result.correct ? 'guessed' : 'exhausted';
-        emitRoomViews(io, finishedRoom, 'round:over', (viewerKey) => ({
-          winnerKey,
-          reason,
-          answer: answerView(finishedRoom.targetPlayerId),
-          matchOver: result.matchOver,
-          nextRoundInMs: result.matchOver ? undefined : NEXT_ROUND_DELAY_MS,
-          room: publicRoom(finishedRoom, viewerKey),
-        }));
         if (result.matchOver) {
           emitRoomViews(io, finishedRoom, 'match:over', (viewerKey) => ({
-            winnerKey,
-            reason: 'score',
-            answer: answerView(finishedRoom.targetPlayerId),
             room: publicRoom(finishedRoom, viewerKey),
           }));
           void persistMatch(finishedRoom, winnerKey).catch((err) => console.error('[match:persist]', err));
@@ -1366,6 +1294,9 @@ export function setupSocket(io: Server) {
             return cleanupRoom(roomId);
           });
         } else {
+          emitRoomViews(io, finishedRoom, 'round:over', (viewerKey) => ({
+            room: publicRoom(finishedRoom, viewerKey),
+          }));
           setLocalTimer(`next:${roomId}`, NEXT_ROUND_DELAY_MS, () => startRound(io, roomId));
         }
       }
@@ -1391,9 +1322,7 @@ export function setupSocket(io: Server) {
           room: latest ? publicRoom(latest, me.key) : undefined,
         });
       }
-      ack?.(roomProtocol(socket) === PATCH_ROOM_PROTOCOL
-        ? { ok: true }
-        : { ok: true, room: publicRoom(result.room, me.key) });
+      ack?.({ ok: true });
     });
 
     safeOn(socket, 'room:leave', async (_payload, ack) => {
@@ -1444,7 +1373,7 @@ export function setupSocket(io: Server) {
                 ? [{ key: left.room.players[0].key, ready: left.room.players[0].ready }]
                 : [],
             },
-            spectators: { removed: [me.key] },
+            spectatorCount: connectedSpectatorCount(left.room),
           });
         }
       }
@@ -1552,12 +1481,8 @@ export function setupSocket(io: Server) {
       await io.in(identityChannel(opponent.key)).socketsJoin(room.id);
       socket.join(room.id);
       socket.data.roomId = room.id;
-      ack?.(roomProtocol(socket) === PATCH_ROOM_PROTOCOL
-        ? { queued: false }
-        : { queued: false, room: publicRoom(savedRoom, me.key) });
-      emitRoomViews(io, savedRoom, 'match:found', (viewerKey) => ({
-        room: publicRoom(savedRoom, viewerKey),
-      }));
+      ack?.({ queued: false });
+      emitRoomViews(io, savedRoom, 'match:found', () => ({}));
       await startRound(io, savedRoom.id);
     });
 
@@ -1606,7 +1531,7 @@ export function setupSocket(io: Server) {
         if (!result) return;
         if ('spectator' in result) {
           emitRoomPatch(io, result.room, {
-            spectators: { removed: [me.key] },
+            spectatorCount: connectedSpectatorCount(result.room),
           });
           return;
         }

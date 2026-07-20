@@ -12,7 +12,6 @@ export interface GuessFeedback {
   correct: boolean;
   attributes: {
     nationality: AttributeFeedback;
-    region: AttributeFeedback;
     team: AttributeFeedback;
     age: AttributeFeedback;
     role: AttributeFeedback;
@@ -29,7 +28,6 @@ export interface HiddenGuessFeedback {
   correct: boolean;
   attributes: {
     nationality: HiddenAttributeFeedback;
-    region: HiddenAttributeFeedback;
     team: HiddenAttributeFeedback;
     age: HiddenAttributeFeedback;
     role: HiddenAttributeFeedback;
@@ -84,7 +82,7 @@ export interface RoomState {
   winsNeeded: number;
   maxGuesses: number;
   roundEndsAt: number | null;
-  spectators: { key: string; name: string }[];
+  spectatorCount: number;
   players: RoomPlayer[];
   roundResult: {
     winnerKey: string | null;
@@ -97,8 +95,6 @@ export interface RoomState {
       majorChampionships: number;
       majorAppearances: number;
     } | null;
-    matchOver: boolean;
-    nextRoundInMs?: number;
   } | null;
   matchResult: {
     winnerKey: string | null;
@@ -124,10 +120,7 @@ export interface RoomPatch {
     updated?: Array<Partial<RoomPlayer> & { key: string }>;
     removed?: string[];
   };
-  spectators?: {
-    added?: Array<{ key: string; name: string }>;
-    removed?: string[];
-  };
+  spectatorCount?: number;
 }
 
 export interface PresenceStats {

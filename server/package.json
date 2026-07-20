@@ -11,7 +11,8 @@
     "seed": "tsx src/db/runSeed.ts",
     "create-admin": "tsx src/db/createAdmin.ts",
     "maintenance": "tsx src/maintenance.ts",
-    "loadtest": "node scripts/loadtest.cjs"
+    "loadtest": "node scripts/loadtest.cjs",
+    "benchmark:ws-compression": "node scripts/benchmark-websocket-compression.cjs"
   },
   "dependencies": {
     "@socket.io/redis-adapter": "^8.3.0",

@@ -31,7 +31,6 @@ export function getSocket(): Socket {
     withCredentials: true,
     autoConnect: false,
     transports: ['websocket'],
-    auth: { roomProtocol: 2 },
   });
   socket.on('connect_error', (error) => {
     if (error.message === 'IDENTITY_REQUIRED') {

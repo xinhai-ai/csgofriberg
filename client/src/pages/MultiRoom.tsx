@@ -27,8 +27,6 @@ interface RoundOver {
   winnerKey: string | null;
   reason: string;
   answer: AnswerInfo | null;
-  matchOver: boolean;
-  nextRoundInMs?: number;
 }
 
 interface MatchOver {
@@ -53,22 +51,12 @@ function applyRoomPatchState(current: RoomState, patch: RoomPatch): RoomState {
     else players = [...players, added];
   }
 
-  const removedSpectators = new Set(patch.spectators?.removed ?? []);
-  let spectators = current.spectators.filter(
-    (spectator) => !removedSpectators.has(spectator.key)
-  );
-  for (const added of patch.spectators?.added ?? []) {
-    const index = spectators.findIndex((spectator) => spectator.key === added.key);
-    if (index >= 0) spectators[index] = added;
-    else spectators = [...spectators, added];
-  }
-
   return {
     ...current,
     stateVersion: patch.stateVersion,
     hostKey: patch.hostKey ?? current.hostKey,
     players,
-    spectators,
+    spectatorCount: patch.spectatorCount ?? current.spectatorCount,
   };
 }
 
@@ -204,9 +192,6 @@ export default function MultiRoom() {
 
   useEffect(() => {
     const socket = getSocket();
-    const onState = (state: RoomState) => {
-      applyRoomSnapshot(state);
-    };
     const onPatch = (patch: RoomPatch) => {
       setRoom((current) => {
         if (!current || current.id !== patch.roomId) return current;
@@ -229,13 +214,13 @@ export default function MultiRoom() {
       setRoundExpired(false);
       applyRoomSnapshot(p.room);
     };
-    const onRoundOver = (p: RoundOver & { room: RoomState }) => {
+    const onRoundOver = (p: { room: RoomState }) => {
       setGuessCooldownUntil(0);
       setRoundExpired(true);
       setError('');
       applyRoomSnapshot(p.room);
     };
-    const onMatchOver = (p: MatchOver & { room: RoomState }) => {
+    const onMatchOver = (p: { room: RoomState }) => {
       setGuessCooldownUntil(0);
       setRoundExpired(true);
       setError('');
@@ -254,8 +239,6 @@ export default function MultiRoom() {
       roomId: string;
       roundId: number;
       key: string;
-      eventId: string;
-      guessCount: number;
       stateVersion: number;
       feedback: MultiplayerGuessFeedback;
     }) => {
@@ -272,26 +255,15 @@ export default function MultiRoom() {
           stateVersion: p.stateVersion,
           players: current.players.map((player) => {
             if (player.key !== p.key) return player;
-            if (p.guessCount <= player.guessCount) return player;
-            if (p.guessCount !== player.guessCount + 1) {
-              syncRoom(socket);
-              return player;
-            }
-            const duplicate = !('hidden' in feedback) && player.guesses.some(
-              (guess) => !('hidden' in guess) && guess.playerId === feedback.playerId
-            );
-            return duplicate
-              ? player
-              : {
-                  ...player,
-                  guesses: [...player.guesses, feedback],
-                  guessCount: p.guessCount,
-                };
+            return {
+              ...player,
+              guesses: [...player.guesses, feedback],
+              guessCount: player.guessCount + 1,
+            };
           }),
         };
       });
     };
-    socket.on('room:state', onState);
     socket.on('room:patch', onPatch);
     socket.on('round:start', onRoundStart);
     socket.on('round:over', onRoundOver);
@@ -327,7 +299,6 @@ export default function MultiRoom() {
       else if (!roomRef.current) navigate('/multi');
     });
     return () => {
-      socket.off('room:state', onState);
       socket.off('room:patch', onPatch);
       socket.off('round:start', onRoundStart);
       socket.off('round:over', onRoundOver);
@@ -580,9 +551,9 @@ export default function MultiRoom() {
               观战中
             </span>
           )}
-          {room.spectators.length > 0 && (
+          {room.spectatorCount > 0 && (
             <span className="muted">
-              <Eye size={12} style={{ verticalAlign: -2 }} /> {room.spectators.length} 人观战
+              <Eye size={12} style={{ verticalAlign: -2 }} /> {room.spectatorCount} 人观战
             </span>
           )}
           {offlineNote && <span className="error">{offlineNote}</span>}

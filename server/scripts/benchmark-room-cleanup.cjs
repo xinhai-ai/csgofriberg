@@ -137,7 +137,7 @@ function payloadComparison(spectatorCount = 100) {
     roundEndsAt: null,
     roundId: 0,
     stateVersion: 42,
-    spectators,
+    spectatorCount: spectators.length,
     roundResult: null,
     matchResult: null,
     players: ['a', 'b'].map((key, index) => ({
@@ -156,6 +156,20 @@ function payloadComparison(spectatorCount = 100) {
     stateVersion: 42,
     players: { updated: [{ key: 'g:player-b', ready: true }] },
   };
+  const legacyRoom = { ...room, spectators };
+  delete legacyRoom.spectatorCount;
+  const oldSpectatorPatch = {
+    roomId: room.id,
+    baseVersion: 41,
+    stateVersion: 42,
+    spectators: { added: [spectators[0]] },
+  };
+  const spectatorCountPatch = {
+    roomId: room.id,
+    baseVersion: 41,
+    stateVersion: 42,
+    spectatorCount: spectators.length,
+  };
   const guessBase = {
     kind: 'applied',
     round: 1,
@@ -167,9 +181,12 @@ function payloadComparison(spectatorCount = 100) {
     playerKeys: ['g:player-a', 'g:player-b'],
   };
   const oldGuessResult = { ...guessBase, spectatorKeys: spectators.map((item) => item.key) };
-  const newGuessResult = guessBase;
+  const { guessCount: _guessCount, ...newGuessResult } = guessBase;
   const fullRoomBytes = serializedBytes(room);
+  const legacyRoomBytes = serializedBytes(legacyRoom);
   const readyPatchBytes = serializedBytes(readyPatch);
+  const oldSpectatorPatchBytes = serializedBytes(oldSpectatorPatch);
+  const spectatorCountPatchBytes = serializedBytes(spectatorCountPatch);
   const oldGuessBytes = serializedBytes(oldGuessResult);
   const newGuessBytes = serializedBytes(newGuessResult);
   return {
@@ -178,6 +195,16 @@ function payloadComparison(spectatorCount = 100) {
       fullRoomBytes,
       patchBytes: readyPatchBytes,
       reduction: Number((fullRoomBytes / readyPatchBytes).toFixed(2)),
+    },
+    spectatorState: {
+      legacyRoomBytes,
+      countOnlyRoomBytes: fullRoomBytes,
+      reduction: Number((legacyRoomBytes / fullRoomBytes).toFixed(2)),
+    },
+    spectatorPatch: {
+      oldBytes: oldSpectatorPatchBytes,
+      countOnlyBytes: spectatorCountPatchBytes,
+      reduction: Number((oldSpectatorPatchBytes / spectatorCountPatchBytes).toFixed(2)),
     },
     guessLuaResponse: {
       oldBytes: oldGuessBytes,
