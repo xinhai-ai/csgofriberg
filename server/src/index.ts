@@ -34,6 +34,7 @@ import { closePasswordWorkers } from './services/password';
 import { getRuntimeSnapshot, startRuntimeMonitor } from './services/runtimeMonitor';
 import { requireAdmin, requireAuth } from './middleware/auth';
 import { parseJsonOnce, rejectOversizedBody } from './middleware/jsonBody';
+import { rejectMissingClientAsset, setClientAssetCacheHeaders } from './middleware/clientAssets';
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 
@@ -141,8 +142,10 @@ async function main() {
   // 生产环境托管前端构建产物
   const clientDist = path.resolve(__dirname, '../../client/dist');
   if (fs.existsSync(clientDist)) {
-    app.use(express.static(clientDist));
+    app.use(express.static(clientDist, { setHeaders: setClientAssetCacheHeaders }));
+    app.use(rejectMissingClientAsset);
     app.get(/^(?!\/api|\/socket\.io).*/, (_req, res) => {
+      res.setHeader('Cache-Control', 'no-cache');
       res.sendFile(path.join(clientDist, 'index.html'));
     });
   }

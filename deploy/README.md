@@ -157,6 +157,18 @@ upstream csgofriberg_backend {
     keepalive 64;
 }
 
+location /assets/ {
+    proxy_pass http://csgofriberg_backend;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_connect_timeout 1s;
+    proxy_next_upstream error timeout http_404 http_502 http_503 http_504;
+    proxy_next_upstream_tries 2;
+}
+
 location / {
     proxy_pass http://csgofriberg_backend;
     proxy_http_version 1.1;
@@ -184,6 +196,13 @@ location /socket.io/ {
     proxy_buffering off;
 }
 ```
+
+The dedicated `/assets/` location is required for rolling updates. Vite assets
+use content-hashed filenames, so an old instance returns 404 for a chunk owned
+by the new instance and vice versa. Retrying `http_404` lets Nginx fetch that
+chunk from the other instance. The application deliberately does not send the
+SPA `index.html` fallback for missing `/assets/` paths, because a module request
+receiving HTML fails with a MIME type error.
 
 The current client uses WebSocket-only Socket.IO transport, so sticky sessions
 are not required. Configure affinity before enabling HTTP long-polling.
