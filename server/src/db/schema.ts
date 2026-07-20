@@ -138,12 +138,24 @@ export async function ensureSchema(instance: Knex = db): Promise<void> {
   if (!(await instance.schema.hasTable('match_records'))) {
     await instance.schema.createTable('match_records', (t) => {
       t.increments('id').primary();
-      t.string('room_id', 16).notNullable();
+      t.string('room_id', 64).notNullable();
+      t.string('db_type', 16).notNullable().defaultTo('easy');
       t.integer('bo_type').notNullable().defaultTo(3);
       t.integer('winner_id').nullable().references('id').inTable('users');
       t.text('players').notNullable().defaultTo('[]');
+      t.text('replay').notNullable().defaultTo('[]');
       t.timestamp('created_at').notNullable().defaultTo(instance.fn.now());
       t.unique(['room_id']);
+    });
+  }
+  if (!(await instance.schema.hasColumn('match_records', 'replay'))) {
+    await instance.schema.alterTable('match_records', (t) => {
+      t.text('replay').notNullable().defaultTo('[]');
+    });
+  }
+  if (!(await instance.schema.hasColumn('match_records', 'db_type'))) {
+    await instance.schema.alterTable('match_records', (t) => {
+      t.string('db_type', 16).notNullable().defaultTo('easy');
     });
   }
 
@@ -153,12 +165,18 @@ export async function ensureSchema(instance: Knex = db): Promise<void> {
       t.integer('match_id').notNullable().references('id').inTable('match_records').onDelete('CASCADE');
       t.integer('user_id').nullable().references('id').inTable('users');
       t.string('player_key', 80).notNullable();
-      t.string('player_name', 32).notNullable();
+      t.string('player_name', 32).notNullable().defaultTo('');
       t.integer('score').notNullable().defaultTo(0);
       t.boolean('is_winner').notNullable().defaultTo(false);
       t.unique(['match_id', 'player_key']);
       t.index(['user_id', 'is_winner'], 'match_players_user_winner_idx');
     });
+  }
+
+  if (instance.client.config.client === 'pg') {
+    await instance.raw(
+      'alter table "match_records" alter column "room_id" type varchar(64)'
+    );
   }
 
   const matchPlayerCount = Number(
@@ -192,6 +210,7 @@ export async function ensureSchema(instance: Knex = db): Promise<void> {
     ['games_user_status_mode_idx', ['user_id', 'status', 'mode']],
     ['games_guest_status_mode_idx', ['guest_key', 'status', 'mode']],
     ['games_user_finished_idx', ['user_id', 'finished_at']],
+    ['games_guest_finished_idx', ['guest_key', 'finished_at']],
   ] as const;
   for (const [name, columns] of gameIndexes) {
     const quotedColumns = columns.map((column) => `\"${column}\"`).join(', ');
@@ -200,6 +219,15 @@ export async function ensureSchema(instance: Knex = db): Promise<void> {
 
   await instance.raw(
     'create unique index if not exists "match_records_room_id_unique" on "match_records" ("room_id")'
+  );
+  await instance.raw(
+    'create index if not exists "match_records_created_at_idx" on "match_records" ("created_at", "id")'
+  );
+  await instance.raw(
+    'create index if not exists "match_players_user_match_idx" on "match_players" ("user_id", "match_id")'
+  );
+  await instance.raw(
+    'create index if not exists "match_players_key_match_idx" on "match_players" ("player_key", "match_id")'
   );
 
   if (!(await instance.schema.hasTable('announcements'))) {

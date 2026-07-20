@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { randomUUID } from 'crypto';
 import {
   StoredRoom,
   deleteRoom,
+  getRoom,
   getRoomForIdentity,
   removeExpiredSpectators,
   saveRoom,
@@ -12,6 +14,7 @@ function makeRoom(id: string): StoredRoom {
   const now = Date.now();
   return {
     id,
+    recordId: randomUUID(),
     ownerIp: '127.0.0.1',
     hostKey: 'u:1',
     status: 'waiting',
@@ -31,6 +34,7 @@ function makeRoom(id: string): StoredRoom {
     eventResults: {},
     roundResult: null,
     matchResult: null,
+    replayRounds: [],
     revision: 0,
     createdAt: now,
     updatedAt: now,
@@ -38,6 +42,17 @@ function makeRoom(id: string): StoredRoom {
 }
 
 describe('roomStore local fallback', () => {
+  it('derives one stable UUID for legacy rooms without a record id', async () => {
+    const room = makeRoom(`legacy-${Date.now()}`);
+    delete (room as Partial<StoredRoom>).recordId;
+    await saveRoom(room);
+    const first = await getRoom(room.id);
+    const second = await getRoom(room.id);
+    expect(first?.recordId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-8[0-9a-f]{3}-[0-9a-f]{12}$/);
+    expect(second?.recordId).toBe(first?.recordId);
+    if (first) await deleteRoom(first);
+  });
+
   it('serializes concurrent room updates and indexes identities', async () => {
     const room = makeRoom(`T${Date.now()}`);
     await saveRoom(room);

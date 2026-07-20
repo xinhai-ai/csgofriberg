@@ -66,7 +66,7 @@ async function settleGame(game: SingleGameState, status: 'won' | 'lost'): Promis
       guest_key: game.guestKey,
       target_player_id: game.targetPlayerId,
       mode: game.mode,
-      guesses: JSON.stringify(game.guesses),
+      guesses: JSON.stringify(game.guesses.map((guess) => guess.playerId)),
       status,
       guess_count: game.guesses.length,
       created_at: new Date(game.createdAt),

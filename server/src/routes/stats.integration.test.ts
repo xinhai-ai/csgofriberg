@@ -1,4 +1,5 @@
 import http from 'http';
+import { randomUUID } from 'crypto';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import { AddressInfo } from 'net';
@@ -10,7 +11,6 @@ import { initDb } from '../db/init';
 import { initRedis } from '../redis';
 import { errorHandler } from '../middleware/common';
 import { initPlayerCache, getPlayer } from '../services/playerCache';
-import { compareGuess } from '../services/gameService';
 import { invalidateCached } from '../services/queryCache';
 
 let server: http.Server;
@@ -51,16 +51,16 @@ describe('stats and replay', () => {
     const ownerKey = `stats-owner-${stamp}`;
     const otherKey = `stats-other-${stamp}`;
     const sessionId = `stats-session-${stamp}`;
-    const [row] = await db('players').select('id').limit(1);
-    const target = getPlayer(Number(row.id))!;
-    const feedback = compareGuess(target, target);
+    const playerRows = await db('players').select('id').limit(2);
+    const target = getPlayer(Number(playerRows[0].id))!;
+    const otherPlayer = getPlayer(Number(playerRows[1].id))!;
     const [gameId] = await db('games')
       .insert({
         session_id: sessionId,
         guest_key: ownerKey,
         target_player_id: target.id,
         mode: 'easy',
-        guesses: JSON.stringify([feedback]),
+        guesses: JSON.stringify([target.id]),
         status: 'won',
         guess_count: 1,
         finished_at: db.fn.now(),
@@ -69,13 +69,62 @@ describe('stats and replay', () => {
       .then((rows) => rows.map((item: any) => typeof item === 'object' ? item.id : item));
     await invalidateCached('stats:global');
 
+    const meKey = `g:${ownerKey}`;
+    const opponentKey = `g:${otherKey}`;
+    const [matchId] = await db('match_records')
+      .insert({
+        room_id: randomUUID(),
+        db_type: 'easy',
+        bo_type: 1,
+        replay: JSON.stringify([{
+          round: 1,
+          targetPlayerId: target.id,
+          winnerKey: meKey,
+          reason: 'guessed',
+          guessesByPlayer: {
+            [meKey]: [target.id],
+            [opponentKey]: [otherPlayer.id],
+          },
+        }]),
+      })
+      .returning('id')
+      .then((rows) => rows.map((item: any) => typeof item === 'object' ? item.id : item));
+    await db('match_players').insert([
+      {
+        match_id: matchId,
+        player_key: meKey,
+        player_name: '',
+        score: 1,
+        is_winner: true,
+      },
+      {
+        match_id: matchId,
+        player_key: opponentKey,
+        player_name: '',
+        score: 0,
+        is_winner: false,
+      },
+    ]);
+
     try {
       const stats = await request('/api/stats/me', guestCookie(ownerKey));
       expect(stats.response.status).toBe(200);
       expect(stats.data.personal.totalGames).toBe(1);
       expect(stats.data.personal.wins).toBe(1);
       expect(stats.data.global.totalGames).toBeGreaterThanOrEqual(1);
-      expect(stats.data.recent[0].id).toBe(gameId);
+      const singleList = await request('/api/stats/replays?type=single&page=1&pageSize=5', guestCookie(ownerKey));
+      expect(singleList.response.status).toBe(200);
+      expect(singleList.data.items[0]).toMatchObject({ type: 'single', id: gameId });
+
+      const multiList = await request('/api/stats/replays?type=multi&page=1&pageSize=5', guestCookie(ownerKey));
+      expect(multiList.response.status).toBe(200);
+      expect(multiList.data.items[0]).toMatchObject({
+        type: 'multi',
+        id: matchId,
+        result: 'won',
+        me: { score: 1 },
+        opponent: { score: 0 },
+      });
 
       const replay = await request(`/api/stats/games/${gameId}/replay`, guestCookie(ownerKey));
       expect(replay.response.status).toBe(200);
@@ -83,11 +132,23 @@ describe('stats and replay', () => {
       expect(replay.data.guesses).toHaveLength(1);
       expect(replay.data.guesses[0].correct).toBe(true);
 
+      const multiReplay = await request(`/api/stats/matches/${matchId}/replay`, guestCookie(ownerKey));
+      expect(multiReplay.response.status).toBe(200);
+      expect(multiReplay.data.rounds).toHaveLength(1);
+      expect(multiReplay.data.rounds[0].winner).toBe('me');
+      expect(multiReplay.data.rounds[0].me.guesses[0].correct).toBe(true);
+      expect(multiReplay.data.rounds[0].opponent.guesses[0].playerId).toBe(otherPlayer.id);
+
       const forbidden = await request(`/api/stats/games/${gameId}/replay`, guestCookie(otherKey));
       expect(forbidden.response.status).toBe(404);
       expect(forbidden.data.code).toBe('GAME_NOT_FOUND');
+
+      const forbiddenMulti = await request(`/api/stats/matches/${matchId}/replay`, guestCookie(`third-${stamp}`));
+      expect(forbiddenMulti.response.status).toBe(404);
+      expect(forbiddenMulti.data.code).toBe('GAME_NOT_FOUND');
     } finally {
       await db('games').where({ session_id: sessionId }).del();
+      await db('match_records').where({ id: matchId }).del();
       await invalidateCached('stats:global');
     }
   });

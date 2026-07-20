@@ -1,5 +1,6 @@
 import { Server, Socket } from 'socket.io';
 import { isIP } from 'net';
+import { randomUUID } from 'crypto';
 import { authenticateCookie, getGuestFromCookie } from '../middleware/auth';
 import { consumeRateLimit } from '../middleware/rateLimit';
 import { compareGuess, completeGuessFeedback, MAX_GUESSES } from '../services/gameService';
@@ -300,6 +301,31 @@ function makePlayer(identity: StoredIdentity, socketId: string, ready: boolean):
   };
 }
 
+function appendReplayRound(room: StoredRoom): void {
+  const result = room.roundResult;
+  if (!result || !room.targetPlayerId) return;
+  if (room.replayRounds.some((round) => round.round === result.round)) return;
+  room.replayRounds.push({
+    round: result.round,
+    targetPlayerId: room.targetPlayerId,
+    winnerKey: result.winnerKey,
+    reason: result.reason,
+    guessesByPlayer: Object.fromEntries(
+      room.players.map((player) => [player.key, player.guesses.map((guess) => guess.playerId)])
+    ),
+  });
+  if (room.replayRounds.length > 30) room.replayRounds = room.replayRounds.slice(-30);
+}
+
+async function recordReplayRound(roomId: string, expectedRound: number): Promise<StoredRoom | null> {
+  const result = await withRoomLock(roomId, (room) => {
+    if (room.round !== expectedRound || !room.roundResult) return null;
+    appendReplayRound(room);
+    return { room };
+  }, (value) => Boolean(value));
+  return result?.room ?? null;
+}
+
 function setLocalTimer(key: string, delay: number, handler: () => void | Promise<unknown>) {
   const old = timers.get(key);
   if (old) clearTimeout(old);
@@ -315,15 +341,16 @@ function setLocalTimer(key: string, delay: number, handler: () => void | Promise
 
 async function persistMatch(room: StoredRoom, winnerKey: string | null) {
   await enqueueMatchResult({
-    roomId: room.id,
+    recordId: room.recordId,
+    dbType: room.dbType,
     boType: room.boType,
     winnerKey,
-    players: room.players.map((player) => ({
+    participants: room.players.map((player) => ({
       key: player.key,
       userId: player.userId,
-      name: player.name,
       score: player.score,
     })),
+    rounds: room.replayRounds,
   });
   await acknowledgeSchedule(`persist|${room.id}|0`);
 }
@@ -426,6 +453,7 @@ async function finishRound(
       matchOver,
       nextRoundAt: room.nextRoundAt,
     };
+    appendReplayRound(room);
     if (matchOver) room.matchResult = { winnerKey, reason: 'score' };
     return { room, matchOver };
   }, (value) => Boolean(value));
@@ -479,6 +507,7 @@ async function surrenderRound(
       matchOver,
       nextRoundAt: room.nextRoundAt,
     };
+    appendReplayRound(room);
     return { room, matchOver };
   }, (value) => Boolean(value && !('stale' in value)));
 
@@ -1040,6 +1069,7 @@ export function setupSocket(io: Server) {
       }
       const room: StoredRoom = {
         id: roomId,
+        recordId: randomUUID(),
         ownerIp: String(socket.data.ip),
         hostKey: me.key,
         status: 'waiting',
@@ -1056,6 +1086,7 @@ export function setupSocket(io: Server) {
         eventResults: {},
         roundResult: null,
         matchResult: null,
+        replayRounds: [],
         revision: 0,
         createdAt: now,
         updatedAt: now,
@@ -1268,7 +1299,10 @@ export function setupSocket(io: Server) {
         socket.emit('game:guess:applied', { ...delta, feedback: visibleGuess(result.feedback) });
         return;
       }
-      const finishedRoom = result.shouldFinish ? result.room : undefined;
+      let finishedRoom = result.shouldFinish ? result.room : undefined;
+      if (result.shouldFinish) {
+        finishedRoom = await recordReplayRound(roomId, result.round) ?? finishedRoom;
+      }
       ack?.({ cooldownMs: MULTI_GUESS_INTERVAL_MS });
       if (!result.shouldFinish) {
         for (const playerKey of result.playerKeys) {
@@ -1419,6 +1453,7 @@ export function setupSocket(io: Server) {
       }
       const room: StoredRoom = {
         id: roomId,
+        recordId: randomUUID(),
         ownerIp: String(socket.data.ip),
         hostKey: opponent.key,
         status: 'starting',
@@ -1435,6 +1470,7 @@ export function setupSocket(io: Server) {
         eventResults: {},
         roundResult: null,
         matchResult: null,
+        replayRounds: [],
         revision: 0,
         createdAt: now,
         updatedAt: now,

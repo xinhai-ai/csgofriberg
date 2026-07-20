@@ -5,15 +5,22 @@ import { invalidateCached } from './queryCache';
 import { logTransientError } from './transientLog';
 
 export interface MatchResultPayload {
-  roomId: string;
+  recordId: string;
+  dbType: 'easy' | 'normal';
   boType: number;
   winnerKey: string | null;
-  players: {
+  participants: {
     key: string;
     userId: number | null;
-    name: string;
     score: number;
   }[];
+  rounds: Array<{
+    round: number;
+    targetPlayerId: number;
+    winnerKey: string | null;
+    reason: string;
+    guessesByPlayer: Record<string, number[]>;
+  }>;
 }
 
 const STREAM_KEY = redisKey('stream:match-results');
@@ -24,32 +31,34 @@ let workerClient: NonNullable<ReturnType<typeof duplicateRedisClient>> | null = 
 let pendingClaimCursor = '0-0';
 
 async function persist(payload: MatchResultPayload): Promise<void> {
-  const winner = payload.players.find((player) => player.key === payload.winnerKey);
+  const winner = payload.participants.find((player) => player.key === payload.winnerKey);
   const insertedMatch = await db.transaction(async (trx) => {
     const inserted = await trx('match_records')
       .insert({
-        room_id: payload.roomId,
+        room_id: payload.recordId,
+        db_type: payload.dbType,
         bo_type: payload.boType,
         winner_id: winner?.userId ?? null,
-        players: JSON.stringify(
-          payload.players.map((player) => ({
-            userId: player.userId,
-            name: player.name,
-            score: player.score,
-          }))
-        ),
+        replay: JSON.stringify(payload.rounds),
       })
       .onConflict('room_id')
       .ignore()
       .returning('id');
-    if (!inserted.length) return false;
+    if (!inserted.length) {
+      if (payload.rounds.length) {
+        await trx('match_records')
+          .where({ room_id: payload.recordId })
+          .update({ replay: JSON.stringify(payload.rounds) });
+      }
+      return false;
+    }
     const matchId = typeof inserted[0] === 'object' ? inserted[0].id : inserted[0];
     await trx('match_players').insert(
-      payload.players.map((player) => ({
+      payload.participants.map((player) => ({
         match_id: matchId,
         user_id: player.userId,
         player_key: player.key,
-        player_name: player.name,
+        player_name: '',
         score: player.score,
         is_winner: player.key === payload.winnerKey,
       }))
@@ -68,7 +77,7 @@ export async function enqueueMatchResult(payload: MatchResultPayload): Promise<v
     ]);
   } catch (err) {
     // A timed-out XADD may still have reached Redis. Direct persistence is safe
-    // because match_records.room_id is unique and the transaction is idempotent.
+    // because match_records.room_id is a stable UUID and the transaction is idempotent.
     console.warn('[match-result] queue unavailable, persisting directly', err);
     await persist(payload);
   }

@@ -1,4 +1,4 @@
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { evalStateScript, redisKey, redisState } from '../redis';
 import { GuessFeedback } from '../types';
 import { config } from '../config';
@@ -48,8 +48,17 @@ export interface StoredMatchResult {
   reason: string;
 }
 
+export interface StoredReplayRound {
+  round: number;
+  targetPlayerId: number;
+  winnerKey: string | null;
+  reason: string;
+  guessesByPlayer: Record<string, number[]>;
+}
+
 export interface StoredRoom {
   id: string;
+  recordId: string;
   ownerIp: string;
   hostKey: string;
   status: RoomStatus;
@@ -66,6 +75,7 @@ export interface StoredRoom {
   eventResults: Record<string, number>;
   roundResult: StoredRoundResult | null;
   matchResult: StoredMatchResult | null;
+  replayRounds: StoredReplayRound[];
   revision: number;
   createdAt: number;
   updatedAt: number;
@@ -114,6 +124,13 @@ function stateRedis() {
   return client;
 }
 
+function legacyRecordId(roomId: string): string {
+  const hex = createHash('sha256')
+    .update(`csgofriberg-match-record-v1:${roomId}`, 'utf8')
+    .digest('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
+
 function evalCachedStateScript(
   name: string,
   script: string,
@@ -123,6 +140,7 @@ function evalCachedStateScript(
 }
 
 function normalizeRoom(room: StoredRoom): StoredRoom {
+  room.recordId ??= legacyRecordId(room.id);
   if (!Array.isArray(room.players)) room.players = [];
   if (!Array.isArray(room.spectators)) room.spectators = [];
   if (typeof room.allowSpectators !== 'boolean') room.allowSpectators = false;
@@ -133,6 +151,8 @@ function normalizeRoom(room: StoredRoom): StoredRoom {
   }
   room.roundResult ??= null;
   room.matchResult ??= null;
+  if (!Array.isArray(room.replayRounds)) room.replayRounds = [];
+  if (room.replayRounds.length > 30) room.replayRounds = room.replayRounds.slice(-30);
   room.revision ??= 0;
   for (const player of room.players) {
     if (!Array.isArray(player.guesses)) player.guesses = [];
