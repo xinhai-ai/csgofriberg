@@ -798,7 +798,7 @@ export default function MultiRoom() {
           }
           actions={
             <button className="btn btn-ghost" onClick={() => setRoundOver(null)}>
-              查看棋盘
+              查看对局
             </button>
           }
         />

@@ -230,7 +230,7 @@ export default function SingleGame() {
                 再来一把
               </button>
               <button className="btn btn-ghost" onClick={() => setShowOverlay(false)}>
-                查看棋盘
+                查看对局
               </button>
             </>
           }
