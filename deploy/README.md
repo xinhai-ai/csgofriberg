@@ -30,12 +30,13 @@ docker compose version
 
 ## 2. Create the deployment directory
 
-Only three repository files are required on the server:
+Only four repository files are required on the server:
 
 ```text
 compose.yaml
 deploy/.env.example
 deploy/README.md
+deploy/update.sh
 ```
 
 For example:
@@ -44,8 +45,10 @@ For example:
 sudo mkdir -p /opt/csgofriberg
 sudo cp compose.yaml /opt/csgofriberg/compose.yaml
 sudo cp deploy/.env.example /opt/csgofriberg/.env
+sudo cp deploy/update.sh /opt/csgofriberg/update.sh
 cd /opt/csgofriberg
 sudo chmod 600 .env
+sudo chmod 700 update.sh
 sudo editor .env
 ```
 
@@ -113,7 +116,7 @@ retain headroom.
 
 The Node process handles `SIGTERM`/`SIGINT` gracefully: it stops accepting new
 HTTP and Socket.IO connections, closes active sockets, stops background workers,
-then releases Redis and PostgreSQL connections. Compose allows 15 seconds for
+then releases Redis and PostgreSQL connections. Compose allows 30 seconds for
 this drain before forcing the container to stop.
 
 Check migration output separately when startup fails:
@@ -149,8 +152,8 @@ Example upstream configuration:
 ```nginx
 upstream csgofriberg_backend {
     least_conn;
-    server 127.0.0.1:3000 max_fails=3 fail_timeout=10s;
-    server 127.0.0.1:3001 max_fails=3 fail_timeout=10s;
+    server 127.0.0.1:3000 max_fails=1 fail_timeout=5s;
+    server 127.0.0.1:3001 max_fails=1 fail_timeout=5s;
     keepalive 64;
 }
 
@@ -173,6 +176,9 @@ location /socket.io/ {
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_connect_timeout 1s;
+    proxy_next_upstream error timeout http_502 http_503 http_504;
+    proxy_next_upstream_tries 2;
     proxy_read_timeout 90s;
     proxy_send_timeout 90s;
     proxy_buffering off;
@@ -199,6 +205,36 @@ running. On a shared server, use a temporary root-only environment file and
 pass it with `docker compose run --env-file`.
 
 ## 6. Update and rollback
+
+Run the included update script for the normal rolling update path:
+
+```bash
+cd /opt/csgofriberg
+sudo ./update.sh
+```
+
+The script prevents concurrent updates, pulls the configured image, runs the
+migration before touching either application instance, then replaces `app-1`
+and `app-2` one at a time. It waits for each Docker health check before moving
+on. If an updated instance does not become healthy within 180 seconds, the
+script stops that instance and leaves the other instance serving traffic.
+
+Each frontend build receives its build timestamp as the resource version. After both
+instances are healthy, open the administration page, select `资源版本`, and
+broadcast the current version. Connected clients whose local version differs
+will see a refresh dialog. The last broadcast is stored in Redis, so reconnecting
+and newly opened clients also receive it.
+
+Set `UPDATE_HEALTH_TIMEOUT_SECONDS` to change the health-check deadline. Old
+images are retained for rollback by default; set `PRUNE_OLD_IMAGES=1` to prune
+unused images after a successful update.
+
+```bash
+sudo UPDATE_HEALTH_TIMEOUT_SECONDS=300 ./update.sh
+sudo PRUNE_OLD_IMAGES=1 ./update.sh
+```
+
+The equivalent manual procedure is described below.
 
 Run migrations once, then replace one application instance at a time. Nginx
 keeps the other instance available while Socket.IO clients reconnect through

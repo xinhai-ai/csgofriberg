@@ -160,6 +160,33 @@ describe('multiplayer socket integration', () => {
     }
   });
 
+  it('restores the last resource version notice when a client connects', async () => {
+    const stamp = Date.now();
+    const notice = { version: '1753000000000', broadcastAt: stamp };
+    const token = jwt.sign({ key: `resource-version-${stamp}`, typ: 'guest' }, config.jwtSecret, {
+      expiresIn: '1h',
+    });
+    await redis()!.set(redisKey('resource:version'), JSON.stringify(notice));
+    const socket = clientIo(baseUrl, {
+      autoConnect: false,
+      transports: ['websocket'],
+      extraHeaders: { Cookie: `csgofriberg_guest=${token}`, 'User-Agent': TEST_USER_AGENT },
+    });
+    try {
+      const received = onceEvent(socket, 'resource:version');
+      const connected = new Promise<void>((resolve, reject) => {
+        socket.once('connect', () => resolve());
+        socket.once('connect_error', reject);
+      });
+      socket.connect();
+      await connected;
+      await expect(received).resolves.toEqual(notice);
+    } finally {
+      socket.disconnect();
+      await redis()!.del(redisKey('resource:version'));
+    }
+  });
+
   it('starts a rematch in a created room only after invitation, acceptance, and guest readiness', async () => {
     const stamp = Date.now();
     const keyA = `rematch-a-${stamp}`;

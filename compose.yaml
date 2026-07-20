@@ -32,7 +32,7 @@ x-app-service: &app-service
   image: ${IMAGE:-ghcr.io/xinhai-ai/csgofriberg:latest}
   restart: unless-stopped
   init: true
-  stop_grace_period: 15s
+  stop_grace_period: 30s
   depends_on:
     migrate:
       condition: service_completed_successfully

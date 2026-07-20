@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import type { Server } from 'socket.io';
 import { z } from 'zod';
 import { db } from '../db/knex';
 import { requireAuth, requireAdmin } from '../middleware/auth';
@@ -6,6 +7,7 @@ import { validateBody, asyncHandler, HttpError } from '../middleware/common';
 import { invalidatePlayerCache } from '../services/playerCache';
 import { invalidateCached } from '../services/queryCache';
 import { rateLimit, requestIdentity } from '../middleware/rateLimit';
+import { publishResourceVersion } from '../services/resourceVersion';
 
 const router = Router();
 router.use(requireAuth, requireAdmin);
@@ -26,6 +28,13 @@ const adminWriteLimit = rateLimit({
 const adminImportLimit = rateLimit({
   name: 'admin-import',
   limit: 10,
+  windowSeconds: 60,
+  key: requestIdentity,
+  failClosed: true,
+});
+const adminResourceBroadcastLimit = rateLimit({
+  name: 'admin-resource-broadcast',
+  limit: 5,
   windowSeconds: 60,
   key: requestIdentity,
   failClosed: true,
@@ -192,6 +201,21 @@ router.delete(
     if (!count) throw new HttpError(404, 'NOT_FOUND');
     await invalidateCached('announcements');
     res.json({ ok: true });
+  })
+);
+
+router.post(
+  '/resource-version/broadcast',
+  adminResourceBroadcastLimit,
+  validateBody(z.object({
+    version: z.string().trim().regex(/^\d{13}$/),
+  })),
+  asyncHandler(async (req, res) => {
+    const io = req.app.get('io') as Server | undefined;
+    if (!io) throw new HttpError(503, 'SERVICE_UNAVAILABLE');
+    const notice = await publishResourceVersion(req.body.version);
+    io.emit('resource:version', notice);
+    res.json(notice);
   })
 );
 

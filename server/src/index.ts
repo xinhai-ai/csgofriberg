@@ -151,6 +151,7 @@ async function main() {
 
   const server = http.createServer(app);
   const io = new Server(server, { cors: { origin: config.corsOrigins, credentials: true } });
+  app.set('io', io);
   let shuttingDown = false;
   let shutdownPromise: Promise<void> | null = null;
   let adapterPubClient: ReturnType<typeof duplicateRedisClient> = null;

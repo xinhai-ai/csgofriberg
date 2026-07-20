@@ -47,6 +47,7 @@ import { getPresenceStats, ONLINE_STALE_MS, PresenceStats } from '../services/pr
 import { GuessFeedback } from '../types';
 import { config } from '../config';
 import { logTransientError, logTransientWarning } from '../services/transientLog';
+import { getResourceVersionNotice } from '../services/resourceVersion';
 
 const NEXT_ROUND_DELAY_MS = 6_000;
 const ROUND_TIME_MS = 120_000;
@@ -1030,6 +1031,11 @@ export function setupSocket(io: Server) {
   io.on('connection', (socket) => {
     const me = socket.data.identity as StoredIdentity;
     socket.emit('identity:self', { key: me.key });
+    void getResourceVersionNotice()
+      .then((notice) => {
+        if (notice && socket.connected) socket.emit('resource:version', notice);
+      })
+      .catch((err) => logTransientError('[resource-version:restore]', err));
     heartbeatEntries.set(socket.id, {
       ip: String(socket.data.ip),
       identity: me.key,

@@ -3,6 +3,8 @@ import { ensureGuestSession, hasAuthHint } from './session';
 
 let socket: Socket | null = null;
 let connectTask: Promise<void> | null = null;
+let latestResourceVersionNotice: unknown;
+const resourceVersionListeners = new Set<(notice: unknown) => void>();
 
 async function prepareSocketIdentity(): Promise<void> {
   if (!hasAuthHint()) await ensureGuestSession();
@@ -37,8 +39,19 @@ export function getSocket(): Socket {
       void ensureGuestSession(true).then(connectSocket).catch(() => undefined);
     }
   });
+  socket.on('resource:version', (notice) => {
+    latestResourceVersionNotice = notice;
+    resourceVersionListeners.forEach((listener) => listener(notice));
+  });
   connectSocket();
   return socket;
+}
+
+export function subscribeResourceVersion(listener: (notice: unknown) => void): () => void {
+  resourceVersionListeners.add(listener);
+  if (latestResourceVersionNotice !== undefined) listener(latestResourceVersionNotice);
+  getSocket();
+  return () => resourceVersionListeners.delete(listener);
 }
 
 export function closeSocket() {

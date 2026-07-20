@@ -2,8 +2,11 @@
 
 FROM node:22-bookworm-slim AS build
 
+ARG RESOURCE_VERSION=""
+
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
+ENV RESOURCE_VERSION=$RESOURCE_VERSION
 WORKDIR /workspace
 
 RUN corepack enable

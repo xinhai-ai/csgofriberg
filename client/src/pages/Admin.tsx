@@ -3,10 +3,11 @@ import { Gamepad2, Swords, Users, Wrench } from 'lucide-react';
 import Page from '../components/Page';
 import AdminPlayers from '../components/admin/AdminPlayers';
 import AdminAnnouncements from '../components/admin/AdminAnnouncements';
+import AdminResourceVersion from '../components/admin/AdminResourceVersion';
 import { getSocket } from '../api/socket';
 import { PresenceStats } from '../types';
 
-type Tab = 'players' | 'announcements';
+type Tab = 'players' | 'announcements' | 'resources';
 
 export default function Admin() {
   const [tab, setTab] = useState<Tab>('players');
@@ -45,15 +46,20 @@ export default function Admin() {
           <strong>{presence?.singleGames ?? '-'}</strong>
         </div>
       </section>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+      <div className="admin-tabs">
         <button className={tab === 'players' ? 'btn' : 'btn btn-ghost'} onClick={() => setTab('players')}>
           选手管理
         </button>
         <button className={tab === 'announcements' ? 'btn' : 'btn btn-ghost'} onClick={() => setTab('announcements')}>
           公告管理
         </button>
+        <button className={tab === 'resources' ? 'btn' : 'btn btn-ghost'} onClick={() => setTab('resources')}>
+          资源版本
+        </button>
       </div>
-      {tab === 'players' ? <AdminPlayers /> : <AdminAnnouncements />}
+      {tab === 'players' && <AdminPlayers />}
+      {tab === 'announcements' && <AdminAnnouncements />}
+      {tab === 'resources' && <AdminResourceVersion />}
     </Page>
   );
 }

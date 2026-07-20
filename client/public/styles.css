@@ -233,6 +233,7 @@ button, a { touch-action: manipulation; }
 .input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37, 111, 226, 0.14); }
 
 .error { color: var(--danger); font-size: 0.9rem; overflow-wrap: anywhere; }
+.success { color: var(--success); font-size: 0.9rem; overflow-wrap: anywhere; }
 .muted { color: var(--text-light); font-size: 0.9rem; overflow-wrap: anywhere; }
 
 /* ===== 表格 ===== */
@@ -751,6 +752,29 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
 .confirm-close:hover { color: var(--text); background: var(--bg); }
 .confirm-content > p { margin: 10px 0 20px; color: var(--text-sec); line-height: 1.6; }
 .confirm-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+.confirm-actions .btn { display: inline-flex; align-items: center; gap: 7px; }
+
+.admin-resource-card { display: grid; gap: 14px; }
+.admin-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.admin-resource-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.admin-resource-heading h3,
+.admin-resource-heading p { margin: 0; }
+.admin-resource-heading p { margin-top: 4px; }
+.resource-version-value {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-sec);
+}
 
 /* ===== 选手信息表 ===== */
 .player-info-table { width: 100%; border-collapse: collapse; font-size: 1rem; }
