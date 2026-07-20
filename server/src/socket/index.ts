@@ -42,6 +42,7 @@ import { logTransientError, logTransientWarning } from '../services/transientLog
 
 const NEXT_ROUND_DELAY_MS = 6_000;
 const ROUND_TIME_MS = 120_000;
+const MULTI_GUESS_INTERVAL_MS = 3_000;
 const FINISHED_ROOM_TTL_MS = 5 * 60_000;
 const LOCAL_GUESS_LIMIT = 12;
 const LOCAL_GUESS_WINDOW_MS = 10_000;
@@ -254,6 +255,7 @@ function makePlayer(identity: StoredIdentity, socketId: string, ready: boolean):
     ready,
     score: 0,
     guesses: [],
+    lastGuessAt: null,
     connected: true,
     disconnectDeadline: null,
   };
@@ -340,7 +342,10 @@ async function startRound(io: Server, roomId: string) {
     room.eventResults = {};
     room.roundResult = null;
     room.matchResult = null;
-    for (const player of room.players) player.guesses = [];
+    for (const player of room.players) {
+      player.guesses = [];
+      player.lastGuessAt = null;
+    }
     return { room };
   }, (value) => Boolean(value && !('waitingForReconnect' in value)));
   if (!result) return false;
@@ -594,6 +599,9 @@ function safeOn(
   handler: (payload: any, ack?: (value: any) => void) => Promise<void>
 ) {
   socket.on(event, (payload: any, ack?: (value: any) => void) => {
+    const pendingEvents = Number(socket.data.pendingEvents ?? 0);
+    if (pendingEvents >= 8) return ack?.({ code: 'RATE_LIMITED' });
+    socket.data.pendingEvents = pendingEvents + 1;
     void handler(payload, ack).catch(async (err) => {
       if (err instanceof Error && err.message === 'ROOM_IDENTITY_CONFLICT') {
         const identity = socket.data.identity as StoredIdentity | undefined;
@@ -622,12 +630,26 @@ function safeOn(
         console.error(`[socket:${event}]`, err);
       }
       ack?.({ code });
+    }).finally(() => {
+      socket.data.pendingEvents = Math.max(0, Number(socket.data.pendingEvents ?? 1) - 1);
     });
   });
 }
 
 async function socketAllowed(event: string, identity: string, limit: number, seconds: number) {
   return consumeRateLimit(`socket:${event}`, identity, limit, seconds);
+}
+
+async function socketAllowedWithIp(
+  socket: Socket,
+  event: string,
+  identity: string,
+  identityLimit: number,
+  ipLimit: number,
+  seconds: number
+): Promise<boolean> {
+  if (!(await socketAllowed(event, identity, identityLimit, seconds))) return false;
+  return consumeRateLimit(`socket:${event}:ip`, String(socket.data.ip), ipLimit, seconds);
 }
 
 async function acquireConnectionSlot(ip: string, identity: string, socketId: string): Promise<boolean> {
@@ -914,6 +936,9 @@ export function setupSocket(io: Server) {
 
     safeOn(socket, 'room:sync', async (_payload, ack) => {
       await restorePromise;
+      if (!(await socketAllowedWithIp(socket, 'sync', me.key, 20, 300, 10))) {
+        return ack?.({ code: 'RATE_LIMITED' });
+      }
       const room = await getRoomForIdentity(me.key, true);
       if (!room) {
         socket.data.roomId = undefined;
@@ -1061,8 +1086,12 @@ export function setupSocket(io: Server) {
 
     safeOn(socket, 'room:ready', async (payload, ack) => {
       await restorePromise;
+      if (!(await socketAllowedWithIp(socket, 'ready', me.key, 8, 160, 10))) {
+        return ack?.({ code: 'RATE_LIMITED' });
+      }
       const room = await getRoomForIdentity(me.key);
       if (!room) return ack?.({ code: 'NOT_IN_WAITING_ROOM' });
+      if (room.status !== 'waiting') return ack?.({ code: 'NOT_IN_WAITING_ROOM' });
       const changed = await withRoomLock(room.id, (locked) => {
         if (locked.status !== 'waiting') return false;
         const player = locked.players.find((p) => p.key === me.key);
@@ -1070,7 +1099,7 @@ export function setupSocket(io: Server) {
         if (player.socketId !== socket.id) return 'STALE_CONNECTION' as const;
         player.ready = typeof payload?.ready === 'boolean' ? payload.ready : !player.ready;
         return true;
-      });
+      }, (value) => value === true);
       if (changed === 'STALE_CONNECTION') return ack?.({ code: changed });
       if (!changed) return ack?.({ code: 'NOT_IN_WAITING_ROOM' });
       const refreshed = await getRoom(room.id);
@@ -1139,10 +1168,14 @@ export function setupSocket(io: Server) {
         feedback: compareGuess(guess, target),
         maxGuesses: MAX_GUESSES,
         nextRoundDelayMs: NEXT_ROUND_DELAY_MS,
+        minGuessIntervalMs: MULTI_GUESS_INTERVAL_MS,
         rateLimit: 12,
         rateWindowSeconds: 10,
       });
       if (result.kind === 'error') {
+        if (result.code === 'GUESS_COOLDOWN') {
+          return ack?.({ code: result.code, retryAfterMs: result.retryAfterMs });
+        }
         if (result.reason === 'deadline_passed') {
           await finishRound(io, roomId, null, 'timeout', roundId);
           const latest = await getRoom(roomId);
@@ -1170,6 +1203,7 @@ export function setupSocket(io: Server) {
       const finishedRoom = result.shouldFinish ? result.room : undefined;
       ack?.({
         feedback: result.feedback,
+        cooldownMs: MULTI_GUESS_INTERVAL_MS,
         room: finishedRoom ? publicRoom(finishedRoom, me.key) : undefined,
       });
       for (const playerKey of result.playerKeys) {
@@ -1387,6 +1421,9 @@ export function setupSocket(io: Server) {
 
     safeOn(socket, 'match:cancel', async (_payload, ack) => {
       await restorePromise;
+      if (!(await socketAllowedWithIp(socket, 'match-cancel', me.key, 10, 160, 10))) {
+        return ack?.({ code: 'RATE_LIMITED' });
+      }
       await cancelQueue(me.key);
       for (const [key, queue] of localQueue) {
         localQueue.set(key, queue.filter((item) => item.key !== me.key));

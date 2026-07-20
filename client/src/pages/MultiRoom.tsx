@@ -37,6 +37,8 @@ interface MatchOver {
   answer: AnswerInfo | null;
 }
 
+const MULTI_GUESS_INTERVAL_MS = 3_000;
+
 const MATCH_OVER_REASON: Record<string, string> = {
   score: '率先拿下赛点',
   opponent_left: '对手退出了房间',
@@ -135,6 +137,8 @@ export default function MultiRoom() {
   const [surrendering, setSurrendering] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
+  const [guessCooldownUntil, setGuessCooldownUntil] = useState(0);
+  const [cooldownClock, setCooldownClock] = useState(() => Date.now());
   const navigate = useNavigate();
   const confirm = useConfirm();
   const roomRef = useRef<RoomState | null>(null);
@@ -171,6 +175,7 @@ export default function MultiRoom() {
       applyRoomSnapshot(state);
     };
     const onRoundStart = (p: { room: RoomState }) => {
+      setGuessCooldownUntil(0);
       setRoundOver(null);
       setOfflineNote('');
       setError('');
@@ -178,11 +183,13 @@ export default function MultiRoom() {
       applyRoomSnapshot(p.room);
     };
     const onRoundOver = (p: RoundOver & { room: RoomState }) => {
+      setGuessCooldownUntil(0);
       setRoundExpired(true);
       setError('');
       applyRoomSnapshot(p.room);
     };
     const onMatchOver = (p: MatchOver & { room: RoomState }) => {
+      setGuessCooldownUntil(0);
       setRoundExpired(true);
       setError('');
       setRoundOver(null);
@@ -287,6 +294,18 @@ export default function MultiRoom() {
     };
   }, [applyRoomSnapshot, navigate, syncRoom]);
 
+  useEffect(() => {
+    if (!guessCooldownUntil) return;
+    const tick = () => {
+      const now = Date.now();
+      setCooldownClock(now);
+      if (now >= guessCooldownUntil) setGuessCooldownUntil(0);
+    };
+    tick();
+    const timer = window.setInterval(tick, 100);
+    return () => window.clearInterval(timer);
+  }, [guessCooldownUntil]);
+
   const emit = (event: string, payload: unknown = {}) => {
     setError('');
     getSocket().emit(event, payload, (res: any) => {
@@ -295,19 +314,24 @@ export default function MultiRoom() {
     });
   };
 
-  const submitGuess = (playerId: number): Promise<void> => new Promise((resolve) => {
+  const submitGuess = (playerId: number): Promise<boolean> => new Promise((resolve) => {
     const current = roomRef.current;
-    if (!current || current.status !== 'playing' || roundExpired) return resolve();
+    if (!current || current.status !== 'playing' || roundExpired) return resolve(false);
+    const remaining = guessCooldownUntil - Date.now();
+    if (remaining > 0) {
+      setCooldownClock(Date.now());
+      return resolve(false);
+    }
     const socket = getSocket();
     let settled = false;
-    const finish = () => {
+    const finish = (accepted: boolean) => {
       if (settled) return false;
       settled = true;
-      resolve();
+      resolve(accepted);
       return true;
     };
     const timer = window.setTimeout(() => {
-      if (!finish()) return;
+      if (!finish(false)) return;
       setError(translate('NETWORK_ERROR'));
       syncRoom(socket);
     }, 5_000);
@@ -316,20 +340,38 @@ export default function MultiRoom() {
       roundId: current.roundId,
       eventId: crypto.randomUUID(),
     }, (res: any) => {
-      if (!finish()) return;
+      if (settled) return;
       window.clearTimeout(timer);
       if (res?.room) applyRoomSnapshot(res.room);
+      if (res?.code === 'GUESS_COOLDOWN') {
+        setError('');
+        setGuessCooldownUntil(Date.now() + Math.max(0, Number(res.retryAfterMs) || 0));
+        finish(false);
+        return;
+      }
       if (res?.code === 'NO_ACTIVE_ROUND' || res?.code === 'STALE_ROUND') {
         setError('');
         syncRoom(socket);
+        finish(false);
         return;
       }
       if (res?.code === 'ROOM_BUSY') {
         setError('');
         syncRoom(socket);
+        finish(false);
         return;
       }
-      if (res?.code) setError(translate(res.code));
+      if (res?.code) {
+        setError(translate(res.code));
+        finish(false);
+        return;
+      }
+      setError('');
+      setGuessCooldownUntil(Date.now() + Math.max(
+        MULTI_GUESS_INTERVAL_MS,
+        Number(res?.cooldownMs) || 0
+      ));
+      finish(true);
     });
   });
 
@@ -399,6 +441,10 @@ export default function MultiRoom() {
   const isSpectator = !!room && !me;
   const isHost = room?.hostKey === myKey;
   const playing = room?.status === 'playing';
+  const guessCooldownRemaining = Math.max(
+    0,
+    guessCooldownUntil - Math.max(cooldownClock, Date.now())
+  );
 
   useEffect(() => {
     if (!inputFocused || !me || !window.matchMedia('(max-width: 640px)').matches) return;
@@ -499,6 +545,9 @@ export default function MultiRoom() {
           <GuessInputBar
             onPick={(p) => submitGuess(p.id)}
             onFocusChange={setInputFocused}
+            statusText={guessCooldownRemaining > 0
+              ? `猜测间隔：还需等待 ${(guessCooldownRemaining / 1000).toFixed(1)} 秒`
+              : ''}
             disabled={roundExpired || me.guessCount >= room.maxGuesses}
           />
         ) : undefined

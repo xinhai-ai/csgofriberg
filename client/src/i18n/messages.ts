@@ -39,6 +39,7 @@ const MESSAGES: Record<string, string> = {
   PLAYERS_NOT_READY: '有玩家尚未准备',
   NO_ACTIVE_ROUND: '当前没有进行中的小局',
   GUESS_LIMIT_REACHED: '本局猜测次数已用完',
+  GUESS_COOLDOWN: '两次猜测需要间隔 3 秒',
   STALE_ROUND: '该猜测属于已经结束的小局',
   TOO_MANY_CONNECTIONS: '当前身份或网络连接数过多',
   STALE_CONNECTION: '此页面的连接已被其他页面或重连会话接管',

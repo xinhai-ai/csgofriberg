@@ -7,8 +7,9 @@ interface Suggestion {
 }
 
 interface Props {
-  onPick: (player: Suggestion) => void | Promise<void>;
+  onPick: (player: Suggestion) => boolean | void | Promise<boolean | void>;
   onFocusChange?: (focused: boolean) => void;
+  statusText?: string;
   disabled?: boolean;
   placeholder?: string;
   buttonText?: string;
@@ -21,6 +22,7 @@ interface Props {
 export default function GuessInputBar({
   onPick,
   onFocusChange,
+  statusText,
   disabled,
   placeholder = '输入选手昵称...',
   buttonText = '提交猜测',
@@ -32,6 +34,7 @@ export default function GuessInputBar({
   const [submitting, setSubmitting] = useState(false);
   const timer = useRef<number>();
   const input = useRef<HTMLInputElement>(null);
+  const textRef = useRef('');
   const refocusAfterSubmit = useRef(false);
   const players = useRef<Suggestion[]>([]);
 
@@ -93,10 +96,13 @@ export default function GuessInputBar({
 
   const pick = async (item: Suggestion) => {
     if (disabled || submitting) return;
+    const submittedText = textRef.current;
     refocusAfterSubmit.current = true;
     setSubmitting(true);
     try {
-      await onPick(item);
+      const accepted = await onPick(item);
+      if (accepted === false || textRef.current !== submittedText) return;
+      textRef.current = '';
       setText('');
       setItems([]);
       setOpen(false);
@@ -133,10 +139,13 @@ export default function GuessInputBar({
           ref={input}
           className="input"
           value={text}
-          disabled={disabled || submitting}
+          disabled={disabled}
           placeholder={placeholder}
           autoComplete="off"
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            textRef.current = e.target.value;
+            setText(e.target.value);
+          }}
           onFocus={() => {
             if (items.length) setOpen(true);
             onFocusChange?.(true);
@@ -156,10 +165,19 @@ export default function GuessInputBar({
             }
           }}
         />
-        <button className="btn" disabled={disabled || submitting || !items.length}>
+        <button
+          className="btn"
+          disabled={disabled || submitting || !items.length}
+          onMouseDown={(event) => event.preventDefault()}
+        >
           {submitting ? '提交中...' : buttonText}
         </button>
       </form>
+      {statusText !== undefined && (
+        <div className="guess-input-feedback" role="status" aria-live="polite">
+          {statusText}
+        </div>
+      )}
     </>
   );
 }

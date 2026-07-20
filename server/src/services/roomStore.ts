@@ -24,6 +24,7 @@ export interface StoredPlayer extends StoredIdentity {
   ready: boolean;
   score: number;
   guesses: GuessFeedback[];
+  lastGuessAt: number | null;
   connected: boolean;
   disconnectDeadline: number | null;
 }
@@ -127,6 +128,7 @@ function normalizeRoom(room: StoredRoom): StoredRoom {
   room.revision ??= 0;
   for (const player of room.players) {
     if (!Array.isArray(player.guesses)) player.guesses = [];
+    player.lastGuessAt ??= null;
   }
   for (const spectator of room.spectators) {
     spectator.connected ??= true;
@@ -265,6 +267,7 @@ export interface ApplyRoomGuessInput {
   feedback: GuessFeedback;
   maxGuesses: number;
   nextRoundDelayMs: number;
+  minGuessIntervalMs: number;
   rateLimit: number;
   rateWindowSeconds: number;
 }
@@ -290,7 +293,7 @@ export type ApplyRoomGuessResult =
       revision: number;
       guessCount: number;
     }
-  | { kind: 'error'; code: string; reason?: string };
+  | { kind: 'error'; code: string; reason?: string; retryAfterMs?: number };
 
 
 const APPLY_ROOM_GUESS_HASH_SCRIPT = `local rateCount = redis.call('HINCRBY', KEYS[6], ARGV[1], 1)
@@ -353,12 +356,21 @@ for _, previous in ipairs(guesses) do
     return cjson.encode({kind='error', code='ALREADY_GUESSED'})
   end
 end
+local lastGuessAt = tonumber(player.lastGuessAt) or 0
+local minGuessInterval = tonumber(ARGV[16]) or 0
+if lastGuessAt > 0 and tonumber(ARGV[9]) - lastGuessAt < minGuessInterval then
+  return cjson.encode({
+    kind='error', code='GUESS_COOLDOWN',
+    retryAfterMs=minGuessInterval - (tonumber(ARGV[9]) - lastGuessAt)
+  })
+end
 local feedback = cjson.decode(ARGV[8])
 table.insert(guesses, feedback)
 local guessCount = #guesses
 redis.call('HSET', KEYS[8], identity, cjson.encode(guesses))
 redis.call('HSET', KEYS[9], eventKey, guessCount - 1)
 player.guessCount = guessCount
+player.lastGuessAt = tonumber(ARGV[9])
 if feedback.correct == true then player.score = tonumber(player.score or 0) + 1 end
 redis.call('HSET', KEYS[7], identity, cjson.encode(player))
 local allExhausted = true
@@ -502,7 +514,17 @@ export async function applyRoomGuess(input: ApplyRoomGuessInput): Promise<ApplyR
       if (player.guesses.some((previous) => previous.playerId === input.feedback.playerId)) {
         return { kind: 'error', code: 'ALREADY_GUESSED' };
       }
+      const now = Date.now();
+      const elapsed = player.lastGuessAt ? now - player.lastGuessAt : input.minGuessIntervalMs;
+      if (elapsed < input.minGuessIntervalMs) {
+        return {
+          kind: 'error',
+          code: 'GUESS_COOLDOWN',
+          retryAfterMs: input.minGuessIntervalMs - elapsed,
+        };
+      }
       player.guesses.push(input.feedback);
+      player.lastGuessAt = now;
       room.eventResults[eventKey] = player.guesses.length - 1;
       const shouldFinish = input.feedback.correct || room.players.every(
         (candidate) => candidate.guesses.length >= input.maxGuesses
@@ -575,15 +597,16 @@ export async function applyRoomGuess(input: ApplyRoomGuessInput): Promise<ApplyR
     String(FINISHED_ROOM_TTL_MS),
     String(input.rateLimit),
     String(input.rateWindowSeconds + 1),
+    String(input.minGuessIntervalMs),
   ];
-  let result = await evalStateScript('apply-room-guess-hash-v1', APPLY_ROOM_GUESS_HASH_SCRIPT, keys, args);
+  let result = await evalStateScript('apply-room-guess-hash-v2', APPLY_ROOM_GUESS_HASH_SCRIPT, keys, args);
   if (typeof result !== 'string') throw new Error('INVALID_GUESS_RESULT');
   let parsed = JSON.parse(result) as ApplyRoomGuessResult;
   if (parsed.kind === 'error' && parsed.code === 'HOT_STATE_MISSING') {
     const room = await getRoom(input.roomId);
     if (!room) return { kind: 'error', code: 'NO_ACTIVE_ROUND', reason: 'room_missing' };
     await saveRoom(room);
-    result = await evalStateScript('apply-room-guess-hash-v1', APPLY_ROOM_GUESS_HASH_SCRIPT, keys, args);
+    result = await evalStateScript('apply-room-guess-hash-v2', APPLY_ROOM_GUESS_HASH_SCRIPT, keys, args);
     if (typeof result !== 'string') throw new Error('INVALID_GUESS_RESULT');
     parsed = JSON.parse(result) as ApplyRoomGuessResult;
   }
@@ -744,7 +767,7 @@ export async function saveRoom(room: StoredRoom): Promise<void> {
          key=player.key, userId=player.userId, name=player.name,
          socketId=player.socketId, ready=player.ready, score=player.score,
          connected=player.connected, disconnectDeadline=player.disconnectDeadline,
-         guessCount=#playerGuesses
+         guessCount=#playerGuesses, lastGuessAt=player.lastGuessAt
        }
        redis.call('HSET', playersKey, player.key, cjson.encode(metadata))
        redis.call('HSET', guessesKey, player.key,

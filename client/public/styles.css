@@ -499,6 +499,16 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
 .input-bar { display: flex; gap: 10px; width: 100%; min-width: 0; max-width: 900px; margin: 0 auto; }
 .input-bar .input { flex: 1; min-width: 0; font-size: 1.05rem; }
 .input-bar .btn { flex-shrink: 0; white-space: nowrap; }
+.guess-input-feedback {
+  width: 100%;
+  max-width: 900px;
+  min-height: 20px;
+  margin: 6px auto 0;
+  color: var(--warning);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
 .autocomplete-list {
   position: absolute;
   left: clamp(16px, 4vw, 48px);

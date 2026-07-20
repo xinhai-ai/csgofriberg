@@ -157,6 +157,35 @@ describe('multiplayer socket integration', () => {
     }
   });
 
+  it('does not write the room when ready is sent during an active round and rate limits spam', async () => {
+    const stamp = Date.now();
+    const tokenA = jwt.sign({ key: `ready-spam-a-${stamp}`, typ: 'guest' }, config.jwtSecret, { expiresIn: '1h' });
+    const tokenB = jwt.sign({ key: `ready-spam-b-${stamp}`, typ: 'guest' }, config.jwtSecret, { expiresIn: '1h' });
+    const a = await connect(withPowCookie(`csgofriberg_guest=${tokenA}`));
+    const b = await connect(withPowCookie(`csgofriberg_guest=${tokenB}`));
+    try {
+      const created = await emit(a, 'room:create', { dbType: 'normal', boType: 3 });
+      createdRoomIds.push(created.room.id);
+      await emit(b, 'room:join', { roomId: created.room.id });
+      await emit(b, 'room:ready', { ready: true });
+      expect((await emit(a, 'game:start')).ok).toBe(true);
+      const before = await getRoom(created.room.id);
+
+      expect((await emit(b, 'room:ready', { ready: false })).code).toBe('NOT_IN_WAITING_ROOM');
+      const spamResults = await Promise.all(
+        Array.from({ length: 10 }, () => emit(b, 'room:ready', { ready: false }))
+      );
+      expect(spamResults.some((result) => result.code === 'RATE_LIMITED')).toBe(true);
+
+      const after = await getRoom(created.room.id);
+      expect(after?.revision).toBe(before?.revision);
+      expect(after?.status).toBe('playing');
+    } finally {
+      a.disconnect();
+      b.disconnect();
+    }
+  });
+
   it('hides opponent guess details from players but not spectators', async () => {
     const stamp = Date.now();
     const keyA = `hidden-a-${stamp}`;
@@ -293,15 +322,25 @@ describe('multiplayer socket integration', () => {
       expect(Number(fieldTtl[0])).toBeGreaterThan(0);
 
       await redis()!.sendCommand(['SCRIPT', 'FLUSH']);
-      const second = await emit(a, 'game:guess', {
+      const coolingDown = await emit(a, 'game:guess', {
         playerId: wrongGuesses[1].id,
         roundId: synced.room.roundId,
         eventId: `script-${stamp}-0002`,
       });
+      expect(coolingDown.code).toBe('GUESS_COOLDOWN');
+      expect(coolingDown.retryAfterMs).toBeGreaterThan(0);
+      expect(coolingDown.retryAfterMs).toBeLessThanOrEqual(3_000);
+      await new Promise((resolve) => setTimeout(resolve, coolingDown.retryAfterMs + 25));
+
+      const second = await emit(a, 'game:guess', {
+        playerId: wrongGuesses[1].id,
+        roundId: synced.room.roundId,
+        eventId: `script-${stamp}-0003`,
+      });
       expect(second.feedback.playerId).toBe(wrongGuesses[1].id);
       expect(second).not.toHaveProperty('room');
 
-      for (let index = 3; index <= 12; index += 1) {
+      for (let index = 4; index <= 12; index += 1) {
         const repeated = await emit(a, 'game:guess', {
           playerId: wrongGuesses[1].id,
           roundId: synced.room.roundId,
