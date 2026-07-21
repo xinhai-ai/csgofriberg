@@ -9,6 +9,45 @@ let connectTask: Promise<void> | null = null;
 let identityRecovery: Promise<void> | null = null;
 let latestResourceVersionNotice: unknown;
 const resourceVersionListeners = new Set<(notice: unknown) => void>();
+const SOCKET_FAILURES_BEFORE_NOTICE = 2;
+let failedSocketConnections = 0;
+let socketErrorNotified = false;
+let socketErrorToastId = 0;
+
+function showSocketErrorOnce(target: Socket, code = 'NETWORK_ERROR'): void {
+  if (socket !== target || socketErrorNotified) return;
+  socketErrorNotified = true;
+  socketErrorToastId = toast.error(translate(code));
+}
+
+function noteSocketConnectionFailure(target: Socket, code = 'NETWORK_ERROR'): void {
+  if (socket !== target || socketErrorNotified) return;
+  if (code !== 'NETWORK_ERROR') {
+    showSocketErrorOnce(target, code);
+    return;
+  }
+  failedSocketConnections += 1;
+  if (failedSocketConnections >= SOCKET_FAILURES_BEFORE_NOTICE) {
+    showSocketErrorOnce(target, code);
+  }
+}
+
+function noteSocketConnected(target: Socket): void {
+  if (socket !== target) return;
+  failedSocketConnections = 0;
+  if (!socketErrorNotified) return;
+  if (socketErrorToastId) toast.dismiss(socketErrorToastId);
+  socketErrorToastId = 0;
+  socketErrorNotified = false;
+  toast.success(translate('CONNECTION_RESTORED'));
+}
+
+function resetSocketNotice(): void {
+  if (socketErrorToastId) toast.dismiss(socketErrorToastId);
+  failedSocketConnections = 0;
+  socketErrorNotified = false;
+  socketErrorToastId = 0;
+}
 
 async function prepareSocketIdentity(): Promise<void> {
   if (!hasAuthHint()) await ensureGuestSession();
@@ -28,7 +67,7 @@ function recoverSocketIdentity(target: Socket): void {
       if (!target.connected && !target.active) target.connect();
     })
     .catch(() => {
-      toast.error(translate('NETWORK_ERROR'));
+      showSocketErrorOnce(target);
     })
     .finally(() => {
       identityRecovery = null;
@@ -46,7 +85,7 @@ function connectSocket(): void {
       }
     })
     .catch(() => {
-      toast.error(translate('NETWORK_ERROR'));
+      showSocketErrorOnce(target);
     })
     .finally(() => {
       if (connectTask === task) connectTask = null;
@@ -66,16 +105,17 @@ export function getSocket(): Socket {
     auth: { authenticated: hasAuthHint() },
   });
   const target = socket;
+  target.on('connect', () => noteSocketConnected(target));
   target.on('connect_error', (error) => {
     if (error.message === 'AUTH_EXPIRED') {
       recoverSocketIdentity(target);
     } else if (error.message === 'IDENTITY_REQUIRED') {
       void ensureGuestSession(true)
         .then(connectSocket)
-        .catch(() => toast.error(translate('NETWORK_ERROR')));
+        .catch(() => showSocketErrorOnce(target));
     } else {
       const code = /^[A-Z_]+$/.test(error.message) ? error.message : 'NETWORK_ERROR';
-      toast.error(translate(code));
+      noteSocketConnectionFailure(target, code);
     }
   });
   target.on('resource:version', (notice) => {
@@ -98,4 +138,5 @@ export function closeSocket() {
   socket = null;
   connectTask = null;
   identityRecovery = null;
+  resetSocketNotice();
 }

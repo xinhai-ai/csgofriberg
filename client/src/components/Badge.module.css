@@ -3,10 +3,12 @@
   align-items: center;
   gap: 5px;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: 3px;
   background: var(--text-light);
   color: #fff;
   font-size: 0.82rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
 }
 
 .green { background: var(--success); }

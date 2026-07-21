@@ -1,27 +1,29 @@
 :root {
-  --bg: #edf3fb;
+  --bg: #f3f0ea;
   --card: #ffffff;
-  --card-soft: #f8fbff;
-  --border: #d7e1ee;
-  --border-strong: #bfcee1;
-  --text: #13243a;
-  --text-sec: #506178;
-  --text-light: #7d8ea3;
+  --card-soft: #f8f5f0;
+  --border: rgba(32, 17, 24, 0.14);
+  --border-strong: rgba(32, 17, 24, 0.3);
+  --text: #201118;
+  --text-sec: #5f5058;
+  --text-light: #90838b;
   --input-bg: #ffffff;
-  --primary: #256fe2;
-  --primary-hover: #1559c2;
-  --primary-soft: #e9f1ff;
-  --success: #168c57;
-  --warning: #ca7610;
-  --danger: #d64040;
-  --accent: #7653d7;
-  --correct: #168c57;
-  --close: #c57b12;
-  --wrong: #94a3b8;
-  --shadow: 0 10px 28px rgba(38, 64, 99, 0.08);
-  --shadow-lg: 0 24px 64px rgba(27, 50, 82, 0.2);
-  --radius: 14px;
-  --radius-sm: 10px;
+  --primary: #c9ea16;
+  --primary-hover: #b7d800;
+  --primary-soft: rgba(201, 234, 22, 0.2);
+  --primary-strong: #566800;
+  --success: #0e7a4b;
+  --warning: #ad5f00;
+  --danger: #cb3649;
+  --accent: #6a48d7;
+  --correct: #199a60;
+  --close: #cd7d0e;
+  --wrong: #a89ba3;
+  --shadow-sm: 0 3px 10px rgba(32, 17, 24, 0.07);
+  --shadow: 0 12px 30px rgba(32, 17, 24, 0.08);
+  --shadow-lg: 0 28px 70px rgba(32, 17, 24, 0.2);
+  --radius: 4px;
+  --radius-sm: 3px;
   --content-max: 1180px;
   --page-inline: clamp(16px, 4vw, 52px);
 }
@@ -48,8 +50,9 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
     'Microsoft YaHei', 'Noto Sans SC', sans-serif;
   background:
-    radial-gradient(circle at 12% -8%, rgba(75, 137, 231, 0.16), transparent 30rem),
-    radial-gradient(circle at 96% 2%, rgba(118, 83, 215, 0.1), transparent 26rem),
+    radial-gradient(circle at 10% -6%, rgba(201, 234, 22, 0.13), transparent 30rem),
+    radial-gradient(circle at 94% 4%, rgba(106, 72, 215, 0.07), transparent 26rem),
+    repeating-linear-gradient(118deg, transparent 0 92px, rgba(32, 17, 24, 0.016) 92px 93px),
     var(--bg);
   color: var(--text);
   line-height: 1.5;
@@ -59,5 +62,4 @@ body {
 
 button, input, select, textarea { font: inherit; }
 button, a { touch-action: manipulation; }
-::selection { background: rgba(37, 111, 226, 0.2); }
-
+::selection { background: rgba(201, 234, 22, 0.45); }

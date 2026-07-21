@@ -37,13 +37,13 @@ function installBlastStylesheets(): void {
 function renderTheme(theme: Theme): void {
   document.documentElement.dataset.theme = theme;
   document.documentElement.style.colorScheme = theme === 'blast' ? 'dark' : 'light';
-  document.documentElement.style.background = theme === 'blast' ? '#160a13' : '#edf3fb';
+  document.documentElement.style.background = theme === 'blast' ? '#160a13' : '#f3f0ea';
   for (const stylesheet of blastStylesheets()) {
     stylesheet.media = theme === 'blast' ? 'all' : 'not all';
   }
   document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')?.setAttribute(
     'content',
-    theme === 'blast' ? '#160a13' : '#edf3fb'
+    theme === 'blast' ? '#160a13' : '#f3f0ea'
   );
 }
 

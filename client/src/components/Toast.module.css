@@ -63,6 +63,14 @@
   to { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 
+:global(html:not([data-theme='blast'])) .toast {
+  border-radius: 3px;
+  border-color: rgba(32, 17, 24, 0.16);
+}
+
+:global(html:not([data-theme='blast'])) .info .icon { color: var(--primary-strong); }
+
+
 @media (max-width: 520px) {
   .viewport {
     top: max(8px, env(safe-area-inset-top));

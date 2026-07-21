@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Search } from 'lucide-react';
 import DataTable, { Column } from '../DataTable';
 import PlayerEditForm, { PlayerForm, emptyPlayer } from './PlayerEditForm';
 import { api, errMsg } from '../../api/client';
@@ -152,15 +152,17 @@ export default function AdminPlayers() {
       key: 'actions',
       title: '操作',
       render: (p) => (
-        <span style={{ display: 'flex', gap: 6 }}>
-          <button className="btn btn-ghost" onClick={() => setEditing(p)}>编辑</button>
+        <span className="admin-player-actions">
+          <button type="button" className="btn btn-ghost" onClick={() => setEditing(p)}>编辑</button>
           <button
+            type="button"
             className="btn btn-ghost"
             onClick={() => void setEnabled(p, !p.is_enabled)}
           >
             {p.is_enabled ? '停用' : '启用'}
           </button>
           <button
+            type="button"
             className="btn btn-red"
             onClick={() => void remove(p)}
             disabled={p.is_enabled}
@@ -176,9 +178,19 @@ export default function AdminPlayers() {
   return (
     <>
       <div className="card admin-players-card">
-        <div className="admin-players-heading">
-          <h3>选手管理(共 {total} 名)</h3>
-          <button className="btn btn-green" onClick={() => setEditing({ ...emptyPlayer })}>+ 新增选手</button>
+        <div className="admin-players-header">
+          <div className="admin-players-title">
+            <h3>选手管理</h3>
+            <p className="muted">共 {total} 名选手</p>
+          </div>
+          <button
+            type="button"
+            className="btn btn-green admin-player-add"
+            onClick={() => setEditing({ ...emptyPlayer })}
+          >
+            <Plus size={16} />
+            新增选手
+          </button>
         </div>
         <div className="admin-list-toolbar">
           <label className="admin-search">
@@ -191,7 +203,7 @@ export default function AdminPlayers() {
             />
           </label>
           <label className="admin-page-size">
-            每页
+            <span>每页显示</span>
             <select
               className="input"
               value={pageSize}
@@ -204,7 +216,7 @@ export default function AdminPlayers() {
             </select>
           </label>
         </div>
-        <div style={{ marginTop: 12, overflowX: 'auto' }}>
+        <div className="admin-players-table">
           <DataTable
             columns={columns}
             rows={players}

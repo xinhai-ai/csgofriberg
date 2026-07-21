@@ -17,8 +17,9 @@
 @media (max-width: 760px) {
   .presence-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .stats-overview-grid { grid-template-columns: 1fr; }
-  .admin-list-toolbar { align-items: stretch; flex-direction: column; }
-  .admin-search { max-width: none; }
+  .admin-players-header { align-items: stretch; flex-direction: column; }
+  .admin-player-add { width: 100%; }
+  .admin-list-toolbar { grid-template-columns: 1fr; align-items: stretch; }
   .admin-page-size { justify-content: space-between; }
   .admin-pagination { flex-direction: column; }
   .admin-pagination-actions { width: min(280px, 100%); justify-content: space-between; }
@@ -220,4 +221,3 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
 }
-

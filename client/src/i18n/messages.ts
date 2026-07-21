@@ -51,6 +51,7 @@ const MESSAGES: Record<string, string> = {
   STALE_CONNECTION: '此页面的连接已被其他页面或重连会话接管',
   INVALID_ORIGIN: '请求来源未被允许',
   NETWORK_ERROR: '网络异常,请检查连接',
+  CONNECTION_RESTORED: '网络连接已恢复',
   FEATURE_DISABLED: '该功能当前未开放',
   SERVICE_UNAVAILABLE: '服务暂时不可用,请稍后重试',
   SERVER_SHUTTING_DOWN: '服务器正在更新，请稍后重试',
