@@ -1,5 +1,7 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { getPlayerList, searchPlayerList } from '../api/playerList';
+import { errMsg } from '../api/client';
+import { toast } from './Toast';
 
 interface Suggestion {
   id: number;
@@ -42,7 +44,7 @@ export default function GuessInputBar({
   useEffect(() => {
     void getPlayerList().then((list) => {
       players.current = list;
-    });
+    }).catch((error) => toast.error(errMsg(error)));
   }, []);
 
   useEffect(() => {
@@ -59,7 +61,7 @@ export default function GuessInputBar({
         setItems(next);
         setActive(0);
         setOpen(next.length > 0);
-      }).catch(() => undefined);
+      }).catch((error) => toast.error(errMsg(error)));
     }, 80);
     return () => window.clearTimeout(timer.current);
   }, [text]);

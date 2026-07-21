@@ -6,22 +6,22 @@ import { api, errMsg } from '../api/client';
 import { useAuth } from '../store/auth';
 import { closeSocket, getSocket } from '../api/socket';
 import { markAuthenticated } from '../api/session';
+import { toast } from '../components/Toast';
 
 export default function Login() {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const setUser = useAuth((s) => s.setUser);
   const navigate = useNavigate();
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    setError('');
     if (mode === 'register' && password !== confirmPassword) {
-      return setError('两次输入的密码不一致');
+      toast.error('两次输入的密码不一致');
+      return;
     }
     setLoading(true);
     try {
@@ -33,12 +33,12 @@ export default function Login() {
       // 把匿名期间的对局并入账号(失败不阻塞登录)
       try {
         await api.post('/auth/claim');
-      } catch {
-        /* 忽略 */
+      } catch (err) {
+        toast.error(`登录成功，但匿名战绩同步失败：${errMsg(err)}`);
       }
       navigate('/');
     } catch (err) {
-      setError(errMsg(err));
+      toast.error(errMsg(err));
     } finally {
       setLoading(false);
     }
@@ -76,7 +76,6 @@ export default function Login() {
               onChange={(e) => setConfirmPassword(e.target.value)}
             />
           )}
-          {error && <div className="error">{error}</div>}
           <button className="btn" disabled={loading}>
             {mode === 'login' ? '登录' : '注册'}
           </button>
@@ -84,7 +83,6 @@ export default function Login() {
             type="button"
             className="btn btn-ghost"
             onClick={() => {
-              setError('');
               setConfirmPassword('');
               setMode(mode === 'login' ? 'register' : 'login');
             }}

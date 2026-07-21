@@ -6,6 +6,7 @@ import { api, errMsg } from '../../api/client';
 import { useConfirm } from '../ConfirmDialog';
 import { playerRoleLabel } from '../../utils/playerRoles';
 import { clearPlayerListCache } from '../../api/playerList';
+import { toast } from '../Toast';
 
 interface AdminPlayer extends PlayerForm {
   id: number;
@@ -31,8 +32,6 @@ export default function AdminPlayers() {
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState<PlayerForm | null>(null);
   const [importText, setImportText] = useState('');
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
   const requestId = useRef(0);
 
   const load = useCallback(async () => {
@@ -52,7 +51,7 @@ export default function AdminPlayers() {
       setTotal(res.data.total);
       if (res.data.page !== page) setPage(res.data.page);
     } catch (err) {
-      if (currentRequest === requestId.current) setError(errMsg(err));
+      if (currentRequest === requestId.current) toast.error(errMsg(err));
     } finally {
       if (currentRequest === requestId.current) setLoading(false);
     }
@@ -71,8 +70,6 @@ export default function AdminPlayers() {
   }, [searchInput]);
 
   const save = async (form: PlayerForm) => {
-    setError('');
-    setMessage('');
     try {
       const { id, ...body } = form;
       if (id) {
@@ -82,13 +79,11 @@ export default function AdminPlayers() {
       }
       clearPlayerListCache();
       setEditing(null);
-      setMessage(id ? '修改已保存' : '新增成功');
+      toast.success(id ? '修改已保存' : '新增成功');
       if (!id && page !== 1) setPage(1);
       else await load();
     } catch (err) {
-      const message = errMsg(err);
-      setError(message);
-      throw new Error(message);
+      throw new Error(errMsg(err));
     }
   };
 
@@ -99,15 +94,13 @@ export default function AdminPlayers() {
       confirmLabel: '确认停用',
       tone: 'warning',
     })) return;
-    setError('');
-    setMessage('');
     try {
       await api.put(`/admin/players/${p.id}`, { is_enabled: isEnabled });
       clearPlayerListCache();
-      setMessage(isEnabled ? `${p.nickname} 已重新加入选手池` : `${p.nickname} 已停用并移出选手池`);
+      toast.success(isEnabled ? `${p.nickname} 已重新加入选手池` : `${p.nickname} 已停用并移出选手池`);
       await load();
     } catch (err) {
-      setError(errMsg(err));
+      toast.error(errMsg(err));
     }
   };
 
@@ -118,31 +111,28 @@ export default function AdminPlayers() {
       confirmLabel: '永久删除',
       tone: 'danger',
     })) return;
-    setError('');
     try {
       await api.delete(`/admin/players/${p.id}`);
       clearPlayerListCache();
-      setMessage(`${p.nickname} 已永久删除`);
+      toast.success(`${p.nickname} 已永久删除`);
       await load();
     } catch (err) {
-      setError(errMsg(err));
+      toast.error(errMsg(err));
     }
   };
 
   const doImport = async () => {
-    setError('');
-    setMessage('');
     try {
       const parsed = JSON.parse(importText);
       const list = Array.isArray(parsed) ? parsed : parsed.players;
       const res = await api.post('/admin/players/import', { players: list });
       clearPlayerListCache();
-      setMessage(`导入完成:新增 ${res.data.created},更新 ${res.data.updated}`);
+      toast.success(`导入完成：新增 ${res.data.created}，更新 ${res.data.updated}`);
       setImportText('');
       if (page !== 1) setPage(1);
       else await load();
     } catch (err) {
-      setError(err instanceof SyntaxError ? 'JSON 格式错误' : errMsg(err));
+      toast.error(err instanceof SyntaxError ? 'JSON 格式错误' : errMsg(err));
     }
   };
 
@@ -190,8 +180,6 @@ export default function AdminPlayers() {
           <h3>选手管理(共 {total} 名)</h3>
           <button className="btn btn-green" onClick={() => setEditing({ ...emptyPlayer })}>+ 新增选手</button>
         </div>
-        {message && <p className="muted">{message}</p>}
-        {error && <p className="error">{error}</p>}
         <div className="admin-list-toolbar">
           <label className="admin-search">
             <Search size={16} />

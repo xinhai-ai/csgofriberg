@@ -8,6 +8,7 @@ import AnswerOverlay, { AnswerInfo } from '../components/AnswerOverlay';
 import { api, errMsg } from '../api/client';
 import { GuessFeedback } from '../types';
 import { useConfirm } from '../components/ConfirmDialog';
+import { toast } from '../components/Toast';
 
 function exitGame(gameId: string): Promise<unknown> {
   return api.post(`/game/${gameId}/exit`);
@@ -24,7 +25,6 @@ export default function SingleGame() {
   const [answer, setAnswer] = useState<AnswerInfo | null>(null);
   const [showOverlay, setShowOverlay] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
-  const [error, setError] = useState('');
   const gameIdRef = useRef<string | null>(null);
   const boardEndRef = useRef<HTMLDivElement>(null);
 
@@ -34,7 +34,6 @@ export default function SingleGame() {
   };
 
   const start = useCallback(async (replace = true) => {
-    setError('');
     setAnswer(null);
     setShowOverlay(false);
     setStatus('playing');
@@ -49,7 +48,7 @@ export default function SingleGame() {
       setGuesses(res.data.guesses);
       setMaxGuesses(res.data.maxGuesses);
     } catch (err) {
-      setError(errMsg(err));
+      toast.error(errMsg(err));
     }
   }, [mode]);
 
@@ -84,7 +83,11 @@ export default function SingleGame() {
     })) return;
     const id = gameIdRef.current;
     setCurrentGameId(null);
-    if (id && isGameActive) await exitGame(id);
+    try {
+      if (id && isGameActive) await exitGame(id);
+    } catch (err) {
+      toast.error(errMsg(err));
+    }
     navigate('/');
   };
 
@@ -101,7 +104,6 @@ export default function SingleGame() {
 
   const guess = async (playerId: number) => {
     if (!gameId || status !== 'playing') return;
-    setError('');
     try {
       const res = await api.post(`/game/${gameId}/guess`, { playerId });
       setGuesses((g) => [...g, res.data.feedback]);
@@ -111,7 +113,7 @@ export default function SingleGame() {
         setShowOverlay(true);
       }
     } catch (err) {
-      setError(errMsg(err));
+      toast.error(errMsg(err));
     }
   };
 
@@ -131,7 +133,7 @@ export default function SingleGame() {
         setShowOverlay(true);
       }
     } catch (err) {
-      setError(errMsg(err));
+      toast.error(errMsg(err));
     }
   };
 
@@ -175,7 +177,6 @@ export default function SingleGame() {
               ? '恭喜,猜对了'
               : '本局结束'
             : '绿色正确 · 黄色接近 · 箭头指示目标数值方向'}
-          {error && <span className="error">{error}</span>}
         </>
       }
       dock={

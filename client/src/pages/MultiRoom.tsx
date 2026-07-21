@@ -24,6 +24,7 @@ import { getSocket } from '../api/socket';
 import { translate } from '../i18n/messages';
 import { MultiplayerGuessFeedback, RoomPatch, RoomState, RoomPlayer } from '../types';
 import { useConfirm } from '../components/ConfirmDialog';
+import { toast } from '../components/Toast';
 
 interface RoundOver {
   winnerKey: string | null;
@@ -165,7 +166,6 @@ export default function MultiRoom() {
   const [roundOver, setRoundOver] = useState<RoundOver | null>(null);
   const [matchOver, setMatchOver] = useState<MatchOver | null>(null);
   const [offlineNote, setOfflineNote] = useState('');
-  const [error, setError] = useState('');
   const [showRoomCode, setShowRoomCode] = useState(false);
   const [myKey, setMyKey] = useState('');
   const [roundExpired, setRoundExpired] = useState(false);
@@ -226,7 +226,6 @@ export default function MultiRoom() {
       setGuessCooldownUntil(0);
       setRoundOver(null);
       setOfflineNote('');
-      setError('');
       setRematchNotice('');
       setRoundExpired(false);
       applyRoomSnapshot(p.room);
@@ -234,13 +233,11 @@ export default function MultiRoom() {
     const onRoundOver = (p: { room: RoomState }) => {
       setGuessCooldownUntil(0);
       setRoundExpired(true);
-      setError('');
       applyRoomSnapshot(p.room);
     };
     const onMatchOver = (p: { room: RoomState }) => {
       setGuessCooldownUntil(0);
       setRoundExpired(true);
-      setError('');
       setRoundOver(null);
       setRematchNotice('');
       applyRoomSnapshot(p.room);
@@ -321,7 +318,7 @@ export default function MultiRoom() {
         setOfflineNote(`${name} 已离线,${Math.round(p.graceMs / 1000)} 秒内未重连将判负`);
       }
     };
-    const onRoomError = (p: { code: string }) => setError(translate(p.code));
+    const onRoomError = (p: { code: string }) => toast.error(translate(p.code));
     const onIdentity = (p: { key: string }) => setMyKey(p.key);
     const onGuessApplied = (p: {
       roomId: string;
@@ -385,7 +382,11 @@ export default function MultiRoom() {
       if (initialSequence !== syncSequenceRef.current) return;
       if (res?.selfKey) setMyKey(res.selfKey);
       if (res?.room) applyRoomSnapshot(res.room, true);
-      else if (!roomRef.current) navigate('/multi');
+      else if (!roomRef.current) {
+        const code = res?.code === 'NOT_IN_ROOM' ? 'ROOM_NOT_FOUND' : res?.code ?? 'ROOM_NOT_FOUND';
+        toast.error(translate(code));
+        navigate('/multi');
+      }
     });
     return () => {
       socket.off('room:patch', onPatch);
@@ -417,9 +418,8 @@ export default function MultiRoom() {
   }, [guessCooldownUntil]);
 
   const emit = (event: string, payload: unknown = {}) => {
-    setError('');
     getSocket().emit(event, payload, (res: any) => {
-      if (res?.code) setError(translate(res.code));
+      if (res?.code) toast.error(translate(res.code));
       if (res?.room) applyRoomSnapshot(res.room);
     });
   };
@@ -442,7 +442,7 @@ export default function MultiRoom() {
     };
     const timer = window.setTimeout(() => {
       if (!finish(false)) return;
-      setError(translate('NETWORK_ERROR'));
+      toast.error(translate('NETWORK_ERROR'));
       syncRoom(socket);
     }, 5_000);
     socket.emit('game:guess', {
@@ -454,29 +454,25 @@ export default function MultiRoom() {
       window.clearTimeout(timer);
       if (res?.room) applyRoomSnapshot(res.room);
       if (res?.code === 'GUESS_COOLDOWN') {
-        setError('');
         setGuessCooldownUntil(Date.now() + Math.max(0, Number(res.retryAfterMs) || 0));
         finish(false);
         return;
       }
       if (res?.code === 'NO_ACTIVE_ROUND' || res?.code === 'STALE_ROUND') {
-        setError('');
         syncRoom(socket);
         finish(false);
         return;
       }
       if (res?.code === 'ROOM_BUSY') {
-        setError('');
         syncRoom(socket);
         finish(false);
         return;
       }
       if (res?.code) {
-        setError(translate(res.code));
+        toast.error(translate(res.code));
         finish(false);
         return;
       }
-      setError('');
       setGuessCooldownUntil(Date.now() + Math.max(
         MULTI_GUESS_INTERVAL_MS,
         Number(res?.cooldownMs) || 0
@@ -498,7 +494,6 @@ export default function MultiRoom() {
       confirmLabel: '离开并判负',
       tone: 'danger',
     })) return;
-    setError('');
     setLeaving(true);
     const socket = getSocket();
     const result = await new Promise<any>((resolve) => {
@@ -516,7 +511,7 @@ export default function MultiRoom() {
     });
     if (result?.code) {
       setLeaving(false);
-      setError(translate(result.code));
+      toast.error(translate(result.code));
       return;
     }
     setRoom(null);
@@ -538,17 +533,15 @@ export default function MultiRoom() {
       setSurrendering(false);
       if (res?.room) applyRoomSnapshot(res.room);
       if (res?.code === 'NO_ACTIVE_ROUND' || res?.code === 'STALE_ROUND') {
-        setError('');
         syncRoom();
         return;
       }
-      if (res?.code) setError(translate(res.code));
+      if (res?.code) toast.error(translate(res.code));
     });
   };
 
   const updateRematch = (event: string, payload: unknown = {}) => {
     if (rematchBusy) return;
-    setError('');
     setRematchBusy(true);
     const socket = getSocket();
     let settled = false;
@@ -556,7 +549,7 @@ export default function MultiRoom() {
       if (settled) return;
       settled = true;
       setRematchBusy(false);
-      setError(translate('NETWORK_ERROR'));
+      toast.error(translate('NETWORK_ERROR'));
       syncRoom(socket);
     }, 5_000);
     socket.emit(event, payload, (res: any) => {
@@ -564,7 +557,7 @@ export default function MultiRoom() {
       settled = true;
       window.clearTimeout(timer);
       setRematchBusy(false);
-      if (res?.code) setError(translate(res.code));
+      if (res?.code) toast.error(translate(res.code));
     });
   };
 
@@ -678,7 +671,6 @@ export default function MultiRoom() {
           )}
           {offlineNote && <span className="error">{offlineNote}</span>}
           {rematchNotice && <span className="muted">{rematchNotice}</span>}
-          {error && <span className="error">{error}</span>}
         </>
       }
       dock={

@@ -8,6 +8,7 @@ import { PlayerInfoTable } from '../components/AnswerOverlay';
 import { api, errMsg } from '../api/client';
 import { GuessFeedback, PlayerInfo } from '../types';
 import ModalPortal from '../components/ModalPortal';
+import { toast } from '../components/Toast';
 
 interface SingleStats {
   totalGames: number;
@@ -260,17 +261,17 @@ export default function Stats() {
   const [loading, setLoading] = useState(false);
   const [replay, setReplay] = useState<Replay | null>(null);
   const [replayLoadingId, setReplayLoadingId] = useState<number | null>(null);
-  const [error, setError] = useState('');
   const requestId = useRef(0);
 
   useEffect(() => {
-    api.get<StatsResponse>('/stats/me').then((res) => setStats(res.data)).catch((err) => setError(errMsg(err)));
+    api.get<StatsResponse>('/stats/me')
+      .then((res) => setStats(res.data))
+      .catch((err) => toast.error(errMsg(err)));
   }, []);
 
   const loadReplays = useCallback(async () => {
     const currentRequest = ++requestId.current;
     setLoading(true);
-    setError('');
     try {
       const res = await api.get<ReplayPage<SingleReplayItem | MultiReplayItem>>('/stats/replays', {
         params: { type, page, pageSize: 15 },
@@ -279,7 +280,7 @@ export default function Stats() {
       setItems(res.data.items);
       setHasNext(res.data.hasNext);
     } catch (err) {
-      if (currentRequest === requestId.current) setError(errMsg(err));
+      if (currentRequest === requestId.current) toast.error(errMsg(err));
     } finally {
       if (currentRequest === requestId.current) setLoading(false);
     }
@@ -294,7 +295,6 @@ export default function Stats() {
   };
 
   const openReplay = async (item: SingleReplayItem | MultiReplayItem) => {
-    setError('');
     setReplayLoadingId(item.id);
     try {
       if (item.type === 'single') {
@@ -305,7 +305,7 @@ export default function Stats() {
         setReplay({ type: 'multi', ...res.data });
       }
     } catch (err) {
-      setError(errMsg(err));
+      toast.error(errMsg(err));
     } finally {
       setReplayLoadingId(null);
     }
@@ -350,7 +350,6 @@ export default function Stats() {
   return (
     <Page title="统计" icon={<BarChart3 size={17} />}>
       <div className="stats-content">
-        {error && <div className="error stats-error">{error}</div>}
         {stats && (
           <div className="stats-overview-grid">
             <section className="card">

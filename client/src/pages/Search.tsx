@@ -5,14 +5,13 @@ import GuessInputBar from '../components/GuessInputBar';
 import { PlayerInfoTable } from '../components/AnswerOverlay';
 import { api, errMsg } from '../api/client';
 import { PlayerInfo } from '../types';
+import { toast } from '../components/Toast';
 
 /** 查选手:底部输入 + 自动补全,选中后在上方展示选手卡片(原版布局) */
 export default function Search() {
   const [player, setPlayer] = useState<PlayerInfo | null>(null);
-  const [error, setError] = useState('');
 
   const lookup = async (nickname: string) => {
-    setError('');
     try {
       const res = await api.get<PlayerInfo[]>('/players', {
         params: { search: nickname },
@@ -23,7 +22,7 @@ export default function Search() {
         null;
       setPlayer(exact);
     } catch (err) {
-      setError(errMsg(err));
+      toast.error(errMsg(err));
     }
   };
 
@@ -40,7 +39,6 @@ export default function Search() {
       }
     >
       <div className="player-search-content">
-        {error && <div className="error">{error}</div>}
         {player ? (
           <div className="card">
             <h3>

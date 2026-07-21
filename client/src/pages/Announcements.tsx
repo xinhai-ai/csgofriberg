@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Megaphone } from 'lucide-react';
 import Page from '../components/Page';
 import { api, errMsg } from '../api/client';
+import { toast } from '../components/Toast';
 
 interface Announcement {
   id: number;
@@ -12,18 +13,16 @@ interface Announcement {
 
 export default function Announcements() {
   const [items, setItems] = useState<Announcement[]>([]);
-  const [error, setError] = useState('');
 
   useEffect(() => {
     api
       .get<Announcement[]>('/announcements')
       .then((res) => setItems(res.data))
-      .catch((err) => setError(errMsg(err)));
+      .catch((err) => toast.error(errMsg(err)));
   }, []);
 
   return (
     <Page title="更新公告" icon={<Megaphone size={17} />}>
-      {error && <div className="error">{error}</div>}
       {!items.length && <p className="muted">暂无公告</p>}
       {items.map((a) => (
         <div key={a.id} className="card">

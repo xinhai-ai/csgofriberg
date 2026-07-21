@@ -20,6 +20,7 @@ import { clearAuthenticated } from '../api/session';
 import { markGuestSession } from '../api/session';
 import { useConfirm } from '../components/ConfirmDialog';
 import ThemeToggle from '../components/ThemeToggle';
+import { toast } from '../components/Toast';
 
 function BilibiliIcon() {
   return (
@@ -45,7 +46,6 @@ export default function Home() {
   const { user, initialized, setUser } = useAuth();
   const navigate = useNavigate();
   const confirm = useConfirm();
-  const [logoutError, setLogoutError] = useState('');
   const [loggingOut, setLoggingOut] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(true);
   const guestName = useSyncExternalStore(subscribeGuestName, getGuestName, () => '访客');
@@ -68,7 +68,6 @@ export default function Home() {
       confirmLabel: '退出账号',
       tone: 'warning',
     })) return;
-    setLogoutError('');
     setLoggingOut(true);
     try {
       await api.post('/auth/logout');
@@ -81,7 +80,7 @@ export default function Home() {
       getSocket();
       navigate('/');
     } catch (error) {
-      setLogoutError(errMsg(error));
+      toast.error(errMsg(error));
     } finally {
       setLoggingOut(false);
     }
@@ -128,7 +127,6 @@ export default function Home() {
           )}
         </span>
       </div>
-      {logoutError && <div className="status-bar"><span className="error">{logoutError}</span></div>}
       <main className="page-scroll" id="main-content">
         <div className="home-hero">
           <span className="hero-kicker">CS MAJOR // PLAYER GUESSING</span>

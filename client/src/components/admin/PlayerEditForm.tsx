@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useId, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { PLAYER_ROLE_OPTIONS } from '../../utils/playerRoles';
 import ModalPortal from '../ModalPortal';
+import { toast } from '../Toast';
 
 export interface PlayerForm {
   id?: number;
@@ -41,7 +42,6 @@ interface Props {
 export default function PlayerEditForm({ initial, onSubmit, onCancel }: Props) {
   const [form, setForm] = useState<PlayerForm>(initial);
   const [saving, setSaving] = useState(false);
-  const [submitError, setSubmitError] = useState('');
   const titleId = useId();
   const firstInputRef = useRef<HTMLInputElement>(null);
   const set = (patch: Partial<PlayerForm>) => setForm((current) => ({ ...current, ...patch }));
@@ -67,12 +67,11 @@ export default function PlayerEditForm({ initial, onSubmit, onCancel }: Props) {
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    setSubmitError('');
     setSaving(true);
     try {
       await onSubmit(form);
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : '保存失败，请稍后重试');
+      toast.error(error instanceof Error ? error.message : '保存失败，请稍后重试');
     } finally {
       setSaving(false);
     }
@@ -140,8 +139,6 @@ export default function PlayerEditForm({ initial, onSubmit, onCancel }: Props) {
             <label><input type="checkbox" checked={form.is_active} onChange={(event) => set({ is_active: event.target.checked })} />现役选手</label>
             <label><input type="checkbox" checked={form.is_enabled} onChange={(event) => set({ is_enabled: event.target.checked })} />允许进入选手池和猜测列表</label>
           </div>
-
-          {submitError && <p className="error admin-player-submit-error">{submitError}</p>}
 
           <div className="admin-player-dialog-actions">
             <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={saving}>取消</button>

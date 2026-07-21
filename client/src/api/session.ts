@@ -1,4 +1,4 @@
-import { api } from './client';
+import { api, errMsg } from './client';
 import { useAuth } from '../store/auth';
 import { UserInfo } from '../types';
 import axios from 'axios';
@@ -10,6 +10,7 @@ import {
   markAuthenticated,
   markGuestSession,
 } from './authSession';
+import { toast } from '../components/Toast';
 
 let guestRequest: Promise<void> | null = null;
 
@@ -44,7 +45,9 @@ export async function initializeIdentity(): Promise<void> {
   const auth = useAuth.getState();
   if (!hasAuthHint()) {
     auth.setInitialized();
-    if (!hasGuestHint() || !hasGuestName()) void ensureGuestSession().catch(() => undefined);
+    if (!hasGuestHint() || !hasGuestName()) {
+      void ensureGuestSession().catch((error) => toast.error(errMsg(error)));
+    }
     return;
   }
   try {
@@ -53,6 +56,8 @@ export async function initializeIdentity(): Promise<void> {
   } catch (error) {
     if (axios.isAxiosError(error) && error.response?.status === 401) {
       clearAuthenticated();
+    } else {
+      toast.error(errMsg(error));
     }
     auth.setUser(null);
   } finally {

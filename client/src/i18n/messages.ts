@@ -5,6 +5,7 @@ const MESSAGES: Record<string, string> = {
   PAYLOAD_TOO_LARGE: '导入数据过大，请拆分后重试',
   INTERNAL_ERROR: '服务器开小差了,请稍后再试',
   AUTH_REQUIRED: '请先登录',
+  AUTH_EXPIRED: '登录状态已过期，请重新登录',
   FORBIDDEN: '没有权限执行此操作',
   USERNAME_TAKEN: '用户名已被注册',
   INVALID_CREDENTIALS: '用户名或密码错误',
@@ -52,6 +53,7 @@ const MESSAGES: Record<string, string> = {
   NETWORK_ERROR: '网络异常,请检查连接',
   FEATURE_DISABLED: '该功能当前未开放',
   SERVICE_UNAVAILABLE: '服务暂时不可用,请稍后重试',
+  SERVER_SHUTTING_DOWN: '服务器正在更新，请稍后重试',
 };
 
 export function translate(code: string | undefined | null): string {

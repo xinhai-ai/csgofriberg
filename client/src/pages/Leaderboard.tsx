@@ -3,6 +3,7 @@ import { Trophy } from 'lucide-react';
 import Page from '../components/Page';
 import DataTable, { Column } from '../components/DataTable';
 import { api, errMsg } from '../api/client';
+import { toast } from '../components/Toast';
 
 interface BoardRow {
   id: number;
@@ -16,13 +17,12 @@ interface BoardRow {
 
 export default function Leaderboard() {
   const [rows, setRows] = useState<BoardRow[]>([]);
-  const [error, setError] = useState('');
 
   useEffect(() => {
     api
       .get<BoardRow[]>('/leaderboard')
       .then((res) => setRows(res.data))
-      .catch((err) => setError(errMsg(err)));
+      .catch((err) => toast.error(errMsg(err)));
   }, []);
 
   const columns: Column<BoardRow>[] = [
@@ -37,7 +37,6 @@ export default function Leaderboard() {
 
   return (
     <Page title="排行榜" icon={<Trophy size={17} />}>
-      {error && <div className="error">{error}</div>}
       <div className="card" style={{ overflowX: 'auto' }}>
         <DataTable columns={columns} rows={rows} rowKey={(r) => r.id} empty="还没有玩家上榜" />
       </div>

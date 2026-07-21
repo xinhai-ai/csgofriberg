@@ -17,6 +17,7 @@ import { getSocket } from '../api/socket';
 import { translate } from '../i18n/messages';
 import { RoomState } from '../types';
 import { useConfirm } from '../components/ConfirmDialog';
+import { toast } from '../components/Toast';
 
 type DbType = 'easy' | 'normal';
 const BO_OPTIONS = [1, 3, 5, 7];
@@ -63,7 +64,6 @@ export default function MultiLobby() {
   const [currentRole, setCurrentRole] = useState<'player' | 'spectator'>('player');
   const [copied, setCopied] = useState(false);
   const [searching, setSearching] = useState(false);
-  const [error, setError] = useState('');
   const navigate = useNavigate();
   const confirm = useConfirm();
   const searchingRef = useRef(false);
@@ -89,7 +89,7 @@ export default function MultiLobby() {
         if (!res?.code) return;
         searchingRef.current = false;
         setSearching(false);
-        setError(translate(res.code));
+        toast.error(translate(res.code));
       });
     };
     socket.on('match:found', onMatchFound);
@@ -120,7 +120,11 @@ export default function MultiLobby() {
       confirmLabel: '结束并判负',
       tone: 'danger',
     })) return;
-    getSocket().emit('room:leave', {}, () => {
+    getSocket().emit('room:leave', {}, (res: any) => {
+      if (res?.code) {
+        toast.error(translate(res.code));
+        return;
+      }
       setCurrentRoom(null);
     });
   };
@@ -151,7 +155,7 @@ export default function MultiLobby() {
       getSocket().emit('room:leave', {}, (res: any) => {
         replacingRoomRef.current = false;
         if (res?.code) {
-          setError(translate(res.code));
+          toast.error(translate(res.code));
           resolve(false);
           return;
         }
@@ -162,7 +166,6 @@ export default function MultiLobby() {
   };
 
   const create = async (replaceExisting = false) => {
-    setError('');
     if (!replaceExisting && currentRoom) {
       if (!await leaveCurrentFor(currentRoom, currentRole, '创建新房间')) return;
     }
@@ -175,14 +178,20 @@ export default function MultiLobby() {
         });
         return;
       }
-      if (res?.code) return setError(translate(res.code));
+      if (res?.code) {
+        toast.error(translate(res.code));
+        return;
+      }
       setCreatedRoom(res.room);
+      toast.success('房间已创建');
     });
   };
 
   const join = async (code: string, spectate = false, replaceExisting = false) => {
-    setError('');
-    if (!code.trim()) return;
+    if (!code.trim()) {
+      toast.error('请输入房间码');
+      return;
+    }
     if (!replaceExisting && currentRoom && currentRoom.id !== code.trim().toUpperCase()) {
       const action = spectate ? '加入观战' : '加入新房间';
       if (!await leaveCurrentFor(currentRoom, currentRole, action)) return;
@@ -197,13 +206,15 @@ export default function MultiLobby() {
         });
         return;
       }
-      if (res?.code) return setError(translate(res.code));
+      if (res?.code) {
+        toast.error(translate(res.code));
+        return;
+      }
       navigate('/multi/room');
     });
   };
 
   const startMatch = () => {
-    setError('');
     setSearching(true);
     searchingRef.current = true;
     getSocket().emit('match:start', { dbType: mmDbType, anonymous: mmAnonymous }, (res: any) => {
@@ -216,7 +227,8 @@ export default function MultiLobby() {
       if (res?.code) {
         setSearching(false);
         searchingRef.current = false;
-        return setError(translate(res.code));
+        toast.error(translate(res.code));
+        return;
       }
       if (res?.queued) {
         setSearching(true);
@@ -227,7 +239,8 @@ export default function MultiLobby() {
   };
 
   const cancelMatch = () => {
-    getSocket().emit('match:cancel', {}, () => {
+    getSocket().emit('match:cancel', {}, (res: any) => {
+      if (res?.code) toast.error(translate(res.code));
       setSearching(false);
       searchingRef.current = false;
     });
@@ -240,18 +253,12 @@ export default function MultiLobby() {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      /* http 环境下降级:房间码本身可长按选中复制 */
+      toast.error('复制失败，请手动选择房间码');
     }
   };
 
   return (
     <Page title="多人联机" icon={<Globe size={17} />}>
-      {error && (
-        <div className="card multi-lobby-message-card" style={{ borderColor: 'var(--danger)' }}>
-          <span className="error">{error}</span>
-        </div>
-      )}
-
       {currentRoom && (
         <div className="card multi-lobby-message-card" style={{ borderColor: 'var(--warning)' }}>
           <h3>

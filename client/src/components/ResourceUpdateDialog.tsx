@@ -3,6 +3,7 @@ import { RefreshCw, X } from 'lucide-react';
 import { RESOURCE_VERSION } from '../resourceVersion';
 import type { ResourceVersionNotice } from '../resourceVersion';
 import ModalPortal from './ModalPortal';
+import { toast } from './Toast';
 
 const DISMISSED_NOTICE_KEY = 'dismissed-resource-version-notice';
 const VERSION_PATTERN = /^\d{13}$/;
@@ -53,7 +54,7 @@ export default function ResourceUpdateDialog() {
     };
     void import('../api/socket').then(({ subscribeResourceVersion }) => {
       if (!disposed) unsubscribe = subscribeResourceVersion(onVersion);
-    });
+    }).catch(() => toast.error('无法监听资源更新，请稍后刷新页面'));
     return () => {
       disposed = true;
       unsubscribe?.();

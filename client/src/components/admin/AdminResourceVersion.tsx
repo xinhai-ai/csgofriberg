@@ -3,12 +3,11 @@ import { RadioTower } from 'lucide-react';
 import { api, errMsg } from '../../api/client';
 import { RESOURCE_VERSION } from '../../resourceVersion';
 import { useConfirm } from '../ConfirmDialog';
+import { toast } from '../Toast';
 
 export default function AdminResourceVersion() {
   const confirm = useConfirm();
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
   const broadcast = async () => {
     const accepted = await confirm({
@@ -19,13 +18,11 @@ export default function AdminResourceVersion() {
     if (!accepted) return;
 
     setSubmitting(true);
-    setError('');
-    setSuccess('');
     try {
       await api.post('/admin/resource-version/broadcast', { version: RESOURCE_VERSION });
-      setSuccess('当前资源版本已广播。');
+      toast.success('当前资源版本已广播');
     } catch (err) {
-      setError(errMsg(err));
+      toast.error(errMsg(err));
     } finally {
       setSubmitting(false);
     }
@@ -42,8 +39,6 @@ export default function AdminResourceVersion() {
           {new Date(Number(RESOURCE_VERSION)).toLocaleString('zh-CN')}
         </code>
       </div>
-      {error && <p className="error">{error}</p>}
-      {success && <p className="success">{success}</p>}
       <button className="btn btn-green" type="button" disabled={submitting} onClick={() => void broadcast()}>
         <RadioTower size={17} />
         {submitting ? '正在广播...' : '广播当前版本'}

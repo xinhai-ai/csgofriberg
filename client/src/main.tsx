@@ -7,6 +7,7 @@ import { ConfirmProvider } from './components/ConfirmDialog';
 import { ensurePow } from './api/pow';
 import { initializeTheme } from './store/theme';
 import ResourceUpdateDialog from './components/ResourceUpdateDialog';
+import ToastViewport from './components/Toast';
 
 localStorage.removeItem('token');
 localStorage.removeItem('user');
@@ -29,6 +30,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <ConfirmProvider>
       <RouterProvider router={router} />
       <ResourceUpdateDialog />
+      <ToastViewport />
     </ConfirmProvider>
   </React.StrictMode>
 );

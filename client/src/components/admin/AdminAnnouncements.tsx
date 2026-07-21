@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, errMsg } from '../../api/client';
 import { useConfirm } from '../ConfirmDialog';
+import { toast } from '../Toast';
 
 interface Announcement {
   id: number;
@@ -15,14 +16,13 @@ export default function AdminAnnouncements() {
   const [items, setItems] = useState<Announcement[]>([]);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [error, setError] = useState('');
 
   const load = useCallback(async () => {
     try {
       const res = await api.get<Announcement[]>('/announcements');
       setItems(res.data);
     } catch (err) {
-      setError(errMsg(err));
+      toast.error(errMsg(err));
     }
   }, []);
 
@@ -31,14 +31,14 @@ export default function AdminAnnouncements() {
   }, [load]);
 
   const publish = async () => {
-    setError('');
     try {
       await api.post('/admin/announcements', { title, content });
       setTitle('');
       setContent('');
+      toast.success('公告已发布');
       await load();
     } catch (err) {
-      setError(errMsg(err));
+      toast.error(errMsg(err));
     }
   };
 
@@ -51,16 +51,16 @@ export default function AdminAnnouncements() {
     })) return;
     try {
       await api.delete(`/admin/announcements/${id}`);
+      toast.success('公告已删除');
       await load();
     } catch (err) {
-      setError(errMsg(err));
+      toast.error(errMsg(err));
     }
   };
 
   return (
     <div className="card">
       <h3>公告管理</h3>
-      {error && <p className="error">{error}</p>}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <input className="input" placeholder="公告标题" value={title} onChange={(e) => setTitle(e.target.value)} />
         <textarea className="input" rows={4} placeholder="公告内容" value={content} onChange={(e) => setContent(e.target.value)} />

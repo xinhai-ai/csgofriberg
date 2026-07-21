@@ -1,6 +1,8 @@
 import { io, Socket } from 'socket.io-client';
 import { ensureGuestSession, hasAuthHint } from './session';
 import { refreshAuthenticatedSession } from './authSession';
+import { translate } from '../i18n/messages';
+import { toast } from '../components/Toast';
 
 let socket: Socket | null = null;
 let connectTask: Promise<void> | null = null;
@@ -25,7 +27,9 @@ function recoverSocketIdentity(target: Socket): void {
       syncSocketAuthIntent(target);
       if (!target.connected && !target.active) target.connect();
     })
-    .catch(() => undefined)
+    .catch(() => {
+      toast.error(translate('NETWORK_ERROR'));
+    })
     .finally(() => {
       identityRecovery = null;
     });
@@ -41,7 +45,9 @@ function connectSocket(): void {
         target.connect();
       }
     })
-    .catch(() => undefined)
+    .catch(() => {
+      toast.error(translate('NETWORK_ERROR'));
+    })
     .finally(() => {
       if (connectTask === task) connectTask = null;
     });
@@ -64,7 +70,12 @@ export function getSocket(): Socket {
     if (error.message === 'AUTH_EXPIRED') {
       recoverSocketIdentity(target);
     } else if (error.message === 'IDENTITY_REQUIRED') {
-      void ensureGuestSession(true).then(connectSocket).catch(() => undefined);
+      void ensureGuestSession(true)
+        .then(connectSocket)
+        .catch(() => toast.error(translate('NETWORK_ERROR')));
+    } else {
+      const code = /^[A-Z_]+$/.test(error.message) ? error.message : 'NETWORK_ERROR';
+      toast.error(translate(code));
     }
   });
   target.on('resource:version', (notice) => {
