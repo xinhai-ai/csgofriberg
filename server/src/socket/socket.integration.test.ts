@@ -114,8 +114,8 @@ describe('multiplayer socket integration', () => {
       }
     }
     await stopSocket?.();
-    io.close();
-    await new Promise<void>((resolve) => server.close(() => resolve()));
+    if (io) io.close();
+    if (server) await new Promise<void>((resolve) => server.close(() => resolve()));
   });
 
   it('serializes starts and rejects stale or duplicate guesses', async () => {

@@ -6,7 +6,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "vitest run",
+    "test": "vitest run --no-file-parallelism",
     "migrate": "tsx src/db/migrate.ts",
     "seed": "tsx src/db/runSeed.ts",
     "create-admin": "tsx src/db/createAdmin.ts",

@@ -43,6 +43,7 @@ describe('stats and replay', () => {
   });
 
   afterAll(async () => {
+    if (!server) return;
     await new Promise<void>((resolve) => server.close(() => resolve()));
   });
 

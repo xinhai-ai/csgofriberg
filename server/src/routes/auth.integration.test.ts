@@ -68,6 +68,7 @@ describe('cookie authentication', () => {
   });
 
   afterAll(async () => {
+    if (!server) return;
     await new Promise<void>((resolve) => server.close(() => resolve()));
   });
 

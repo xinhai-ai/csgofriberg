@@ -53,6 +53,7 @@ describe('proof of work gateway', () => {
   });
 
   afterAll(async () => {
+    if (!server) return;
     await new Promise<void>((resolve) => server.close(() => resolve()));
   });
 
