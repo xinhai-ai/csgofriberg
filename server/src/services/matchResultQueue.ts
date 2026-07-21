@@ -9,6 +9,8 @@ export interface MatchResultPayload {
   dbType: 'easy' | 'normal';
   boType: number;
   winnerKey: string | null;
+  reason: string;
+  forfeitedKey: string | null;
   participants: {
     key: string;
     userId: number | null;
@@ -39,6 +41,9 @@ async function persist(payload: MatchResultPayload): Promise<void> {
         db_type: payload.dbType,
         bo_type: payload.boType,
         winner_id: winner?.userId ?? null,
+        winner_key: payload.winnerKey,
+        finish_reason: payload.reason,
+        forfeited_key: payload.forfeitedKey,
         replay: JSON.stringify(payload.rounds),
       })
       .onConflict('room_id')

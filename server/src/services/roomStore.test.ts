@@ -71,7 +71,7 @@ describe('roomStore local fallback', () => {
   it('does not clear a newer identity mapping when an old room is deleted', async () => {
     const oldRoom = makeRoom(`OLD${Date.now()}`);
     oldRoom.status = 'finished';
-    oldRoom.matchResult = { winnerKey: 'u:1', reason: 'test' };
+    oldRoom.matchResult = { winnerKey: 'u:1', reason: 'test', forfeitedKey: null };
     const newRoom = makeRoom(`NEW${Date.now()}`);
     await saveRoom(oldRoom);
     await saveRoom(newRoom);
@@ -83,7 +83,7 @@ describe('roomStore local fallback', () => {
   it('does not let a delayed old-room save reclaim an identity from a new room', async () => {
     const oldRoom = makeRoom(`LATE${Date.now()}`);
     oldRoom.status = 'finished';
-    oldRoom.matchResult = { winnerKey: 'u:1', reason: 'test' };
+    oldRoom.matchResult = { winnerKey: 'u:1', reason: 'test', forfeitedKey: null };
     const newRoom = makeRoom(`CURRENT${Date.now()}`);
     await saveRoom(oldRoom);
     await saveRoom(newRoom);

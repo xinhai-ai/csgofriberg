@@ -38,7 +38,7 @@ interface MultiReplayItem {
   mode: string;
   boType: number;
   finishedAt: string;
-  result: 'won' | 'lost';
+  result: 'won' | 'lost' | 'draw';
   me: { score: number };
   opponent: { score: number } | null;
 }
@@ -78,7 +78,7 @@ interface MultiReplay {
   mode: string;
   boType: number;
   finishedAt: string;
-  result: 'won' | 'lost';
+  result: 'won' | 'lost' | 'draw';
   me: { score: number };
   opponent: { score: number };
   rounds: MultiReplayRound[];
@@ -93,6 +93,10 @@ function formatAverage(value: number | null): string {
 
 function formatMode(mode: string): string {
   return mode === 'easy' ? '简单' : '完整';
+}
+
+function formatMultiResult(result: MultiReplayItem['result']): string {
+  return result === 'won' ? '胜利' : result === 'lost' ? '失败' : '平局';
 }
 
 function StatTable({ rows }: { rows: [string, string | number][] }) {
@@ -166,7 +170,7 @@ function ReplayDialog({ replay, onClose }: { replay: Replay; onClose: () => void
               <p>
                 {formatMode(replay.mode)} · {replay.type === 'single'
                   ? `${replay.status === 'won' ? '胜利' : '失败'} · ${replay.guessCount} 次猜测`
-                  : `BO${replay.boType} · ${replay.result === 'won' ? '胜利' : '失败'} · ${replay.me.score}:${replay.opponent.score}`}
+                  : `BO${replay.boType} · ${formatMultiResult(replay.result)} · ${replay.me.score}:${replay.opponent.score}`}
               </p>
             </div>
             <button className="confirm-close" type="button" aria-label="关闭回放" onClick={onClose}>
@@ -333,7 +337,10 @@ export default function Stats() {
   const multiColumns: Column<MultiReplayItem>[] = [
     { key: 'mode', title: '模式', render: (game) => `${formatMode(game.mode)} · BO${game.boType}` },
     { key: 'result', title: '结果', render: (game) => game.result === 'won'
-      ? <Badge text="胜利" color="green" /> : <Badge text="失败" color="gray" /> },
+      ? <Badge text="胜利" color="green" />
+      : game.result === 'draw'
+        ? <Badge text="平局" color="gray" />
+        : <Badge text="失败" color="gray" /> },
     { key: 'opponent', title: '对阵', render: () => '我方 / 对方' },
     { key: 'score', title: '比分', render: (game) => `${game.me.score}:${game.opponent?.score ?? 0}` },
     { key: 'finishedAt', title: '时间', render: (game) => new Date(game.finishedAt).toLocaleString('zh-CN') },

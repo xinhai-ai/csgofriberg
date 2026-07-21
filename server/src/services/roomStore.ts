@@ -46,6 +46,7 @@ export interface StoredRoundResult {
 export interface StoredMatchResult {
   winnerKey: string | null;
   reason: string;
+  forfeitedKey: string | null;
 }
 
 export interface StoredReplayRound {
@@ -155,6 +156,7 @@ function normalizeRoom(room: StoredRoom): StoredRoom {
   }
   room.roundResult ??= null;
   room.matchResult ??= null;
+  if (room.matchResult) room.matchResult.forfeitedKey ??= null;
   if (!Array.isArray(room.replayRounds)) room.replayRounds = [];
   if (room.replayRounds.length > 30) room.replayRounds = room.replayRounds.slice(-30);
   room.revision ??= 0;
@@ -562,7 +564,11 @@ export async function applyRoomGuess(input: ApplyRoomGuessInput): Promise<ApplyR
         if (matchOver) {
           room.status = 'finished';
           room.nextRoundAt = null;
-          room.matchResult = { winnerKey: input.identity, reason: 'score' };
+          room.matchResult = {
+            winnerKey: input.identity,
+            reason: 'score',
+            forfeitedKey: null,
+          };
         } else {
           room.status = 'round_over';
           room.nextRoundAt = Date.now() + input.nextRoundDelayMs;

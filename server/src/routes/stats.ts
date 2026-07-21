@@ -212,7 +212,7 @@ router.get(
       ? await db('match_players')
         .whereIn('match_id', matchIds)
         .whereNot('player_key', identityKey)
-        .select('match_id as matchId', 'score')
+        .select('match_id as matchId', 'score', 'is_winner as isWinner')
       : [];
     const opponentByMatch = new Map(opponents.map((row) => [Number(row.matchId), row]));
     res.json({
@@ -226,7 +226,11 @@ router.get(
         mode: row.mode,
         boType: Number(row.boType),
         finishedAt: row.finishedAt,
-        result: Boolean(row.meWinner) ? 'won' : 'lost',
+        result: Boolean(row.meWinner)
+          ? 'won'
+          : Boolean(opponentByMatch.get(Number(row.id))?.isWinner)
+            ? 'lost'
+            : 'draw',
         me: { score: Number(row.meScore) },
         opponent: opponentByMatch.has(Number(row.id))
           ? { score: Number(opponentByMatch.get(Number(row.id))!.score) }
@@ -323,7 +327,7 @@ router.get(
     const opponent = await db('match_players')
       .where('match_id', id)
       .whereNot('player_key', identityKey)
-      .first('player_key as key', 'score');
+      .first('player_key as key', 'score', 'is_winner as isWinner');
     if (!opponent) throw new HttpError(404, 'GAME_NOT_FOUND');
 
     let storedRounds: unknown[] = [];
@@ -357,7 +361,11 @@ router.get(
       mode: match.mode,
       boType: Number(match.boType),
       finishedAt: match.finishedAt,
-      result: Boolean(match.meWinner) ? 'won' : 'lost',
+      result: Boolean(match.meWinner)
+        ? 'won'
+        : Boolean(opponent.isWinner)
+          ? 'lost'
+          : 'draw',
       me: { score: Number(match.meScore) },
       opponent: { score: Number(opponent.score) },
       rounds,

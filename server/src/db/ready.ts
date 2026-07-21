@@ -14,7 +14,17 @@ const REQUIRED_COLUMNS: Record<string, string[]> = {
     'is_enabled',
   ],
   games: ['id', 'session_id', 'user_id', 'guest_key', 'status'],
-  match_records: ['id', 'room_id', 'db_type', 'bo_type', 'winner_id', 'replay'],
+  match_records: [
+    'id',
+    'room_id',
+    'db_type',
+    'bo_type',
+    'winner_id',
+    'winner_key',
+    'finish_reason',
+    'forfeited_key',
+    'replay',
+  ],
   match_players: ['id', 'match_id', 'player_key', 'is_winner'],
   announcements: ['id', 'title', 'content'],
 };

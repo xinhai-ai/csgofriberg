@@ -49,6 +49,9 @@ describe('player schema migration', () => {
     expect(await instance.schema.hasColumn('players', 'age')).toBe(true);
     expect(await instance.schema.hasColumn('players', 'birth_year')).toBe(false);
     expect(await instance.schema.hasTable('app_migrations')).toBe(true);
+    expect(await instance.schema.hasColumn('match_records', 'winner_key')).toBe(true);
+    expect(await instance.schema.hasColumn('match_records', 'finish_reason')).toBe(true);
+    expect(await instance.schema.hasColumn('match_records', 'forfeited_key')).toBe(true);
     const player = await instance('players').where({ nickname: 'legacy' }).first();
     expect(player.age).toBe(new Date().getFullYear() - 1990);
     expect((await instance('players').columnInfo('age')).nullable).toBe(false);

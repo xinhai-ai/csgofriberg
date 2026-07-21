@@ -152,4 +152,42 @@ describe('stats and replay', () => {
       await invalidateCached('stats:global');
     }
   });
+
+  it('returns draw for a match where neither player is marked as winner', async () => {
+    const stamp = Date.now();
+    const ownerKey = `draw-owner-${stamp}`;
+    const otherKey = `draw-other-${stamp}`;
+    const meKey = `g:${ownerKey}`;
+    const opponentKey = `g:${otherKey}`;
+    const [matchId] = await db('match_records')
+      .insert({
+        room_id: randomUUID(),
+        db_type: 'easy',
+        bo_type: 3,
+        finish_reason: 'disconnect_timeout',
+        replay: '[]',
+      })
+      .returning('id')
+      .then((rows) => rows.map((item: any) => typeof item === 'object' ? item.id : item));
+    await db('match_players').insert([
+      { match_id: matchId, player_key: meKey, player_name: '', score: 0, is_winner: false },
+      { match_id: matchId, player_key: opponentKey, player_name: '', score: 0, is_winner: false },
+    ]);
+
+    try {
+      const list = await request('/api/stats/replays?type=multi&page=1&pageSize=20', guestCookie(ownerKey));
+      expect(list.response.status).toBe(200);
+      expect(list.data.items.find((item: any) => item.id === matchId)).toMatchObject({
+        result: 'draw',
+        me: { score: 0 },
+        opponent: { score: 0 },
+      });
+
+      const replay = await request(`/api/stats/matches/${matchId}/replay`, guestCookie(ownerKey));
+      expect(replay.response.status).toBe(200);
+      expect(replay.data.result).toBe('draw');
+    } finally {
+      await db('match_records').where({ id: matchId }).del();
+    }
+  });
 });

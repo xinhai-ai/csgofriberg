@@ -142,6 +142,9 @@ export async function ensureSchema(instance: Knex = db): Promise<void> {
       t.string('db_type', 16).notNullable().defaultTo('easy');
       t.integer('bo_type').notNullable().defaultTo(3);
       t.integer('winner_id').nullable().references('id').inTable('users');
+      t.string('winner_key', 80).nullable();
+      t.string('finish_reason', 32).nullable();
+      t.string('forfeited_key', 80).nullable();
       t.text('players').notNullable().defaultTo('[]');
       t.text('replay').notNullable().defaultTo('[]');
       t.timestamp('created_at').notNullable().defaultTo(instance.fn.now());
@@ -156,6 +159,21 @@ export async function ensureSchema(instance: Knex = db): Promise<void> {
   if (!(await instance.schema.hasColumn('match_records', 'db_type'))) {
     await instance.schema.alterTable('match_records', (t) => {
       t.string('db_type', 16).notNullable().defaultTo('easy');
+    });
+  }
+  if (!(await instance.schema.hasColumn('match_records', 'winner_key'))) {
+    await instance.schema.alterTable('match_records', (t) => {
+      t.string('winner_key', 80).nullable();
+    });
+  }
+  if (!(await instance.schema.hasColumn('match_records', 'finish_reason'))) {
+    await instance.schema.alterTable('match_records', (t) => {
+      t.string('finish_reason', 32).nullable();
+    });
+  }
+  if (!(await instance.schema.hasColumn('match_records', 'forfeited_key'))) {
+    await instance.schema.alterTable('match_records', (t) => {
+      t.string('forfeited_key', 80).nullable();
     });
   }
 

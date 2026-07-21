@@ -62,11 +62,23 @@ function applyRoomPatchState(current: RoomState, patch: RoomPatch): RoomState {
   };
 }
 
-const MATCH_OVER_REASON: Record<string, string> = {
-  score: '率先拿下赛点',
-  opponent_left: '对手退出了房间',
-  disconnect_timeout: '对手断线超时',
-};
+function matchOverReason(
+  result: MatchOver,
+  viewerKey: string,
+  isSpectator: boolean
+): string {
+  if (result.reason === 'score') return '率先拿下赛点';
+  if (result.reason === 'opponent_left') {
+    if (isSpectator) return '一方退出了房间';
+    return result.winnerKey === viewerKey ? '对手退出了房间' : '你退出了房间，判负';
+  }
+  if (result.reason === 'disconnect_timeout') {
+    if (result.winnerKey == null) return '双方断线，比赛判为平局';
+    if (isSpectator) return '一方断线超时';
+    return result.winnerKey === viewerKey ? '对手断线超时' : '你断线超时，判负';
+  }
+  return result.reason;
+}
 
 const ROUND_OVER_REASON: Record<string, string> = {
   guessed: '猜中目标',
@@ -820,7 +832,7 @@ export default function MultiRoom() {
           extra={
             <div className="match-over-extra">
               <p className="muted">
-                {MATCH_OVER_REASON[matchOver.reason] ?? matchOver.reason} · 最终比分{' '}
+                {matchOverReason(matchOver, myKey, isSpectator)} · 最终比分{' '}
                 {leftPlayer?.score ?? 0} : {rightPlayer?.score ?? 0}
               </p>
               {rematchNotice && <p className="muted">{rematchNotice}</p>}

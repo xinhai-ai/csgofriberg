@@ -344,12 +344,18 @@ function setLocalTimer(key: string, delay: number, handler: () => void | Promise
   timers.set(key, timer);
 }
 
-async function persistMatch(room: StoredRoom, winnerKey: string | null) {
+async function persistMatch(
+  room: StoredRoom,
+  winnerKey: string | null,
+  forfeitedKey: string | null = room.matchResult?.forfeitedKey ?? null
+) {
   await enqueueMatchResult({
     recordId: room.recordId,
     dbType: room.dbType,
     boType: room.boType,
     winnerKey,
+    reason: room.matchResult?.reason ?? 'score',
+    forfeitedKey,
     participants: room.players.map((player) => ({
       key: player.key,
       userId: player.userId,
@@ -435,7 +441,7 @@ async function finishMatch(
     room.nextRoundAt = null;
     room.eventResults = {};
     room.roundResult = null;
-    room.matchResult = { winnerKey, reason };
+    room.matchResult = { winnerKey, reason, forfeitedKey: actor?.key ?? null };
     return { room };
   }, (value) => Boolean(value && !('stale' in value)));
   if (!result) return 'ignored';
@@ -443,7 +449,8 @@ async function finishMatch(
   emitRoomViews(io, result.room, 'match:over', (viewerKey) => ({
     room: publicRoom(result.room, viewerKey),
   }));
-  void persistMatch(result.room, winnerKey).catch((err) => console.error('[match:persist]', err));
+  void persistMatch(result.room, winnerKey, actor?.key ?? null)
+    .catch((err) => console.error('[match:persist]', err));
   setLocalTimer(`cleanup:${roomId}`, FINISHED_ROOM_TTL_MS, () => {
     return cleanupRoom(roomId);
   });
@@ -516,7 +523,7 @@ async function finishRound(
       nextRoundAt: room.nextRoundAt,
     };
     appendReplayRound(room);
-    if (matchOver) room.matchResult = { winnerKey, reason: 'score' };
+    if (matchOver) room.matchResult = { winnerKey, reason: 'score', forfeitedKey: null };
     return { room, matchOver };
   }, (value) => Boolean(value));
   if (!result) return;
@@ -557,7 +564,7 @@ async function surrenderRound(
     if (matchOver) {
       room.status = 'finished';
       room.nextRoundAt = null;
-      room.matchResult = { winnerKey: winner.key, reason: 'score' };
+      room.matchResult = { winnerKey: winner.key, reason: 'score', forfeitedKey: null };
     } else {
       room.status = 'round_over';
       room.nextRoundAt = Date.now() + NEXT_ROUND_DELAY_MS;
@@ -598,6 +605,86 @@ async function cleanupRoom(roomId: string) {
   if (room?.status === 'finished') await deleteRoom(room);
 }
 
+async function processDisconnectedPlayer(
+  io: Server,
+  roomId: string,
+  disconnectedKey: string
+): Promise<number | null> {
+  const result = await withRoomLock(roomId, (room) => {
+    if (room.status === 'finished') return null;
+    const disconnected = room.players.find((player) => player.key === disconnectedKey);
+    if (
+      !disconnected ||
+      disconnected.connected ||
+      !disconnected.disconnectDeadline ||
+      disconnected.disconnectDeadline > Date.now()
+    ) return null;
+
+    if (room.status === 'waiting') {
+      room.players = room.players.filter((player) => player.key !== disconnectedKey);
+      if (room.players.length && room.hostKey === disconnectedKey) {
+        room.hostKey = room.players[0].key;
+      }
+      if (room.players.length === 1) room.players[0].ready = true;
+      return { kind: 'waiting' as const, room };
+    }
+    if (!['starting', 'playing', 'round_over'].includes(room.status)) return null;
+
+    const opponent = room.players.find((player) => player.key !== disconnectedKey);
+    let winnerKey = opponent?.key ?? null;
+    let forfeitedKey: string | null = disconnectedKey;
+    if (opponent && !opponent.connected) {
+      const retryAt = Math.max(
+        disconnected.disconnectDeadline,
+        opponent.disconnectDeadline ?? disconnected.disconnectDeadline
+      );
+      if (retryAt > Date.now()) return { kind: 'retry' as const, retryAt };
+      winnerKey = null;
+      forfeitedKey = null;
+    }
+
+    room.status = 'finished';
+    room.roundEndsAt = null;
+    room.nextRoundAt = null;
+    room.eventResults = {};
+    room.roundResult = null;
+    room.matchResult = {
+      winnerKey,
+      reason: 'disconnect_timeout',
+      forfeitedKey,
+    };
+    return { kind: 'finished' as const, room, winnerKey, forfeitedKey };
+  }, (value) => Boolean(value && (value.kind === 'waiting' || value.kind === 'finished')));
+
+  if (!result) return null;
+  if (result.kind === 'retry') return result.retryAt;
+  if (result.kind === 'waiting') {
+    await clearIdentityRoom(disconnectedKey, roomId);
+    if (!result.room.players.length && !result.room.spectators.length) {
+      await deleteRoom(result.room);
+    } else {
+      emitRoomPatch(io, result.room, {
+        hostKey: result.room.hostKey,
+        players: {
+          removed: [disconnectedKey],
+          updated: result.room.players.length === 1
+            ? [{ key: result.room.players[0].key, ready: result.room.players[0].ready }]
+            : [],
+        },
+      });
+    }
+    return null;
+  }
+
+  emitRoomViews(io, result.room, 'match:over', (viewerKey) => ({
+    room: publicRoom(result.room, viewerKey),
+  }));
+  void persistMatch(result.room, result.winnerKey, result.forfeitedKey)
+    .catch((err) => console.error('[match:persist]', err));
+  setLocalTimer(`cleanup:${roomId}`, FINISHED_ROOM_TTL_MS, () => cleanupRoom(roomId));
+  return null;
+}
+
 async function processSchedule(io: Server, item: string): Promise<number | null> {
   const [kind, roomId, discriminator] = item.split('|');
   const room = await getRoom(roomId);
@@ -609,54 +696,7 @@ async function processSchedule(io: Server, item: string): Promise<number | null>
   } else if (kind === 'disconnect') {
     const maintenanceUntil = await getMaintenanceUntil();
     if (maintenanceUntil > Date.now()) return maintenanceUntil;
-    const player = room.players.find((p) => p.key === discriminator);
-    if (player && !player.connected && player.disconnectDeadline && player.disconnectDeadline <= Date.now()) {
-      if (room.status === 'waiting') {
-        const updated = await withRoomLock(roomId, (locked) => {
-          const current = locked.players.find((candidate) => candidate.key === discriminator);
-          if (
-            !current ||
-            current.connected ||
-            !current.disconnectDeadline ||
-            current.disconnectDeadline > Date.now()
-          ) return null;
-          locked.players = locked.players.filter((candidate) => candidate.key !== discriminator);
-          if (locked.players.length && locked.hostKey === discriminator) {
-            locked.hostKey = locked.players[0].key;
-          }
-          if (locked.players.length === 1) locked.players[0].ready = true;
-          return { room: locked };
-        }, (value) => Boolean(value));
-        if (updated) {
-          await clearIdentityRoom(discriminator, roomId);
-          if (!updated.room.players.length && !updated.room.spectators.length) {
-            await deleteRoom(updated.room);
-          } else {
-            emitRoomPatch(io, updated.room, {
-              hostKey: updated.room.hostKey,
-              players: {
-                removed: [discriminator],
-                updated: updated.room.players.length === 1
-                  ? [{ key: updated.room.players[0].key, ready: updated.room.players[0].ready }]
-                  : [],
-              },
-            });
-          }
-        }
-        return null;
-      }
-      const opponent = room.players.find((p) => p.key !== discriminator);
-      if (opponent && !opponent.connected) {
-        const retryAt = Math.max(
-          player.disconnectDeadline,
-          opponent.disconnectDeadline ?? player.disconnectDeadline
-        );
-        if (retryAt > Date.now()) return retryAt;
-        await finishMatch(io, roomId, null, 'disconnect_timeout');
-      } else {
-        await finishMatch(io, roomId, opponent?.key ?? null, 'disconnect_timeout');
-      }
-    }
+    return processDisconnectedPlayer(io, roomId, discriminator);
   } else if (kind === 'spectator') {
     const spectator = room.spectators.find((candidate) => candidate.key === discriminator);
     if (

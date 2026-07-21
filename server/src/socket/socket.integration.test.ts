@@ -636,6 +636,9 @@ describe('multiplayer socket integration', () => {
       expect(restored.room.id).toBe(before.room.id);
       expect(restored.room.roundId).toBe(before.room.roundId);
       expect(restored.room.players.every((player: any) => player.connected)).toBe(true);
+      await new Promise((resolve) => setTimeout(resolve, config.disconnectForfeitMs + 100));
+      const afterGrace = await emit(a, 'room:sync');
+      expect(afterGrace.room.status).toBe('playing');
       await emit(a, 'room:leave');
     } finally {
       a.disconnect();
@@ -929,6 +932,12 @@ describe('multiplayer socket integration', () => {
 
       expect((await emit(a, 'game:surrender-round', { roundId: active.room.roundId })).ok).toBe(true);
       expect((await emit(a, 'room:leave')).ok).toBe(true);
+
+      const finished = await emit(b, 'room:sync');
+      expect(finished.room.matchResult).toMatchObject({
+        winnerKey: `g:${keyB}`,
+        reason: 'opponent_left',
+      });
 
       expect(await redis()!.get(redisKey(`identity-room:${identityA}`))).toBeNull();
       expect(await emit(a, 'room:sync')).toMatchObject({ code: 'NOT_IN_ROOM' });
