@@ -1,0 +1,271 @@
+/* ===== 猜测表格 ===== */
+.game-table-wrap {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: auto;
+  overscroll-behavior-inline: contain;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card-soft);
+  -webkit-overflow-scrolling: touch;
+}
+.game-table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 5px;
+  font-size: 0.9rem;
+}
+.game-table th {
+  color: var(--text-light);
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 9px 8px;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.2;
+  position: sticky;
+  top: 0;
+  background: var(--card-soft);
+  z-index: 1;
+}
+.game-table td {
+  padding: 13px 9px;
+  text-align: center;
+  border-radius: 9px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+  box-shadow: 0 2px 5px rgba(38, 64, 99, 0.04);
+}
+.game-table td.name { font-weight: 700; }
+.game-table th:nth-child(1), .game-table td:nth-child(1) { width: 18%; }
+.game-table th:nth-child(2), .game-table td:nth-child(2) { width: 14%; }
+.game-table th:nth-child(3), .game-table td:nth-child(3) { width: 14%; }
+.game-table th:nth-child(4), .game-table td:nth-child(4) { width: 8%; }
+.game-table th:nth-child(5), .game-table td:nth-child(5) { width: 12%; }
+.game-table th:nth-child(6), .game-table td:nth-child(6) { width: 12%; }
+.game-table th:nth-child(7), .game-table td:nth-child(7) { width: 12%; }
+.game-table th:nth-child(8), .game-table td:nth-child(8) { width: 10%; }
+.game-table td.correct { background: var(--correct); border-color: var(--correct); color: #fff; }
+.game-table td.close { background: var(--close); border-color: var(--close); color: #fff; }
+.game-table td.wrong { background: var(--wrong); border-color: var(--wrong); color: #fff; }
+.game-table td .dir { display: inline-flex; vertical-align: -2px; margin-left: 3px; }
+.game-table td.masked-cell:empty::after {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.55;
+}
+
+.room-player-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 0;
+}
+.room-player-row > b {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.room-ready-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+/* ===== 底部输入栏 + 自动补全 ===== */
+.input-dock {
+  position: relative;
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 -6px 18px rgba(38, 64, 99, 0.05);
+  padding: 12px var(--page-inline);
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
+}
+.input-bar { display: flex; gap: 10px; width: 100%; min-width: 0; max-width: 900px; margin: 0 auto; }
+.input-bar .input { flex: 1; min-width: 0; font-size: 1.05rem; }
+.input-bar .btn { flex-shrink: 0; white-space: nowrap; }
+.guess-input-feedback {
+  width: 100%;
+  max-width: 900px;
+  min-height: 20px;
+  margin: 6px auto 0;
+  color: var(--warning);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.autocomplete-list {
+  position: absolute;
+  left: clamp(16px, 4vw, 48px);
+  right: clamp(16px, 4vw, 48px);
+  bottom: 100%;
+  margin: 0 auto 6px;
+  max-width: 900px;
+  padding: 5px;
+  list-style: none;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 -8px 28px rgba(26, 34, 51, 0.16);
+  max-height: 42dvh;
+  overflow-y: auto;
+  z-index: 30;
+}
+.autocomplete-list li {
+  padding: 12px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+}
+.autocomplete-list li:hover, .autocomplete-list li.active { background: var(--primary-soft); color: var(--primary-hover); }
+
+/* ===== 遮罩弹窗 ===== */
+.overlay {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  background: rgba(17, 32, 56, 0.58);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 20px;
+}
+.overlay-card {
+  background: var(--card);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 20px;
+  padding: 28px clamp(20px, 5vw, 36px);
+  max-width: 520px;
+  width: 100%;
+  max-height: 88dvh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+}
+.overlay-card h2 {
+  margin: 0 0 6px;
+  font-size: 1.35rem;
+  text-align: center;
+}
+.overlay-card > p { text-align: center; margin: 6px 0; }
+.overlay-card .answer-name {
+  text-align: center;
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin: 10px 0 14px;
+}
+.overlay-card .player-info-table { margin: 0 0 4px; }
+.overlay-card .btns {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+
+/* ===== 通用确认模态框 ===== */
+.confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(17, 32, 56, 0.6);
+  backdrop-filter: blur(5px);
+}
+.confirm-dialog {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 14px;
+  width: min(440px, 100%);
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--card);
+  box-shadow: var(--shadow-lg);
+}
+.confirm-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+}
+.confirm-dialog.warning .confirm-icon { color: var(--warning); background: rgba(217, 119, 6, 0.12); }
+.confirm-dialog.danger .confirm-icon { color: var(--danger); background: rgba(220, 38, 38, 0.12); }
+.confirm-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.confirm-heading h2 { margin: 2px 0 0; font-size: 1.1rem; letter-spacing: 0; }
+.confirm-close {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  color: var(--text-light);
+  background: transparent;
+  cursor: pointer;
+}
+.confirm-close:hover { color: var(--text); background: var(--bg); }
+.confirm-content > p { margin: 10px 0 20px; color: var(--text-sec); line-height: 1.6; }
+.confirm-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+.confirm-actions .btn { display: inline-flex; align-items: center; gap: 7px; }
+
+.admin-resource-card { display: grid; gap: 14px; }
+.admin-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.admin-resource-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.admin-resource-heading h3,
+.admin-resource-heading p { margin: 0; }
+.admin-resource-heading p { margin-top: 4px; }
+.resource-version-value {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-sec);
+}
+
+/* ===== 选手信息表 ===== */
+.player-info-table { width: 100%; border-collapse: collapse; font-size: 1rem; }
+.player-info-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.player-info-table td.label {
+  color: var(--text-light);
+  width: 42%;
+  white-space: nowrap;
+}
+.player-info-table td.label svg { vertical-align: -2px; margin-right: 8px; }
+.player-info-table td.value { font-weight: 600; text-align: right; }
+.player-info-table tr:last-child td { border-bottom: none; }
+

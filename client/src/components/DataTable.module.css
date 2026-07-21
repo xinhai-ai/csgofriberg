@@ -1,0 +1,76 @@
+.scroll {
+  position: relative;
+  width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+  font-size: 0.98rem;
+}
+
+.table th,
+.table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.table th {
+  color: var(--text-light);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.table tbody tr { transition: background 0.15s ease; }
+.table tbody tr:hover { background: var(--card-soft); }
+
+:global(html[data-theme='blast']) .scroll {
+  border-color: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  background: #190c15;
+}
+
+:global(html[data-theme='blast']) .table th {
+  color: var(--primary);
+  background: rgba(217, 255, 63, 0.035);
+}
+
+:global(html[data-theme='blast']) .table th,
+:global(html[data-theme='blast']) .table td {
+  border-bottom-color: rgba(255, 255, 255, 0.09);
+}
+
+:global(html[data-theme='blast']) .table tbody tr {
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+:global(html[data-theme='blast']) .table tbody tr:hover {
+  background: rgba(217, 255, 63, 0.055);
+}
+
+@media (max-width: 640px) {
+  .table th:first-child,
+  .table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: var(--card);
+    box-shadow: 8px 0 16px rgba(0, 0, 0, 0.1);
+  }
+
+  .table th:first-child {
+    z-index: 3;
+    background: var(--card-soft);
+  }
+
+  :global(html[data-theme='blast']) .table th:first-child { background: #21101b; }
+  :global(html[data-theme='blast']) .table td:first-child { background: #281520; }
+}

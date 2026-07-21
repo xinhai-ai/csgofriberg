@@ -1,0 +1,68 @@
+@media (hover: hover) and (pointer: fine) {
+  .card:hover {
+    border-color: rgba(217, 255, 63, 0.2);
+    box-shadow: 0 22px 52px rgba(0, 0, 0, 0.34);
+  }
+  .menu-card:hover .menu-icon {
+    background: color-mix(in srgb, var(--menu-color, var(--primary)) 28%, transparent);
+    box-shadow: 0 0 24px color-mix(in srgb, var(--menu-color, var(--primary)) 22%, transparent);
+    transform: translateY(-3px) skewX(-4deg) rotate(-2deg);
+  }
+  .menu-card:hover .menu-arrow { transform: translate3d(3px, -3px, 0); }
+  .presence-item:hover {
+    border-color: rgba(217, 255, 63, 0.24);
+    box-shadow: 0 18px 38px rgba(0, 0, 0, 0.28);
+    transform: translateY(-2px);
+  }
+  .game-table td.correct:hover,
+  .game-table td.close:hover {
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+  }
+}
+
+@media (max-width: 640px) {
+  .header-bar::after { right: 14px; width: 44px; }
+  .header-bar .title::before { margin-right: 2px; }
+  .home-page .page-scroll { padding-top: 14px; }
+  .home-hero { min-height: 275px; clip-path: polygon(0 0, calc(100% - 22px) 0, 100% 22px, 100% 100%, 22px 100%, 0 calc(100% - 22px)); }
+  .home-hero h1 { font-size: clamp(3.2rem, 18vw, 4.6rem); text-shadow: 3px 3px 0 rgba(217, 255, 63, 0.2); }
+  .hero-kicker { margin-bottom: 11px; font-size: 0.65rem; letter-spacing: 0.11em; }
+  .home-hero .hero-subtitle { font-size: 0.94rem; }
+  .menu-grid { gap: 10px; }
+  .menu-card { min-height: 158px; padding: 18px 13px; clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px)); }
+  .menu-card .menu-icon { width: 43px; height: 43px; }
+  .menu-card .menu-label { font-size: 1.02rem; }
+  .menu-description { font-size: 0.72rem; }
+  .menu-arrow { right: 12px; bottom: 11px; width: 15px; height: 15px; }
+  .card::before { left: 14px; width: 44px; }
+  .game-table tr { border-color: rgba(255, 255, 255, 0.1); background: #190c15; }
+  .game-table td:first-child:not(.correct):not(.close):not(.wrong) { background: #2a1723; }
+}
+
+@media (max-width: 520px) {
+  .home-hero {
+    min-height: 250px;
+    padding-inline: 16px;
+  }
+  .home-hero h1 { font-size: clamp(2.8rem, 17vw, 4rem); }
+  .menu-card {
+    min-height: 112px;
+    padding: 16px 18px;
+    gap: 14px;
+  }
+  .menu-card .menu-icon { flex: 0 0 auto; }
+  .menu-copy { padding-right: 24px; }
+  .menu-description { display: block; font-size: 0.78rem; }
+  .menu-arrow { right: 14px; bottom: 14px; }
+}
+
+@media (max-width: 400px) {
+  .hero-kicker { font-size: 0.58rem; }
+  .menu-description { display: block; }
+  .menu-card { min-height: 102px; padding: 14px; }
+  .menu-card .menu-icon { width: 40px; height: 40px; }
+  .menu-copy { padding-right: 18px; }
+  .menu-arrow { right: 10px; bottom: 10px; }
+}
+

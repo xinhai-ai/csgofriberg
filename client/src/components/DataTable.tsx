@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import styles from './DataTable.module.css';
 
 export interface Column<T> {
   key: string;
@@ -17,8 +18,8 @@ interface Props<T> {
 export default function DataTable<T>({ columns, rows, rowKey, empty }: Props<T>) {
   if (!rows.length) return <p className="muted">{empty ?? '暂无数据'}</p>;
   return (
-    <div className="table-scroll">
-      <table className="table">
+    <div className={styles.scroll}>
+      <table className={styles.table}>
         <thead>
           <tr>
             {columns.map((c) => (

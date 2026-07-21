@@ -1,0 +1,20 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--text-light);
+  color: #fff;
+  font-size: 0.82rem;
+}
+
+.green { background: var(--success); }
+.amber { background: var(--warning); }
+.gray { background: var(--text-light); }
+
+:global(html[data-theme='blast']) .badge {
+  border-radius: 2px;
+  font-weight: 700;
+  letter-spacing: 0.025em;
+}

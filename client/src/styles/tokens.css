@@ -1,0 +1,63 @@
+:root {
+  --bg: #edf3fb;
+  --card: #ffffff;
+  --card-soft: #f8fbff;
+  --border: #d7e1ee;
+  --border-strong: #bfcee1;
+  --text: #13243a;
+  --text-sec: #506178;
+  --text-light: #7d8ea3;
+  --input-bg: #ffffff;
+  --primary: #256fe2;
+  --primary-hover: #1559c2;
+  --primary-soft: #e9f1ff;
+  --success: #168c57;
+  --warning: #ca7610;
+  --danger: #d64040;
+  --accent: #7653d7;
+  --correct: #168c57;
+  --close: #c57b12;
+  --wrong: #94a3b8;
+  --shadow: 0 10px 28px rgba(38, 64, 99, 0.08);
+  --shadow-lg: 0 24px 64px rgba(27, 50, 82, 0.2);
+  --radius: 14px;
+  --radius-sm: 10px;
+  --content-max: 1180px;
+  --page-inline: clamp(16px, 4vw, 52px);
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html,
+body,
+#root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+
+html { font-size: 16px; }
+html[data-theme='blast'],
+html[data-theme='blast'] body { background-color: #160a13; }
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100dvh;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+  background:
+    radial-gradient(circle at 12% -8%, rgba(75, 137, 231, 0.16), transparent 30rem),
+    radial-gradient(circle at 96% 2%, rgba(118, 83, 215, 0.1), transparent 26rem),
+    var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button, input, select, textarea { font: inherit; }
+button, a { touch-action: manipulation; }
+::selection { background: rgba(37, 111, 226, 0.2); }
+

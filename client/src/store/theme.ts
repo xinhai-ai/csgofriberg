@@ -1,7 +1,12 @@
+import blastFoundationUrl from '../styles/themes/blast-foundation.css?url';
+import blastPagesUrl from '../styles/themes/blast-pages.css?url';
+import blastResponsiveUrl from '../styles/themes/blast-responsive.css?url';
+
 export type Theme = 'blast' | 'light';
 
 const STORAGE_KEY = 'ui-theme';
-const STYLESHEET_ID = 'blast-theme-stylesheet';
+const STYLESHEET_SELECTOR = 'link[data-blast-theme]';
+const BLAST_STYLESHEET_URLS = [blastFoundationUrl, blastPagesUrl, blastResponsiveUrl];
 const listeners = new Set<() => void>();
 
 function storedTheme(): Theme {
@@ -14,17 +19,28 @@ function storedTheme(): Theme {
 
 let currentTheme = storedTheme();
 
-function blastStylesheet(): HTMLLinkElement | null {
-  const link = document.getElementById(STYLESHEET_ID);
-  return link instanceof HTMLLinkElement ? link : null;
+function blastStylesheets(): HTMLLinkElement[] {
+  return [...document.querySelectorAll<HTMLLinkElement>(STYLESHEET_SELECTOR)];
+}
+
+function installBlastStylesheets(): void {
+  if (blastStylesheets().length) return;
+  for (const href of BLAST_STYLESHEET_URLS) {
+    const stylesheet = document.createElement('link');
+    stylesheet.rel = 'stylesheet';
+    stylesheet.href = href;
+    stylesheet.dataset.blastTheme = '';
+    document.head.append(stylesheet);
+  }
 }
 
 function renderTheme(theme: Theme): void {
   document.documentElement.dataset.theme = theme;
   document.documentElement.style.colorScheme = theme === 'blast' ? 'dark' : 'light';
   document.documentElement.style.background = theme === 'blast' ? '#160a13' : '#edf3fb';
-  const stylesheet = blastStylesheet();
-  if (stylesheet) stylesheet.media = theme === 'blast' ? 'all' : 'not all';
+  for (const stylesheet of blastStylesheets()) {
+    stylesheet.media = theme === 'blast' ? 'all' : 'not all';
+  }
   document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')?.setAttribute(
     'content',
     theme === 'blast' ? '#160a13' : '#edf3fb'
@@ -32,6 +48,7 @@ function renderTheme(theme: Theme): void {
 }
 
 export function initializeTheme(): void {
+  installBlastStylesheets();
   currentTheme = storedTheme();
   renderTheme(currentTheme);
 }

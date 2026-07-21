@@ -1,0 +1,83 @@
+/* ===== 页面骨架:满高满宽 flex,内容滚动,输入栏贴底 ===== */
+.page {
+  display: flex;
+  flex-direction: column;
+  height: var(--visual-viewport-height, 100dvh);
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+.page-scroll {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding: clamp(20px, 3vw, 34px) var(--page-inline);
+  padding-bottom: calc(clamp(20px, 3vw, 34px) + env(safe-area-inset-bottom));
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  scroll-padding: 16px;
+  overscroll-behavior-y: contain;
+}
+.page-scroll > * { width: min(var(--content-max), 100%); min-width: 0; max-width: 100%; margin-inline: auto; }
+.single-game-board { min-width: 0; }
+.guess-board-end { height: 1px; overflow-anchor: auto; }
+
+/* ===== 顶部栏 ===== */
+.header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 15px var(--page-inline);
+  padding-top: calc(15px + env(safe-area-inset-top));
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 4px 18px rgba(38, 64, 99, 0.04);
+  flex-shrink: 0;
+  z-index: 10;
+}
+.header-bar .title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 1.2rem;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.header-bar .btns { display: flex; gap: 8px; align-items: center; min-width: 0; flex-shrink: 0; }
+.theme-toggle { min-width: 38px; }
+.auth-pending {
+  width: 112px;
+  height: 32px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--bg) 25%, var(--border) 50%, var(--bg) 75%);
+  background-size: 200% 100%;
+  animation: loading-shimmer 1.2s linear infinite;
+}
+.page-loading { display: grid; place-items: center; min-height: 180px; }
+.route-loading { display: grid; place-items: center; width: 100%; height: 100dvh; background: var(--bg); }
+@keyframes loading-shimmer { to { background-position: -200% 0; } }
+
+/* ===== 状态栏 ===== */
+.status-bar {
+  padding: 10px var(--page-inline);
+  font-size: 0.95rem;
+  color: var(--text-sec);
+  background: rgba(255, 255, 255, 0.76);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
