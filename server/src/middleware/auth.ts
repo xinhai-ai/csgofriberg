@@ -7,8 +7,10 @@ import { User } from '../types';
 import { redis, redisKey } from '../redis';
 
 const AUTH_COOKIE = 'csgofriberg_session';
+const REFRESH_COOKIE = 'csgofriberg_refresh';
 const GUEST_COOKIE = 'csgofriberg_guest';
-const AUTH_MAX_AGE_MS = 15 * 24 * 60 * 60 * 1000;
+const AUTH_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+const REFRESH_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const GUEST_MAX_AGE_MS = 3 * 365 * 24 * 60 * 60 * 1000;
 const MAX_VERIFIED_TOKEN_CACHE = 10_000;
 const verifiedAuthTokens = new Map<string, { payload: AuthTokenPayload; expiresAt: number }>();
@@ -25,12 +27,23 @@ interface AuthTokenPayload {
   typ: 'auth';
 }
 
+interface RefreshTokenPayload {
+  sub: string;
+  ver: number;
+  typ: 'refresh';
+  jti: string;
+}
+
 interface GuestTokenPayload {
   key: string;
   typ: 'guest';
 }
 
 interface CachedAuthUser extends AuthPayload {
+  tokenVersion: number;
+}
+
+export interface ResolvedAuthUser extends AuthPayload {
   tokenVersion: number;
 }
 
@@ -65,12 +78,12 @@ declare global {
   }
 }
 
-function cookieOptions(maxAge: number) {
+function cookieOptions(maxAge: number, path = '/') {
   return {
     httpOnly: true,
     sameSite: 'strict' as const,
     secure: process.env.NODE_ENV === 'production',
-    path: '/',
+    path,
     maxAge,
   };
 }
@@ -95,16 +108,35 @@ export function signToken(user: Pick<User, 'id' | 'token_version'>): string {
   return jwt.sign(
     { sub: String(user.id), ver: Number(user.token_version), typ: 'auth' } satisfies AuthTokenPayload,
     config.jwtSecret,
-    { expiresIn: '15d', algorithm: 'HS256' }
+    { expiresIn: '12h', algorithm: 'HS256' }
   );
 }
 
-export function setAuthCookie(res: Response, user: Pick<User, 'id' | 'token_version'>): void {
-  res.cookie(AUTH_COOKIE, signToken(user), cookieOptions(AUTH_MAX_AGE_MS));
+function signRefreshToken(user: Pick<User, 'id' | 'token_version'>): string {
+  return jwt.sign(
+    {
+      sub: String(user.id),
+      ver: Number(user.token_version),
+      typ: 'refresh',
+      jti: crypto.randomUUID(),
+    } satisfies RefreshTokenPayload,
+    config.jwtSecret,
+    { expiresIn: '30d', algorithm: 'HS256' }
+  );
 }
 
-export function clearAuthCookie(res: Response): void {
+export function setAuthCookies(res: Response, user: Pick<User, 'id' | 'token_version'>): void {
+  res.cookie(AUTH_COOKIE, signToken(user), cookieOptions(AUTH_MAX_AGE_MS));
+  res.cookie(
+    REFRESH_COOKIE,
+    signRefreshToken(user),
+    cookieOptions(REFRESH_MAX_AGE_MS, '/api/auth')
+  );
+}
+
+export function clearAuthCookies(res: Response): void {
   res.clearCookie(AUTH_COOKIE, cookieOptions(0));
+  res.clearCookie(REFRESH_COOKIE, cookieOptions(0, '/api/auth'));
 }
 
 function signGuestToken(key: string): string {
@@ -148,27 +180,10 @@ export function ensureGuestCookie(req: Request, res: Response): GuestIdentity {
   return guest;
 }
 
-export async function authenticateCookie(cookieHeader: string | undefined): Promise<AuthPayload | null> {
-  const token = parseCookies(cookieHeader)[AUTH_COOKIE];
-  if (!token) return null;
-  let payload: AuthTokenPayload;
-  const cachedToken = verifiedAuthTokens.get(token);
-  if (cachedToken && cachedToken.expiresAt > Date.now()) {
-    payload = cachedToken.payload;
-  } else {
-    if (cachedToken) verifiedAuthTokens.delete(token);
-    try {
-      const verified = jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] }) as AuthTokenPayload & { exp?: number };
-      payload = verified;
-      cacheToken(verifiedAuthTokens, token, {
-        payload,
-        expiresAt: (verified.exp ?? 0) * 1000,
-      });
-    } catch {
-      return null;
-    }
-  }
-  if (payload.typ !== 'auth' || !/^\d+$/.test(payload.sub)) return null;
+async function resolveTokenUser(
+  payload: Pick<AuthTokenPayload, 'sub' | 'ver'>
+): Promise<ResolvedAuthUser | null> {
+  if (!/^\d+$/.test(payload.sub)) return null;
   const userId = Number(payload.sub);
   const client = redis();
   const cacheKey = redisKey(`auth:user:${userId}`);
@@ -178,7 +193,12 @@ export async function authenticateCookie(cookieHeader: string | undefined): Prom
       if (cached) {
         const user = JSON.parse(cached) as CachedAuthUser;
         if (user.tokenVersion !== Number(payload.ver)) return null;
-        return { id: user.id, username: user.username, role: user.role };
+        return {
+          id: user.id,
+          username: user.username,
+          role: user.role,
+          tokenVersion: user.tokenVersion,
+        };
       }
     } catch (err) {
       console.warn('[auth:cache-read]', err instanceof Error ? err.message : err);
@@ -199,7 +219,95 @@ export async function authenticateCookie(cookieHeader: string | undefined): Prom
       console.warn('[auth:cache-write]', err instanceof Error ? err.message : err);
     }
   }
+  return {
+    id: user.id,
+    username: user.username,
+    role: user.role,
+    tokenVersion: Number(user.token_version),
+  };
+}
+
+export function clearGuestCookie(res: Response): void {
+  res.clearCookie(GUEST_COOKIE, cookieOptions(0));
+}
+
+export function hasAuthSessionCookie(cookieHeader: string | undefined): boolean {
+  const cookies = parseCookies(cookieHeader);
+  return Boolean(cookies[AUTH_COOKIE] || cookies[REFRESH_COOKIE]);
+}
+
+function hasRefreshCookie(cookieHeader: string | undefined): boolean {
+  return Boolean(parseCookies(cookieHeader)[REFRESH_COOKIE]);
+}
+
+export async function authenticateCookie(
+  cookieHeader: string | undefined
+): Promise<ResolvedAuthUser | null> {
+  const token = parseCookies(cookieHeader)[AUTH_COOKIE];
+  if (!token) return null;
+  let payload: AuthTokenPayload;
+  const cachedToken = verifiedAuthTokens.get(token);
+  if (cachedToken && cachedToken.expiresAt > Date.now()) {
+    payload = cachedToken.payload;
+  } else {
+    if (cachedToken) verifiedAuthTokens.delete(token);
+    try {
+      const verified = jwt.verify(token, config.jwtSecret, {
+        algorithms: ['HS256'],
+      }) as AuthTokenPayload & { exp?: number };
+      if (verified.typ !== 'auth') return null;
+      payload = verified;
+      cacheToken(verifiedAuthTokens, token, {
+        payload,
+        expiresAt: (verified.exp ?? 0) * 1000,
+      });
+    } catch {
+      return null;
+    }
+  }
+  if (payload.typ !== 'auth') return null;
+  return resolveTokenUser(payload);
+}
+
+export async function authenticateRefreshCookie(
+  cookieHeader: string | undefined
+): Promise<ResolvedAuthUser | null> {
+  const token = parseCookies(cookieHeader)[REFRESH_COOKIE];
+  if (!token) return null;
+  try {
+    const payload = jwt.verify(token, config.jwtSecret, {
+      algorithms: ['HS256'],
+    }) as RefreshTokenPayload;
+    if (payload.typ !== 'refresh' || !payload.jti) return null;
+    return resolveTokenUser(payload);
+  } catch {
+    return null;
+  }
+}
+
+export async function refreshAuthCookies(
+  cookieHeader: string | undefined,
+  res: Response
+): Promise<AuthPayload | null> {
+  const user = await authenticateRefreshCookie(cookieHeader);
+  if (!user) return null;
+  setAuthCookies(res, { id: user.id, token_version: user.tokenVersion });
   return { id: user.id, username: user.username, role: user.role };
+}
+
+export async function restoreAuthSession(
+  cookieHeader: string | undefined,
+  res: Response,
+  issueMissingRefresh = false
+): Promise<AuthPayload | null> {
+  const user = await authenticateCookie(cookieHeader);
+  if (user) {
+    if (issueMissingRefresh && !hasRefreshCookie(cookieHeader)) {
+      setAuthCookies(res, { id: user.id, token_version: user.tokenVersion });
+    }
+    return { id: user.id, username: user.username, role: user.role };
+  }
+  return refreshAuthCookies(cookieHeader, res);
 }
 
 export async function invalidateAuthUser(userId: number): Promise<void> {
@@ -208,24 +316,41 @@ export async function invalidateAuthUser(userId: number): Promise<void> {
   await client.del(redisKey(`auth:user:${userId}`));
 }
 
-async function attachIdentity(req: Request, res: Response): Promise<void> {
-  const user = await authenticateCookie(req.headers.cookie);
-  if (user) req.user = user;
+async function attachIdentity(
+  req: Request,
+  res: Response
+): Promise<'authenticated' | 'guest' | 'expired'> {
+  const user = await restoreAuthSession(
+    req.headers.cookie,
+    res,
+    req.originalUrl.startsWith('/api/auth/')
+  );
+  if (user) {
+    req.user = user;
+  } else if (req.headers['x-auth-expected'] === '1') {
+    return 'expired';
+  }
   const guest = user
     ? getGuestFromCookie(req.headers.cookie)
     : ensureGuestCookie(req, res);
-  if (!guest) return;
+  if (!guest) return user ? 'authenticated' : 'guest';
   req.guestKey = guest.key;
   req.guestName = guest.name;
+  return user ? 'authenticated' : 'guest';
 }
 
 export function optionalAuth(req: Request, res: Response, next: NextFunction) {
-  void attachIdentity(req, res).then(() => next(), next);
+  void attachIdentity(req, res).then((result) => {
+    if (result === 'expired') return res.status(401).json({ code: 'AUTH_EXPIRED' });
+    next();
+  }, next);
 }
 
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
-  void attachIdentity(req, res).then(() => {
-    if (!req.user) return res.status(401).json({ code: 'AUTH_REQUIRED' });
+  void attachIdentity(req, res).then((result) => {
+    if (!req.user) {
+      return res.status(401).json({ code: result === 'expired' ? 'AUTH_EXPIRED' : 'AUTH_REQUIRED' });
+    }
     next();
   }, next);
 }

@@ -1,12 +1,15 @@
 import { api } from './client';
-import { ensurePow } from './pow';
 import { useAuth } from '../store/auth';
 import { UserInfo } from '../types';
 import axios from 'axios';
 import { hasGuestName, setGuestName } from '../store/guest';
-
-const AUTH_HINT = 'csgofriberg_auth_hint';
-const GUEST_HINT = 'csgofriberg_guest_hint';
+import {
+  clearAuthenticated,
+  hasAuthHint,
+  hasGuestHint,
+  markAuthenticated,
+  markGuestSession,
+} from './authSession';
 
 let guestRequest: Promise<void> | null = null;
 
@@ -16,29 +19,10 @@ interface SessionResponse {
   guest?: { name: string };
 }
 
-export function markAuthenticated(): void {
-  localStorage.setItem(AUTH_HINT, '1');
-}
-
-export function clearAuthenticated(): void {
-  localStorage.removeItem(AUTH_HINT);
-  localStorage.removeItem(GUEST_HINT);
-}
-
-export function markGuestSession(): void {
-  localStorage.setItem(GUEST_HINT, '1');
-}
-
-export function hasAuthHint(): boolean {
-  return localStorage.getItem(AUTH_HINT) === '1';
-}
-
-function hasGuestHint(): boolean {
-  return localStorage.getItem(GUEST_HINT) === '1';
-}
+export { clearAuthenticated, hasAuthHint, markAuthenticated, markGuestSession };
 
 export function ensureGuestSession(force = false): Promise<void> {
-  if (!force && localStorage.getItem(GUEST_HINT) === '1' && hasGuestName()) {
+  if (!force && hasGuestHint() && hasGuestName()) {
     return Promise.resolve();
   }
   if (guestRequest) return guestRequest;

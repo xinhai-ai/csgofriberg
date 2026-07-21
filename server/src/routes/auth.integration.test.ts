@@ -10,14 +10,14 @@ import { initDb } from '../db/init';
 import { db } from '../db/knex';
 import { initRedis } from '../redis';
 import { config } from '../config';
+import { optionalAuth } from '../middleware/auth';
 
 let server: http.Server;
 let baseUrl: string;
 const TEST_IP = `198.51.100.${(Date.now() % 250) + 1}`;
 
 function mergeCookies(current: string, response: Response): string {
-  const getSetCookie = (response.headers as any).getSetCookie?.bind(response.headers);
-  const values: string[] = getSetCookie ? getSetCookie() : [response.headers.get('set-cookie')].filter(Boolean) as string[];
+  const values = setCookies(response);
   const jar = new Map(current.split('; ').filter(Boolean).map((item) => {
     const index = item.indexOf('=');
     return [item.slice(0, index), item.slice(index + 1)];
@@ -28,6 +28,13 @@ function mergeCookies(current: string, response: Response): string {
     jar.set(first.slice(0, index), first.slice(index + 1));
   }
   return [...jar].map(([key, value]) => `${key}=${value}`).join('; ');
+}
+
+function setCookies(response: Response): string[] {
+  const getSetCookie = (response.headers as any).getSetCookie?.bind(response.headers);
+  return getSetCookie
+    ? getSetCookie()
+    : [response.headers.get('set-cookie')].filter(Boolean) as string[];
 }
 
 async function request(path: string, cookie: string, init: RequestInit = {}) {
@@ -50,6 +57,9 @@ describe('cookie authentication', () => {
     const app = express();
     app.set('trust proxy', 1);
     app.use(express.json());
+    app.get('/api/optional-auth', optionalAuth, (req, res) => {
+      res.json({ authenticated: Boolean(req.user) });
+    });
     app.use('/api/auth', authRoutes);
     app.use(errorHandler);
     server = http.createServer(app);
@@ -106,12 +116,36 @@ describe('cookie authentication', () => {
     cookie = result.cookie;
     expect(result.response.status).toBe(200);
     expect(cookie).toContain('csgofriberg_session=');
-    expect(result.response.headers.get('set-cookie')).toContain('Max-Age=1296000');
+    expect(cookie).toContain('csgofriberg_refresh=');
+    expect(result.response.headers.get('set-cookie')).toContain('Max-Age=43200');
+    expect(result.response.headers.get('set-cookie')).toContain('Max-Age=2592000');
+    const issuedCookies = setCookies(result.response);
+    expect(issuedCookies.find((item) => item.startsWith('csgofriberg_session=')))
+      .toContain('Path=/');
+    expect(issuedCookies.find((item) => item.startsWith('csgofriberg_refresh=')))
+      .toContain('Path=/api/auth');
     const authToken = cookie.split('; ').find((item) => item.startsWith('csgofriberg_session='))!.split('=')[1];
     const authPayload = jwt.verify(authToken, config.jwtSecret) as { iat: number; exp: number };
-    expect(authPayload.exp - authPayload.iat).toBe(15 * 24 * 60 * 60);
+    expect(authPayload.exp - authPayload.iat).toBe(12 * 60 * 60);
+    const refreshToken = cookie.split('; ').find((item) => item.startsWith('csgofriberg_refresh='))!.split('=')[1];
+    const refreshPayload = jwt.verify(refreshToken, config.jwtSecret) as {
+      typ: string;
+      iat: number;
+      exp: number;
+    };
+    expect(refreshPayload.typ).toBe('refresh');
+    expect(refreshPayload.exp - refreshPayload.iat).toBe(30 * 24 * 60 * 60);
     const registeredUser = await db('users').where({ username }).first();
     expect(registeredUser.password_hash).toMatch(/^\$2[aby]\$08\$/);
+
+    const legacyAccessOnlyCookie = cookie
+      .split('; ')
+      .filter((item) => !item.startsWith('csgofriberg_refresh='))
+      .join('; ');
+    result = await request('/api/auth/me', legacyAccessOnlyCookie);
+    cookie = result.cookie;
+    expect(result.response.status).toBe(200);
+    expect(cookie).toContain('csgofriberg_refresh=');
 
     const cookiesBeforeSession = cookie;
     result = await request('/api/auth/session', cookie, { method: 'POST', body: '{}' });
@@ -119,17 +153,68 @@ describe('cookie authentication', () => {
     expect(result.data.authenticated).toBe(true);
     expect(cookie).toBe(cookiesBeforeSession);
 
+    const expiredAccess = jwt.sign(
+      { sub: String(registeredUser.id), ver: 0, typ: 'auth' },
+      config.jwtSecret,
+      { expiresIn: -1, algorithm: 'HS256' }
+    );
+    cookie = cookie
+      .split('; ')
+      .map((item) => item.startsWith('csgofriberg_session=')
+        ? `csgofriberg_session=${expiredAccess}`
+        : item)
+      .join('; ');
+
+    const expiredAccessOnlyCookie = cookie
+      .split('; ')
+      .filter((item) => !item.startsWith('csgofriberg_refresh='))
+      .join('; ');
+    const expiredOptional = await request('/api/optional-auth', expiredAccessOnlyCookie, {
+      headers: { 'X-Auth-Expected': '1' },
+    });
+    expect(expiredOptional.response.status).toBe(401);
+    expect(expiredOptional.data.code).toBe('AUTH_EXPIRED');
+    expect(setCookies(expiredOptional.response).join(';')).not.toContain('csgofriberg_guest=');
+
+    result = await request('/api/auth/me', cookie);
+    cookie = result.cookie;
+    expect(result.response.status).toBe(200);
+    expect(result.data.user.username).toBe(username);
+    const refreshedAccess = cookie
+      .split('; ')
+      .find((item) => item.startsWith('csgofriberg_session='))!
+      .split('=')[1];
+    expect(refreshedAccess).not.toBe(expiredAccess);
+    expect((jwt.verify(refreshedAccess, config.jwtSecret) as { exp: number; iat: number }).exp -
+      (jwt.verify(refreshedAccess, config.jwtSecret) as { exp: number; iat: number }).iat)
+      .toBe(12 * 60 * 60);
+
+    result = await request('/api/auth/refresh', cookie, { method: 'POST', body: '{}' });
+    cookie = result.cookie;
+    expect(result.response.status).toBe(200);
+    expect(result.data.user.id).toBe(registeredUser.id);
+
     result = await request('/api/auth/claim', cookie, {
       method: 'POST',
       body: JSON.stringify({ guestKey: 'forged-guest-key' }),
     });
     expect(result.data.claimed).toBe(1);
+    expect(setCookies(result.response).find((item) => item.startsWith('csgofriberg_guest=')))
+      .toMatch(/Max-Age=0; Path=\//);
     const game = await db('games').where({ session_id: sessionId }).first();
     expect(game.guest_key).toBeNull();
 
+    const refreshBeforeLogout = cookie
+      .split('; ')
+      .find((item) => item.startsWith('csgofriberg_refresh='))!;
     result = await request('/api/auth/logout', cookie, { method: 'POST', body: '{}' });
     cookie = result.cookie;
     result = await request('/api/auth/me', cookie);
+    expect(result.response.status).toBe(401);
+    result = await request('/api/auth/refresh', refreshBeforeLogout, {
+      method: 'POST',
+      body: '{}',
+    });
     expect(result.response.status).toBe(401);
 
     const user = await db('users').where({ username }).first();

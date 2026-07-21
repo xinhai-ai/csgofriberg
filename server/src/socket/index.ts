@@ -1,7 +1,11 @@
 import { Server, Socket } from 'socket.io';
 import { isIP } from 'net';
 import { randomUUID } from 'crypto';
-import { authenticateCookie, getGuestFromCookie } from '../middleware/auth';
+import {
+  authenticateCookie,
+  getGuestFromCookie,
+  hasAuthSessionCookie,
+} from '../middleware/auth';
 import { consumeRateLimit } from '../middleware/rateLimit';
 import { compareGuess, completeGuessFeedback, MAX_GUESSES } from '../services/gameService';
 import { getEnabledPlayer, getPlayer, pickCachedTarget } from '../services/playerCache';
@@ -1033,6 +1037,13 @@ export function setupSocket(io: Server) {
     try {
       const user = await authenticateCookie(socket.handshake.headers.cookie);
       const guest = getGuestFromCookie(socket.handshake.headers.cookie);
+      if (
+        !user &&
+        (hasAuthSessionCookie(socket.handshake.headers.cookie) ||
+          socket.handshake.auth?.authenticated === true)
+      ) {
+        return next(new Error('AUTH_EXPIRED'));
+      }
       let identity: StoredIdentity | null = null;
       if (user) {
         identity = { key: `u:${user.id}`, userId: user.id, name: user.username };

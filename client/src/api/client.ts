@@ -1,11 +1,14 @@
 import axios from 'axios';
 import { translate } from '../i18n/messages';
 import { ensurePow, notePowExpiry } from './pow';
+import { hasAuthHint, refreshAuthenticatedSession } from './authSession';
 
 export const api = axios.create({ baseURL: '/api', withCredentials: true });
 
 api.interceptors.request.use(async (request) => {
   await ensurePow();
+  if (hasAuthHint()) request.headers.set('X-Auth-Expected', '1');
+  else request.headers.delete('X-Auth-Expected');
   return request;
 });
 
@@ -16,13 +19,27 @@ api.interceptors.response.use(
   },
   async (error) => {
     if (!axios.isAxiosError(error)) throw error;
-    const config = error.config as (typeof error.config & { _powRetried?: boolean }) | undefined;
-    if (error.response?.data?.code !== 'POW_REQUIRED' || !config || config._powRetried) {
-      throw error;
+    const config = error.config as (typeof error.config & {
+      _powRetried?: boolean;
+      _authRetried?: boolean;
+    }) | undefined;
+    const code = String(error.response?.data?.code ?? '');
+    if (code === 'POW_REQUIRED' && config && !config._powRetried) {
+      config._powRetried = true;
+      await ensurePow(true);
+      return api.request(config);
     }
-    config._powRetried = true;
-    await ensurePow(true);
-    return api.request(config);
+    if (
+      error.response?.status === 401 &&
+      (code === 'AUTH_REQUIRED' || code === 'AUTH_EXPIRED') &&
+      config &&
+      !config._authRetried
+    ) {
+      config._authRetried = true;
+      await refreshAuthenticatedSession();
+      return api.request(config);
+    }
+    throw error;
   }
 );
 

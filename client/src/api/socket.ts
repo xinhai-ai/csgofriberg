@@ -1,8 +1,10 @@
 import { io, Socket } from 'socket.io-client';
 import { ensureGuestSession, hasAuthHint } from './session';
+import { refreshAuthenticatedSession } from './authSession';
 
 let socket: Socket | null = null;
 let connectTask: Promise<void> | null = null;
+let identityRecovery: Promise<void> | null = null;
 let latestResourceVersionNotice: unknown;
 const resourceVersionListeners = new Set<(notice: unknown) => void>();
 
@@ -10,12 +12,34 @@ async function prepareSocketIdentity(): Promise<void> {
   if (!hasAuthHint()) await ensureGuestSession();
 }
 
+function syncSocketAuthIntent(target: Socket): void {
+  target.auth = { authenticated: hasAuthHint() };
+}
+
+function recoverSocketIdentity(target: Socket): void {
+  if (identityRecovery) return;
+  identityRecovery = refreshAuthenticatedSession()
+    .then(async (refreshed) => {
+      if (socket !== target) return;
+      if (!refreshed) await ensureGuestSession(true);
+      syncSocketAuthIntent(target);
+      if (!target.connected && !target.active) target.connect();
+    })
+    .catch(() => undefined)
+    .finally(() => {
+      identityRecovery = null;
+    });
+}
+
 function connectSocket(): void {
   if (!socket || socket.connected || socket.active || connectTask) return;
   const target = socket;
   const task = prepareSocketIdentity()
     .then(() => {
-      if (socket === target && !target.connected && !target.active) target.connect();
+      if (socket === target && !target.connected && !target.active) {
+        syncSocketAuthIntent(target);
+        target.connect();
+      }
     })
     .catch(() => undefined)
     .finally(() => {
@@ -33,13 +57,17 @@ export function getSocket(): Socket {
     withCredentials: true,
     autoConnect: false,
     transports: ['websocket'],
+    auth: { authenticated: hasAuthHint() },
   });
-  socket.on('connect_error', (error) => {
-    if (error.message === 'IDENTITY_REQUIRED') {
+  const target = socket;
+  target.on('connect_error', (error) => {
+    if (error.message === 'AUTH_EXPIRED') {
+      recoverSocketIdentity(target);
+    } else if (error.message === 'IDENTITY_REQUIRED') {
       void ensureGuestSession(true).then(connectSocket).catch(() => undefined);
     }
   });
-  socket.on('resource:version', (notice) => {
+  target.on('resource:version', (notice) => {
     latestResourceVersionNotice = notice;
     resourceVersionListeners.forEach((listener) => listener(notice));
   });
@@ -58,4 +86,5 @@ export function closeSocket() {
   socket?.disconnect();
   socket = null;
   connectTask = null;
+  identityRecovery = null;
 }

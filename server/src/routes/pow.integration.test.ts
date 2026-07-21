@@ -85,6 +85,8 @@ describe('proof of work gateway', () => {
       .map((value) => value.split(';')[0])
       .find((value) => value.startsWith(`${POW_COOKIE}=`));
     expect(powCookie).toBeTruthy();
+    expect(setCookies(verified.response).find((value) => value.startsWith(`${POW_COOKIE}=`)))
+      .toContain('Path=/api');
 
     const replay = await request('/api/pow/verify', { method: 'POST', body });
     expect(replay.response.status).toBe(400);

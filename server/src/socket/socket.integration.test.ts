@@ -21,14 +21,18 @@ let stopSocket: (() => Promise<void>) | undefined;
 const createdRoomIds: string[] = [];
 const TEST_USER_AGENT = 'csgofriberg-socket-test';
 
-function connect(cookie: string): Promise<ClientSocket> {
+function connect(cookie: string, auth: Record<string, unknown> = {}): Promise<ClientSocket> {
   return new Promise((resolve, reject) => {
     const socket = clientIo(baseUrl, {
       transports: ['websocket'],
       extraHeaders: { Cookie: cookie, 'User-Agent': TEST_USER_AGENT },
+      auth,
     });
     socket.once('connect', () => resolve(socket));
-    socket.once('connect_error', reject);
+    socket.once('connect_error', (error) => {
+      socket.disconnect();
+      reject(error);
+    });
   });
 }
 
@@ -158,6 +162,18 @@ describe('multiplayer socket integration', () => {
       a.disconnect();
       b.disconnect();
     }
+  });
+
+  it('does not silently downgrade an expected authenticated socket to guest', async () => {
+    const token = jwt.sign(
+      { key: `auth-intent-${Date.now()}`, typ: 'guest' },
+      config.jwtSecret,
+      { expiresIn: '1h' }
+    );
+    await expect(connect(
+      withPowCookie(`csgofriberg_guest=${token}`),
+      { authenticated: true }
+    )).rejects.toMatchObject({ message: 'AUTH_EXPIRED' });
   });
 
   it('restores the last resource version notice when a client connects', async () => {

@@ -2,11 +2,13 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db/knex';
 import {
-  clearAuthCookie,
+  clearAuthCookies,
+  clearGuestCookie,
   ensureGuestCookie,
-  authenticateCookie,
   requireAuth,
-  setAuthCookie,
+  setAuthCookies,
+  refreshAuthCookies,
+  restoreAuthSession,
   invalidateAuthUser,
 } from '../middleware/auth';
 import { validateBody, asyncHandler, HttpError } from '../middleware/common';
@@ -48,7 +50,7 @@ router.post(
 
     const user = { id, username, role, token_version: 0 };
     await invalidateCached('stats:global');
-    setAuthCookie(res, user);
+    setAuthCookies(res, user);
     res.json({ user: { id, username, role } });
   })
 );
@@ -76,7 +78,7 @@ router.post(
         .where({ id: user.id, password_hash: previousHash })
         .update({ password_hash: passwordHash });
     }
-    setAuthCookie(res, user);
+    setAuthCookies(res, user);
     res.json({ user: { id: user.id, username: user.username, role: user.role } });
   })
 );
@@ -92,10 +94,23 @@ router.get('/me', requireAuth, rateLimit({
 });
 
 router.post(
+  '/refresh',
+  rateLimit({ name: 'auth-refresh', limit: 60, windowSeconds: 60, failClosed: true }),
+  asyncHandler(async (req, res) => {
+    const user = await refreshAuthCookies(req.headers.cookie, res);
+    if (!user) {
+      clearAuthCookies(res);
+      throw new HttpError(401, 'AUTH_REQUIRED');
+    }
+    res.json({ user });
+  })
+);
+
+router.post(
   '/session',
   rateLimit({ name: 'session', limit: 60, windowSeconds: 60, failClosed: true }),
   asyncHandler(async (req, res) => {
-    const user = await authenticateCookie(req.headers.cookie);
+    const user = await restoreAuthSession(req.headers.cookie, res, true);
     if (user) return res.json({ authenticated: true, user });
     const guest = ensureGuestCookie(req, res);
     res.json({ authenticated: false, guest: { name: guest.name } });
@@ -115,7 +130,7 @@ router.post(
   asyncHandler(async (req, res) => {
     await db('users').where({ id: req.user!.id }).increment('token_version', 1);
     await invalidateAuthUser(req.user!.id);
-    clearAuthCookie(res);
+    clearAuthCookies(res);
     ensureGuestCookie(req, res);
     res.json({ ok: true });
   })
@@ -138,6 +153,7 @@ router.post(
       .where({ guest_key: req.guestKey })
       .whereNull('user_id')
       .update({ user_id: req.user!.id, guest_key: null });
+    clearGuestCookie(res);
     await invalidateCached('leaderboard');
     res.json({ claimed });
   })
