@@ -117,15 +117,15 @@ router.get(
   asyncHandler(async (req, res) => {
     const owner = ownerFor(req);
     if (!owner) throw new HttpError(400, 'GUEST_KEY_REQUIRED');
+    const identityKey = identityKeyFor(req);
+    if (!identityKey) throw new HttpError(400, 'GUEST_KEY_REQUIRED');
 
     const personalSinglePromise = singleAggregate(db('games').where(owner));
-    const personalMultiPromise = req.user
-      ? db('match_players')
-        .where({ user_id: req.user.id })
-        .first()
-        .count({ total: 'id' })
-        .sum({ wins: db.raw('case when is_winner then 1 else 0 end') })
-      : Promise.resolve({ total: 0, wins: 0 });
+    const personalMultiPromise = db('match_players')
+      .where({ player_key: identityKey })
+      .first()
+      .count({ total: 'id' })
+      .sum({ wins: db.raw('case when is_winner then 1 else 0 end') });
 
     const [personalSingle, personalMulti, global] = await Promise.all([
       personalSinglePromise,

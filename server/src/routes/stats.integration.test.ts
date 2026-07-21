@@ -112,6 +112,8 @@ describe('stats and replay', () => {
       expect(stats.response.status).toBe(200);
       expect(stats.data.personal.totalGames).toBe(1);
       expect(stats.data.personal.wins).toBe(1);
+      expect(stats.data.personal.multiGames).toBe(1);
+      expect(stats.data.personal.multiWins).toBe(1);
       expect(stats.data.global.totalGames).toBeGreaterThanOrEqual(1);
       const singleList = await request('/api/stats/replays?type=single&page=1&pageSize=5', guestCookie(ownerKey));
       expect(singleList.response.status).toBe(200);
