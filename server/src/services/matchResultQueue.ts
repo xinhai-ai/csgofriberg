@@ -14,6 +14,7 @@ export interface MatchResultPayload {
   participants: {
     key: string;
     userId: number | null;
+    name?: string;
     score: number;
   }[];
   rounds: Array<{
@@ -63,7 +64,7 @@ async function persist(payload: MatchResultPayload): Promise<void> {
         match_id: matchId,
         user_id: player.userId,
         player_key: player.key,
-        player_name: '',
+        player_name: player.name ?? '',
         score: player.score,
         is_winner: player.key === payload.winnerKey,
       }))

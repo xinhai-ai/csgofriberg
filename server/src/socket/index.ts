@@ -379,6 +379,7 @@ async function persistMatch(
     participants: room.players.map((player) => ({
       key: player.key,
       userId: player.userId,
+      name: identityDisplayName(player),
       score: player.score,
     })),
     rounds: room.replayRounds,

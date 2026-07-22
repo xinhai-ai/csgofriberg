@@ -12,6 +12,7 @@ import { initRedis } from '../redis';
 import { errorHandler } from '../middleware/common';
 import { initPlayerCache, getPlayer } from '../services/playerCache';
 import { invalidateCached } from '../services/queryCache';
+import { guestNameFromKey, userNameFromUsername } from '../middleware/auth';
 
 let server: http.Server;
 let baseUrl: string;
@@ -126,7 +127,7 @@ describe('stats and replay', () => {
         id: matchId,
         result: 'won',
         me: { score: 1 },
-        opponent: { score: 0 },
+        opponent: { displayId: guestNameFromKey(otherKey), score: 0 },
       });
 
       const replay = await request(`/api/stats/games/${gameId}/replay`, guestCookie(ownerKey));
@@ -141,6 +142,7 @@ describe('stats and replay', () => {
       expect(multiReplay.data.rounds[0].winner).toBe('me');
       expect(multiReplay.data.rounds[0].me.guesses[0].correct).toBe(true);
       expect(multiReplay.data.rounds[0].opponent.guesses[0].playerId).toBe(otherPlayer.id);
+      expect(multiReplay.data.opponent.displayId).toBe(guestNameFromKey(otherKey));
 
       const forbidden = await request(`/api/stats/games/${gameId}/replay`, guestCookie(otherKey));
       expect(forbidden.response.status).toBe(404);
@@ -159,9 +161,18 @@ describe('stats and replay', () => {
   it('returns draw for a match where neither player is marked as winner', async () => {
     const stamp = Date.now();
     const ownerKey = `draw-owner-${stamp}`;
-    const otherKey = `draw-other-${stamp}`;
+    const opponentUsername = `draw-user-${stamp}`;
     const meKey = `g:${ownerKey}`;
-    const opponentKey = `g:${otherKey}`;
+    const [opponentUserId] = await db('users')
+      .insert({
+        username: opponentUsername,
+        password_hash: 'not-used',
+        role: 'user',
+        token_version: 0,
+      })
+      .returning('id')
+      .then((rows) => rows.map((item: any) => typeof item === 'object' ? item.id : item));
+    const opponentKey = `u:${opponentUserId}`;
     const [matchId] = await db('match_records')
       .insert({
         room_id: randomUUID(),
@@ -174,7 +185,14 @@ describe('stats and replay', () => {
       .then((rows) => rows.map((item: any) => typeof item === 'object' ? item.id : item));
     await db('match_players').insert([
       { match_id: matchId, player_key: meKey, player_name: '', score: 0, is_winner: false },
-      { match_id: matchId, player_key: opponentKey, player_name: '', score: 0, is_winner: false },
+      {
+        match_id: matchId,
+        user_id: opponentUserId,
+        player_key: opponentKey,
+        player_name: '',
+        score: 0,
+        is_winner: false,
+      },
     ]);
 
     try {
@@ -183,14 +201,16 @@ describe('stats and replay', () => {
       expect(list.data.items.find((item: any) => item.id === matchId)).toMatchObject({
         result: 'draw',
         me: { score: 0 },
-        opponent: { score: 0 },
+        opponent: { displayId: userNameFromUsername(opponentUsername), score: 0 },
       });
 
       const replay = await request(`/api/stats/matches/${matchId}/replay`, guestCookie(ownerKey));
       expect(replay.response.status).toBe(200);
       expect(replay.data.result).toBe('draw');
+      expect(replay.data.opponent.displayId).toBe(userNameFromUsername(opponentUsername));
     } finally {
       await db('match_records').where({ id: matchId }).del();
+      await db('users').where({ id: opponentUserId }).del();
     }
   });
 });

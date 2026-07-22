@@ -41,7 +41,7 @@ interface MultiReplayItem {
   finishedAt: string;
   result: 'won' | 'lost' | 'draw';
   me: { score: number };
-  opponent: { score: number } | null;
+  opponent: { displayId: string; score: number } | null;
 }
 
 interface ReplayPage<T> {
@@ -81,7 +81,7 @@ interface MultiReplay {
   finishedAt: string;
   result: 'won' | 'lost' | 'draw';
   me: { score: number };
-  opponent: { score: number };
+  opponent: { displayId: string; score: number };
   rounds: MultiReplayRound[];
 }
 
@@ -171,7 +171,7 @@ function ReplayDialog({ replay, onClose }: { replay: Replay; onClose: () => void
               <p>
                 {formatMode(replay.mode)} · {replay.type === 'single'
                   ? `${replay.status === 'won' ? '胜利' : '失败'} · ${replay.guessCount} 次猜测`
-                  : `BO${replay.boType} · ${formatMultiResult(replay.result)} · ${replay.me.score}:${replay.opponent.score}`}
+                  : `BO${replay.boType} · 我方 / ${replay.opponent.displayId} · ${formatMultiResult(replay.result)} · ${replay.me.score}:${replay.opponent.score}`}
               </p>
             </div>
             <button className="confirm-close" type="button" aria-label="关闭回放" onClick={onClose}>
@@ -210,7 +210,7 @@ function ReplayDialog({ replay, onClose }: { replay: Replay; onClose: () => void
                           : <p className="muted">本轮未猜测</p>}
                       </div>
                       <div className="replay-side">
-                        <h4><Swords size={15} />对方</h4>
+                        <h4><Swords size={15} />{replay.opponent.displayId}</h4>
                         {activeRound.opponent.guesses.length
                           ? <GuessBoard guesses={activeRound.opponent.guesses} />
                           : <p className="muted">本轮未猜测</p>}
@@ -341,7 +341,7 @@ export default function Stats() {
       : game.result === 'draw'
         ? <Badge text="平局" color="gray" />
         : <Badge text="失败" color="gray" /> },
-    { key: 'opponent', title: '对阵', render: () => '我方 / 对方' },
+    { key: 'opponent', title: '对阵', render: (game) => `我方 / ${game.opponent?.displayId ?? '未知对手'}` },
     { key: 'score', title: '比分', render: (game) => `${game.me.score}:${game.opponent?.score ?? 0}` },
     { key: 'finishedAt', title: '时间', render: (game) => new Date(game.finishedAt).toLocaleString('zh-CN') },
     { key: 'replay', title: '回放', render: replayButton },
@@ -426,7 +426,7 @@ export default function Stats() {
                     </>
                   ) : (
                     <>
-                      <span>对阵 <strong>我方 / 对方</strong></span>
+                      <span>对阵 <strong>我方 / {item.opponent?.displayId ?? '未知对手'}</strong></span>
                       <span>比分 <strong>{item.me.score}:{item.opponent?.score ?? 0}</strong></span>
                     </>
                   )}

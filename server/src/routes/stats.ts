@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db/knex';
-import { optionalAuth } from '../middleware/auth';
+import { guestNameFromKey, optionalAuth, userNameFromUsername } from '../middleware/auth';
 import { asyncHandler, HttpError } from '../middleware/common';
 import { cached } from '../services/queryCache';
 import { compareGuess, completeGuessFeedback, MAX_GUESSES } from '../services/gameService';
@@ -23,6 +23,24 @@ function ownerFor(req: { user?: { id: number }; guestKey?: string }): Owner | nu
 function identityKeyFor(req: { user?: { id: number }; guestKey?: string }): string | null {
   if (req.user) return `u:${req.user.id}`;
   return req.guestKey ? `g:${req.guestKey}` : null;
+}
+
+function identityDisplayId(row: {
+  key?: unknown;
+  name?: unknown;
+  username?: unknown;
+}): string {
+  const key = typeof row.key === 'string' ? row.key : '';
+  const storedName = typeof row.name === 'string' ? row.name : '';
+  if (/^(访客|用户)#[0-9A-Z]{5}$/.test(storedName)) return storedName;
+  if (key.startsWith('g:')) return guestNameFromKey(key.slice(2));
+  if (key.startsWith('u:')) {
+    const username = typeof row.username === 'string' && row.username
+      ? row.username
+      : storedName;
+    return username ? userNameFromUsername(username) : '用户#未知';
+  }
+  return storedName || '未知对手';
 }
 
 function qualifiedOwner(owner: Owner, alias: string): Record<string, number | string> {
@@ -209,10 +227,18 @@ router.get(
     const visibleRows = rows.slice(0, pageSize);
     const matchIds = visibleRows.map((row) => Number(row.id));
     const opponents = matchIds.length
-      ? await db('match_players')
-        .whereIn('match_id', matchIds)
-        .whereNot('player_key', identityKey)
-        .select('match_id as matchId', 'score', 'is_winner as isWinner')
+      ? await db('match_players as opponent')
+        .leftJoin('users as opponent_user', 'opponent_user.id', 'opponent.user_id')
+        .whereIn('opponent.match_id', matchIds)
+        .whereNot('opponent.player_key', identityKey)
+        .select(
+          'opponent.match_id as matchId',
+          'opponent.player_key as key',
+          'opponent.player_name as name',
+          'opponent.score',
+          'opponent.is_winner as isWinner',
+          'opponent_user.username'
+        )
       : [];
     const opponentByMatch = new Map(opponents.map((row) => [Number(row.matchId), row]));
     res.json({
@@ -233,7 +259,10 @@ router.get(
             : 'draw',
         me: { score: Number(row.meScore) },
         opponent: opponentByMatch.has(Number(row.id))
-          ? { score: Number(opponentByMatch.get(Number(row.id))!.score) }
+          ? {
+              displayId: identityDisplayId(opponentByMatch.get(Number(row.id))!),
+              score: Number(opponentByMatch.get(Number(row.id))!.score),
+            }
           : null,
       })),
     });
@@ -324,10 +353,17 @@ router.get(
         'me.is_winner as meWinner'
       );
     if (!match) throw new HttpError(404, 'GAME_NOT_FOUND');
-    const opponent = await db('match_players')
-      .where('match_id', id)
-      .whereNot('player_key', identityKey)
-      .first('player_key as key', 'score', 'is_winner as isWinner');
+    const opponent = await db('match_players as opponent')
+      .leftJoin('users as opponent_user', 'opponent_user.id', 'opponent.user_id')
+      .where('opponent.match_id', id)
+      .whereNot('opponent.player_key', identityKey)
+      .first(
+        'opponent.player_key as key',
+        'opponent.player_name as name',
+        'opponent.score',
+        'opponent.is_winner as isWinner',
+        'opponent_user.username'
+      );
     if (!opponent) throw new HttpError(404, 'GAME_NOT_FOUND');
 
     let storedRounds: unknown[] = [];
@@ -367,7 +403,10 @@ router.get(
           ? 'lost'
           : 'draw',
       me: { score: Number(match.meScore) },
-      opponent: { score: Number(opponent.score) },
+      opponent: {
+        displayId: identityDisplayId(opponent),
+        score: Number(opponent.score),
+      },
       rounds,
     });
   })
