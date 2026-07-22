@@ -10,6 +10,7 @@ import {
   refreshAuthCookies,
   restoreAuthSession,
   invalidateAuthUser,
+  userNameFromUsername,
 } from '../middleware/auth';
 import { validateBody, asyncHandler, HttpError } from '../middleware/common';
 import { User } from '../types';
@@ -42,6 +43,7 @@ router.post(
     const [id] = await db('users')
       .insert({
         username,
+        display_id: userNameFromUsername(username),
         password_hash: await hashPassword(password),
         role,
       })

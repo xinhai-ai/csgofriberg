@@ -8,6 +8,7 @@ const MESSAGES: Record<string, string> = {
   AUTH_EXPIRED: '登录状态已过期，请重新登录',
   FORBIDDEN: '没有权限执行此操作',
   USERNAME_TAKEN: '用户名已被注册',
+  USER_NOT_FOUND: '用户不存在',
   INVALID_CREDENTIALS: '用户名或密码错误',
   NOT_FOUND: '内容不存在',
   GUEST_KEY_REQUIRED: '访客标识缺失,请刷新页面重试',

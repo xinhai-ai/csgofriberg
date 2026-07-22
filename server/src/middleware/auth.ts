@@ -5,6 +5,9 @@ import { config } from '../config';
 import { db } from '../db/knex';
 import { User } from '../types';
 import { redis, redisKey } from '../redis';
+import { guestNameFromKey, userNameFromUsername } from '../services/identityDisplay';
+
+export { guestNameFromKey, userNameFromUsername } from '../services/identityDisplay';
 
 const AUTH_COOKIE = 'csgofriberg_session';
 const REFRESH_COOKIE = 'csgofriberg_refresh';
@@ -56,26 +59,6 @@ export interface AuthPayload {
 export interface GuestIdentity {
   key: string;
   name: string;
-}
-
-export function guestNameFromKey(key: string): string {
-  const value = crypto
-    .createHmac('sha256', config.guestIdSalt)
-    .update('csgofriberg-guest-id-v1\0', 'ascii')
-    .update(key, 'utf8')
-    .digest()
-    .readUInt32BE(0) % (36 ** 5);
-  return `访客#${value.toString(36).padStart(5, '0').toUpperCase()}`;
-}
-
-export function userNameFromUsername(username: string): string {
-  const value = crypto
-    .createHmac('sha256', config.guestIdSalt)
-    .update('csgofriberg-user-id-v1\0', 'ascii')
-    .update(username, 'utf8')
-    .digest()
-    .readUInt32BE(0) % (36 ** 5);
-  return `用户#${value.toString(36).padStart(5, '0').toUpperCase()}`;
 }
 
 declare global {

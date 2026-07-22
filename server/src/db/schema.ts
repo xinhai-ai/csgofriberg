@@ -1,7 +1,30 @@
 import { Knex } from 'knex';
 import { db } from './knex';
+import { userNameFromUsername } from '../services/identityDisplay';
 
 const FIRST_GUESS_BACKFILL_BATCH_SIZE = 1000;
+const USER_DISPLAY_ID_BACKFILL_BATCH_SIZE = 1000;
+
+async function backfillUserDisplayIds(instance: Knex): Promise<void> {
+  let cursor = 0;
+  while (true) {
+    const users = await instance('users')
+      .select('id', 'username')
+      .where('id', '>', cursor)
+      .where((builder) => builder.whereNull('display_id').orWhere('display_id', ''))
+      .orderBy('id')
+      .limit(USER_DISPLAY_ID_BACKFILL_BATCH_SIZE);
+    if (!users.length) return;
+    cursor = Number(users[users.length - 1].id);
+    await instance.transaction(async (trx) => {
+      for (const user of users) {
+        await trx('users').where({ id: user.id }).update({
+          display_id: userNameFromUsername(user.username),
+        });
+      }
+    });
+  }
+}
 
 function firstGuessPlayerId(value: unknown): number {
   try {
@@ -53,6 +76,7 @@ export async function ensureSchema(instance: Knex = db): Promise<void> {
     await instance.schema.createTable('users', (t) => {
       t.increments('id').primary();
       t.string('username', 32).notNullable().unique();
+      t.string('display_id', 8).nullable();
       t.string('password_hash', 128).notNullable();
       t.string('role', 16).notNullable().defaultTo('user');
       t.integer('token_version').notNullable().defaultTo(0);
@@ -62,6 +86,14 @@ export async function ensureSchema(instance: Knex = db): Promise<void> {
   if (!(await instance.schema.hasColumn('users', 'token_version'))) {
     await instance.schema.alterTable('users', (t) => t.integer('token_version').notNullable().defaultTo(0));
   }
+  if (!(await instance.schema.hasColumn('users', 'display_id'))) {
+    await instance.schema.alterTable('users', (t) => t.string('display_id', 8).nullable());
+  }
+  await backfillUserDisplayIds(instance);
+  const usersIndexConcurrently = instance.client.config.client === 'pg' ? ' concurrently' : '';
+  await instance.raw(
+    `create index${usersIndexConcurrently} if not exists "users_display_id_idx" on "users" ("display_id")`
+  );
 
   if (!(await instance.schema.hasTable('app_migrations'))) {
     await instance.schema.createTable('app_migrations', (t) => {

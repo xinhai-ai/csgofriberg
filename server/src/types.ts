@@ -1,6 +1,7 @@
 export interface User {
   id: number;
   username: string;
+  display_id: string | null;
   password_hash: string;
   role: 'user' | 'admin';
   token_version: number;

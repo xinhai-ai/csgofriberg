@@ -240,6 +240,19 @@
   .replay-answer { padding: 12px; }
   .admin-player-form-grid { grid-template-columns: 1fr; gap: 12px; }
   .admin-player-dialog-actions .btn { flex: 1; }
+  .admin-user-stats-grid {
+    grid-template-columns: 1fr;
+  }
+  .admin-user-stats-grid section { padding: 20px 0 0; }
+  .admin-user-stats-grid section + section {
+    margin-top: 20px;
+    padding-left: 0;
+    border-top: 1px solid var(--border);
+    border-left: 0;
+  }
+  .admin-user-game-details { grid-template-columns: 1fr; }
+  .admin-user-game-footer { align-items: flex-end; flex-direction: column; }
+  .admin-user-actions { flex-wrap: wrap; min-width: 180px; }
   .admin-announcement-row { align-items: flex-start; flex-direction: column; }
   .admin-announcement-row > .btn { align-self: flex-end; }
   .overlay-card .btns,

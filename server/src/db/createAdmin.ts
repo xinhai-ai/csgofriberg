@@ -3,6 +3,7 @@ import { initDb } from './init';
 import { closeRedis, initRedis } from '../redis';
 import { invalidateAuthUser } from '../middleware/auth';
 import { closePasswordWorkers, hashPassword } from '../services/password';
+import { userNameFromUsername } from '../services/identityDisplay';
 
 async function main() {
   const username = process.env.ADMIN_USERNAME?.trim();
@@ -16,12 +17,18 @@ async function main() {
   const existing = await db('users').where({ username }).first();
   if (existing) {
     await db('users').where({ id: existing.id }).update({
+      display_id: userNameFromUsername(username),
       password_hash: passwordHash,
       role: 'admin',
       token_version: Number(existing.token_version ?? 0) + 1,
     });
   } else {
-    await db('users').insert({ username, password_hash: passwordHash, role: 'admin' });
+    await db('users').insert({
+      username,
+      display_id: userNameFromUsername(username),
+      password_hash: passwordHash,
+      role: 'admin',
+    });
   }
   const user = await db('users').where({ username }).first();
   if (user) await invalidateAuthUser(user.id);

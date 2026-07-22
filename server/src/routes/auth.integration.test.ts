@@ -144,6 +144,7 @@ describe('cookie authentication', () => {
     expect(refreshPayload.exp - refreshPayload.iat).toBe(30 * 24 * 60 * 60);
     const registeredUser = await db('users').where({ username }).first();
     expect(registeredUser.password_hash).toMatch(/^\$2[aby]\$08\$/);
+    expect(registeredUser.display_id).toBe(userNameFromUsername(username));
 
     const legacyAccessOnlyCookie = cookie
       .split('; ')

@@ -213,6 +213,18 @@
   width: min(1160px, 100%);
   margin-inline: auto;
 }
+.admin-users-card {
+  width: min(1160px, 100%);
+  margin-inline: auto;
+}
+.admin-users-card .admin-players-header { justify-content: center; text-align: center; }
+.admin-users-card .admin-players-title h3 { justify-content: center; }
+.admin-users-table { margin-top: 14px; }
+.admin-users-table table { min-width: 880px; }
+.admin-users-table table th,
+.admin-users-table table td { text-align: center; vertical-align: middle; }
+.admin-user-actions { display: flex; justify-content: center; gap: 6px; min-width: 230px; }
+.admin-user-actions .btn { min-height: 32px; padding: 6px 10px; white-space: nowrap; }
 .admin-players-header {
   display: flex;
   align-items: center;
@@ -398,3 +410,44 @@
 .admin-player-flags input { width: 17px; height: 17px; margin: 0; accent-color: var(--primary); }
 .admin-player-submit-error { margin: 14px 0 0; }
 .admin-player-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+.admin-user-stats-dialog { width: min(660px, 100%); }
+.admin-user-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid var(--border);
+}
+.admin-user-stats-grid section { min-width: 0; padding-top: 20px; padding-right: 24px; }
+.admin-user-stats-grid section + section {
+  padding-right: 0;
+  padding-left: 24px;
+  border-left: 1px solid var(--border);
+}
+.admin-user-stats-grid h3 { margin: 0 0 12px; font-size: 1rem; }
+.admin-user-games-dialog { width: min(820px, 100%); }
+.admin-user-game-tabs { width: min(360px, 100%); margin: 0 auto 14px; }
+.admin-user-game-list { min-height: 220px; border-top: 1px solid var(--border); }
+.admin-user-game-item { display: grid; gap: 9px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+.admin-user-game-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.admin-user-game-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 18px;
+  color: var(--text-sec);
+}
+.admin-user-game-details strong { color: var(--text); }
+.admin-user-game-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.admin-user-game-footer time { color: var(--text-light); font-size: 0.84rem; }
+.admin-user-game-footer .btn { min-height: 30px; padding: 5px 9px; }
+.admin-user-game-empty { padding: 34px 0; text-align: center; }
+.admin-user-game-pagination { margin-top: 16px; }
+.admin-user-game-pagination > .btn { width: 36px; height: 36px; padding: 0; }

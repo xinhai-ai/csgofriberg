@@ -4,10 +4,11 @@ import Page from '../components/Page';
 import AdminPlayers from '../components/admin/AdminPlayers';
 import AdminAnnouncements from '../components/admin/AdminAnnouncements';
 import AdminResourceVersion from '../components/admin/AdminResourceVersion';
+import AdminUsers from '../components/admin/AdminUsers';
 import { getSocket } from '../api/socket';
 import { PresenceStats } from '../types';
 
-type Tab = 'players' | 'announcements' | 'resources';
+type Tab = 'players' | 'users' | 'announcements' | 'resources';
 
 export default function Admin() {
   const [tab, setTab] = useState<Tab>('players');
@@ -50,6 +51,9 @@ export default function Admin() {
         <button className={tab === 'players' ? 'btn' : 'btn btn-ghost'} onClick={() => setTab('players')}>
           选手管理
         </button>
+        <button className={tab === 'users' ? 'btn' : 'btn btn-ghost'} onClick={() => setTab('users')}>
+          用户管理
+        </button>
         <button className={tab === 'announcements' ? 'btn' : 'btn btn-ghost'} onClick={() => setTab('announcements')}>
           公告管理
         </button>
@@ -58,6 +62,7 @@ export default function Admin() {
         </button>
       </div>
       {tab === 'players' && <AdminPlayers />}
+      {tab === 'users' && <AdminUsers />}
       {tab === 'announcements' && <AdminAnnouncements />}
       {tab === 'resources' && <AdminResourceVersion />}
     </Page>

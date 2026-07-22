@@ -1,6 +1,7 @@
 import knex from 'knex';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ensureSchema } from './schema';
+import { userNameFromUsername } from '../services/identityDisplay';
 
 const instances: ReturnType<typeof knex>[] = [];
 
@@ -53,6 +54,7 @@ describe('player schema migration', () => {
     expect(await instance.schema.hasColumn('match_records', 'finish_reason')).toBe(true);
     expect(await instance.schema.hasColumn('match_records', 'forfeited_key')).toBe(true);
     expect(await instance.schema.hasColumn('games', 'first_guess_player_id')).toBe(true);
+    expect(await instance.schema.hasColumn('users', 'display_id')).toBe(true);
     const player = await instance('players').where({ nickname: 'legacy' }).first();
     expect(player.age).toBe(new Date().getFullYear() - 1990);
     expect((await instance('players').columnInfo('age')).nullable).toBe(false);
@@ -74,5 +76,15 @@ describe('player schema migration', () => {
     await ensureSchema(instance);
     const game = await instance('games').where({ session_id: 'legacy-first-guess' }).first();
     expect(game.first_guess_player_id).toBe(player.id);
+
+    await instance('users').insert({
+      username: 'legacy-user',
+      display_id: null,
+      password_hash: 'test',
+      role: 'user',
+    });
+    await ensureSchema(instance);
+    const user = await instance('users').where({ username: 'legacy-user' }).first();
+    expect(user.display_id).toBe(userNameFromUsername('legacy-user'));
   });
 });

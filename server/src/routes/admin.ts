@@ -2,12 +2,21 @@ import { Router } from 'express';
 import type { Server } from 'socket.io';
 import { z } from 'zod';
 import { db } from '../db/knex';
-import { requireAuth, requireAdmin } from '../middleware/auth';
+import {
+  guestNameFromKey,
+  requireAuth,
+  requireAdmin,
+  userNameFromUsername,
+} from '../middleware/auth';
 import { validateBody, asyncHandler, HttpError } from '../middleware/common';
 import { invalidatePlayerCache } from '../services/playerCache';
 import { invalidateCached } from '../services/queryCache';
 import { rateLimit, requestIdentity } from '../middleware/rateLimit';
 import { publishResourceVersion } from '../services/resourceVersion';
+import { getPlayerPerformance } from '../services/playerPerformance';
+import { compareGuess, completeGuessFeedback, MAX_GUESSES } from '../services/gameService';
+import { getPlayer } from '../services/playerCache';
+import type { GuessFeedback, Player } from '../types';
 
 const router = Router();
 router.use(requireAuth, requireAdmin);
@@ -63,6 +72,345 @@ const playerListQuerySchema = z.object({
   pageSize: z.coerce.number().int().min(10).max(100).default(50),
   search: z.string().trim().max(100).default(''),
 });
+const userListQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(10).max(100).default(50),
+  search: z.string().trim().max(64).default(''),
+});
+const userGameListQuerySchema = z.object({
+  type: z.enum(['single', 'multi']).default('single'),
+  page: z.coerce.number().int().min(1).max(500).default(1),
+  pageSize: z.coerce.number().int().min(5).max(30).default(10),
+});
+
+function matchPlayerDisplayId(row: { key?: unknown; name?: unknown; username?: unknown }): string {
+  const key = typeof row.key === 'string' ? row.key : '';
+  const name = typeof row.name === 'string' ? row.name : '';
+  if (/^(访客|用户)#[0-9A-Z]{5}$/.test(name)) return name;
+  if (key.startsWith('g:')) return guestNameFromKey(key.slice(2));
+  if (key.startsWith('u:')) {
+    const username = typeof row.username === 'string' && row.username ? row.username : name;
+    return username ? userNameFromUsername(username) : '用户#未知';
+  }
+  return name || '未知对手';
+}
+
+function replayAnswer(target: Player) {
+  return {
+    id: target.id,
+    nickname: target.nickname,
+    team: target.team,
+    nationality: target.nationality,
+    region: target.region,
+    age: target.age,
+    role: target.role,
+    majorChampionships: target.major_championships,
+    majorAppearances: target.major_appearances,
+    isActive: Boolean(target.is_active),
+  };
+}
+
+function safeGuessIds(value: unknown): number[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .slice(0, MAX_GUESSES)
+    .map((item) => Number(item))
+    .filter((id) => Number.isInteger(id) && id > 0);
+}
+
+function replayGuesses(target: Player, ids: number[]): GuessFeedback[] {
+  return ids.flatMap((id) => {
+    const guess = getPlayer(id);
+    return guess ? [compareGuess(guess, target)] : [];
+  });
+}
+
+router.get(
+  '/users',
+  adminReadLimit,
+  asyncHandler(async (req, res) => {
+    const parsed = userListQuerySchema.safeParse(req.query);
+    if (!parsed.success) throw new HttpError(400, 'VALIDATION_FAILED');
+    const { pageSize, search } = parsed.data;
+    const query = db('users');
+    if (search) {
+      query.where((builder) => {
+        builder.whereILike('username', `%${search}%`)
+          .orWhereILike('display_id', `%${search}%`);
+      });
+    }
+    const countRow = await query.clone().count({ count: 'id' }).first();
+    const total = Number(countRow?.count ?? 0);
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const page = Math.min(parsed.data.page, totalPages);
+    const users = await query.clone()
+      .select('id', 'username', 'display_id', 'role', 'created_at')
+      .orderBy('created_at', 'desc')
+      .orderBy('id', 'desc')
+      .limit(pageSize)
+      .offset((page - 1) * pageSize);
+    res.json({
+      users: users.map((user) => ({
+        id: Number(user.id),
+        username: user.username,
+        displayId: user.display_id || userNameFromUsername(user.username),
+        role: user.role,
+        createdAt: user.created_at,
+      })),
+      total,
+      page,
+      pageSize,
+      totalPages,
+    });
+  })
+);
+
+router.get(
+  '/users/:id/stats',
+  adminReadLimit,
+  asyncHandler(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) throw new HttpError(400, 'VALIDATION_FAILED');
+    const user = await db('users')
+      .where({ id })
+      .first('id', 'username', 'display_id', 'role', 'created_at');
+    if (!user) throw new HttpError(404, 'USER_NOT_FOUND');
+    res.json({
+      user: {
+        id: Number(user.id),
+        username: user.username,
+        displayId: user.display_id || userNameFromUsername(user.username),
+        role: user.role,
+        createdAt: user.created_at,
+      },
+      stats: await getPlayerPerformance({
+        key: `u:${user.id}`,
+        userId: Number(user.id),
+        name: user.username,
+      }),
+    });
+  })
+);
+
+router.get(
+  '/users/:id/games',
+  adminReadLimit,
+  asyncHandler(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) throw new HttpError(400, 'VALIDATION_FAILED');
+    const parsed = userGameListQuerySchema.safeParse(req.query);
+    if (!parsed.success) throw new HttpError(400, 'VALIDATION_FAILED');
+    if (!(await db('users').where({ id }).first('id'))) throw new HttpError(404, 'USER_NOT_FOUND');
+    const { type, page, pageSize } = parsed.data;
+    const offset = (page - 1) * pageSize;
+
+    if (type === 'single') {
+      const rows = await db('games as g')
+        .join('players as p', 'p.id', 'g.target_player_id')
+        .where('g.user_id', id)
+        .whereNot('g.status', 'playing')
+        .orderBy('g.finished_at', 'desc')
+        .orderBy('g.id', 'desc')
+        .offset(offset)
+        .limit(pageSize + 1)
+        .select(
+          'g.id',
+          'g.mode',
+          'g.status',
+          'g.guess_count as guessCount',
+          'g.finished_at as finishedAt',
+          'p.nickname as answer'
+        );
+      return res.json({
+        type,
+        page,
+        pageSize,
+        hasNext: rows.length > pageSize,
+        items: rows.slice(0, pageSize).map((row) => ({ type: 'single', ...row })),
+      });
+    }
+
+    const identityKey = `u:${id}`;
+    const rows = await db('match_players as me')
+      .join('match_records as m', 'm.id', 'me.match_id')
+      .where('me.user_id', id)
+      .orderBy('m.created_at', 'desc')
+      .orderBy('m.id', 'desc')
+      .offset(offset)
+      .limit(pageSize + 1)
+      .select(
+        'm.id',
+        'm.db_type as mode',
+        'm.bo_type as boType',
+        'm.created_at as finishedAt',
+        'me.score as meScore',
+        'me.is_winner as meWinner'
+      );
+    const visibleRows = rows.slice(0, pageSize);
+    const matchIds = visibleRows.map((row) => Number(row.id));
+    const opponents = matchIds.length
+      ? await db('match_players as opponent')
+        .leftJoin('users as opponent_user', 'opponent_user.id', 'opponent.user_id')
+        .whereIn('opponent.match_id', matchIds)
+        .whereNot('opponent.player_key', identityKey)
+        .select(
+          'opponent.match_id as matchId',
+          'opponent.player_key as key',
+          'opponent.player_name as name',
+          'opponent.score',
+          'opponent.is_winner as isWinner',
+          'opponent_user.username'
+        )
+      : [];
+    const opponentByMatch = new Map(opponents.map((row) => [Number(row.matchId), row]));
+    res.json({
+      type,
+      page,
+      pageSize,
+      hasNext: rows.length > pageSize,
+      items: visibleRows.map((row) => {
+        const opponent = opponentByMatch.get(Number(row.id));
+        return {
+          type: 'multi',
+          id: Number(row.id),
+          mode: row.mode,
+          boType: Number(row.boType),
+          finishedAt: row.finishedAt,
+          result: Boolean(row.meWinner) ? 'won' : Boolean(opponent?.isWinner) ? 'lost' : 'draw',
+          me: { score: Number(row.meScore) },
+          opponent: opponent
+            ? { displayId: matchPlayerDisplayId(opponent), score: Number(opponent.score) }
+            : null,
+        };
+      }),
+    });
+  })
+);
+
+router.get(
+  '/users/:userId/games/:gameId/replay',
+  adminReadLimit,
+  asyncHandler(async (req, res) => {
+    const userId = Number(req.params.userId);
+    const gameId = Number(req.params.gameId);
+    if (![userId, gameId].every((id) => Number.isInteger(id) && id > 0)) {
+      throw new HttpError(400, 'VALIDATION_FAILED');
+    }
+    const game = await db('games')
+      .where({ id: gameId, user_id: userId })
+      .whereNot('status', 'playing')
+      .first();
+    if (!game) throw new HttpError(404, 'GAME_NOT_FOUND');
+    const target = getPlayer(Number(game.target_player_id));
+    if (!target) throw new HttpError(404, 'PLAYER_NOT_FOUND');
+
+    let storedGuesses: unknown[] = [];
+    try {
+      const parsed = JSON.parse(String(game.guesses));
+      if (Array.isArray(parsed)) storedGuesses = parsed;
+    } catch {
+      throw new HttpError(500, 'INTERNAL_ERROR');
+    }
+    const guesses = storedGuesses.flatMap((stored) => {
+      if (typeof stored === 'number') {
+        const guess = getPlayer(stored);
+        return guess ? [compareGuess(guess, target)] : [];
+      }
+      if (!stored || typeof stored !== 'object' || !('playerId' in stored)) return [];
+      const feedback = stored as GuessFeedback;
+      return [completeGuessFeedback(feedback, getPlayer(feedback.playerId), target)];
+    });
+    res.json({
+      id: Number(game.id),
+      mode: game.mode,
+      status: game.status,
+      guessCount: Number(game.guess_count),
+      createdAt: game.created_at,
+      finishedAt: game.finished_at,
+      answer: replayAnswer(target),
+      guesses,
+    });
+  })
+);
+
+router.get(
+  '/users/:userId/matches/:matchId/replay',
+  adminReadLimit,
+  asyncHandler(async (req, res) => {
+    const userId = Number(req.params.userId);
+    const matchId = Number(req.params.matchId);
+    if (![userId, matchId].every((id) => Number.isInteger(id) && id > 0)) {
+      throw new HttpError(400, 'VALIDATION_FAILED');
+    }
+    const match = await db('match_records as m')
+      .join('match_players as me', 'me.match_id', 'm.id')
+      .where('m.id', matchId)
+      .where('me.user_id', userId)
+      .first(
+        'm.id',
+        'm.db_type as mode',
+        'm.bo_type as boType',
+        'm.replay',
+        'm.created_at as finishedAt',
+        'me.id as mePlayerId',
+        'me.player_key as meKey',
+        'me.score as meScore',
+        'me.is_winner as meWinner'
+      );
+    if (!match) throw new HttpError(404, 'GAME_NOT_FOUND');
+    const opponent = await db('match_players as opponent')
+      .leftJoin('users as opponent_user', 'opponent_user.id', 'opponent.user_id')
+      .where('opponent.match_id', matchId)
+      .whereNot('opponent.id', match.mePlayerId)
+      .first(
+        'opponent.player_key as key',
+        'opponent.player_name as name',
+        'opponent.score',
+        'opponent.is_winner as isWinner',
+        'opponent_user.username'
+      );
+    if (!opponent) throw new HttpError(404, 'GAME_NOT_FOUND');
+
+    let storedRounds: unknown[] = [];
+    try {
+      const parsed = JSON.parse(String(match.replay));
+      if (Array.isArray(parsed)) storedRounds = parsed.slice(0, 30);
+    } catch {
+      throw new HttpError(500, 'INTERNAL_ERROR');
+    }
+    const rounds = storedRounds.flatMap((stored) => {
+      if (!stored || typeof stored !== 'object') return [];
+      const round = stored as Record<string, unknown>;
+      const target = getPlayer(Number(round.targetPlayerId));
+      if (!target) return [];
+      const guessesByPlayer = round.guessesByPlayer;
+      if (!guessesByPlayer || typeof guessesByPlayer !== 'object') return [];
+      const guesses = guessesByPlayer as Record<string, unknown>;
+      const winnerKey = typeof round.winnerKey === 'string' ? round.winnerKey : null;
+      return [{
+        round: Number(round.round),
+        reason: typeof round.reason === 'string' ? round.reason : '',
+        winner: winnerKey === match.meKey ? 'me' : winnerKey === opponent.key ? 'opponent' : null,
+        answer: replayAnswer(target),
+        me: { guesses: replayGuesses(target, safeGuessIds(guesses[match.meKey])) },
+        opponent: { guesses: replayGuesses(target, safeGuessIds(guesses[opponent.key])) },
+      }];
+    });
+    res.json({
+      id: Number(match.id),
+      mode: match.mode,
+      boType: Number(match.boType),
+      finishedAt: match.finishedAt,
+      result: Boolean(match.meWinner) ? 'won' : Boolean(opponent.isWinner) ? 'lost' : 'draw',
+      me: { score: Number(match.meScore) },
+      opponent: {
+        displayId: matchPlayerDisplayId(opponent),
+        score: Number(opponent.score),
+      },
+      rounds,
+    });
+  })
+);
 
 router.get(
   '/players',
