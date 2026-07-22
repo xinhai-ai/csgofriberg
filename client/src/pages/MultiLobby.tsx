@@ -23,6 +23,29 @@ import ModalPortal from '../components/ModalPortal';
 type DbType = 'easy' | 'normal';
 const BO_OPTIONS = [1, 3, 5, 7];
 
+function localMatchDeadline(input: {
+  startsAt?: unknown;
+  startsInMs?: unknown;
+  serverNow?: unknown;
+}): number | null {
+  const startsInMs = Number(input.startsInMs);
+  if (Number.isFinite(startsInMs) && startsInMs >= 0) {
+    return Date.now() + startsInMs;
+  }
+
+  const startsAt = Number(input.startsAt);
+  const serverNow = Number(input.serverNow);
+  if (
+    Number.isFinite(startsAt) &&
+    Number.isFinite(serverNow) &&
+    startsAt > serverNow
+  ) {
+    return Date.now() + (startsAt - serverNow);
+  }
+
+  return null;
+}
+
 function OptionGroup<T extends string | number>({
   label,
   options,
@@ -88,7 +111,7 @@ export default function MultiLobby() {
   const [currentRole, setCurrentRole] = useState<'player' | 'spectator'>('player');
   const [copied, setCopied] = useState(false);
   const [searching, setSearching] = useState(false);
-  const [matchStartsAt, setMatchStartsAt] = useState<number | null>(null);
+  const [matchDeadline, setMatchDeadline] = useState<number | null>(null);
   const [matchCountdown, setMatchCountdown] = useState(0);
   const navigate = useNavigate();
   const confirm = useConfirm();
@@ -98,31 +121,31 @@ export default function MultiLobby() {
   matchOptionsRef.current = { dbType: mmDbType, anonymous: mmAnonymous };
 
   useEffect(() => {
-    if (!matchStartsAt) {
+    if (!matchDeadline) {
       setMatchCountdown(0);
       return;
     }
     const tick = () => {
-      const left = Math.max(0, Math.ceil((matchStartsAt - Date.now()) / 1000));
+      const left = Math.max(0, Math.ceil((matchDeadline - Date.now()) / 1000));
       setMatchCountdown(left);
       if (left <= 0) {
-        setMatchStartsAt(null);
+        setMatchDeadline(null);
         navigate('/multi/room');
       }
     };
     tick();
     const timer = window.setInterval(tick, 200);
     return () => window.clearInterval(timer);
-  }, [matchStartsAt, navigate]);
+  }, [matchDeadline, navigate]);
 
   useEffect(() => {
     const socket = getSocket();
-    const onMatchFound = (payload: { startsAt?: number } = {}) => {
+    const onMatchFound = (payload: { startsAt?: number; startsInMs?: number } = {}) => {
       searchingRef.current = false;
       setSearching(false);
-      const startsAt = Number(payload.startsAt);
-      if (Number.isFinite(startsAt) && startsAt > Date.now()) {
-        setMatchStartsAt(startsAt);
+      const deadline = localMatchDeadline(payload);
+      if (deadline) {
+        setMatchDeadline(deadline);
       } else {
         navigate('/multi/room');
       }
@@ -133,9 +156,12 @@ export default function MultiLobby() {
         if (res?.room) {
           searchingRef.current = false;
           setSearching(false);
-          const startsAt = Number(res.room.matchStartsAt);
-          if (Number.isFinite(startsAt) && startsAt > Date.now()) {
-            setMatchStartsAt(startsAt);
+          const deadline = localMatchDeadline({
+            startsAt: res.room.matchStartsAt,
+            serverNow: res.serverNow,
+          });
+          if (deadline) {
+            setMatchDeadline(deadline);
           } else {
             navigate('/multi/room');
           }
@@ -159,9 +185,12 @@ export default function MultiLobby() {
           });
           return;
         }
-        const startsAt = Number(res.room.matchStartsAt);
-        if (Number.isFinite(startsAt) && startsAt > Date.now()) {
-          setMatchStartsAt(startsAt);
+        const deadline = localMatchDeadline({
+          startsAt: res.room.matchStartsAt,
+          serverNow: res.serverNow,
+        });
+        if (deadline) {
+          setMatchDeadline(deadline);
           return;
         }
         setCurrentRoom(res.room);
@@ -288,9 +317,12 @@ export default function MultiLobby() {
       if (res?.room) {
         setSearching(false);
         searchingRef.current = false;
-        const startsAt = Number(res.room.matchStartsAt);
-        if (Number.isFinite(startsAt) && startsAt > Date.now()) {
-          setMatchStartsAt(startsAt);
+        const deadline = localMatchDeadline({
+          startsAt: res.room.matchStartsAt,
+          serverNow: res.serverNow,
+        });
+        if (deadline) {
+          setMatchDeadline(deadline);
         } else {
           navigate('/multi/room');
         }
@@ -491,7 +523,7 @@ export default function MultiLobby() {
           </div>
         </div>
       )}
-      {matchStartsAt && <MatchFoundDialog countdown={matchCountdown} />}
+      {matchDeadline && <MatchFoundDialog countdown={matchCountdown} />}
     </Page>
   );
 }

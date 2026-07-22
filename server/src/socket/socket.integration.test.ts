@@ -229,11 +229,16 @@ describe('multiplayer socket integration', () => {
 
       const [matchA, matchB] = await Promise.all([foundA, foundB]);
       expect(matchA.startsAt).toBe(matchB.startsAt);
+      expect(matchA.startsInMs).toBeGreaterThanOrEqual(4_500);
+      expect(matchA.startsInMs).toBeLessThanOrEqual(5_000);
       expect(matchA.startsAt - matchedAt).toBeGreaterThanOrEqual(4_500);
       expect(matchA.startsAt - matchedAt).toBeLessThanOrEqual(5_500);
 
       const synced = await emit(a, 'room:sync');
       createdRoomIds.push(synced.room.id);
+      expect(synced.serverNow).toEqual(expect.any(Number));
+      expect(synced.room.matchStartsAt - synced.serverNow).toBeGreaterThanOrEqual(4_000);
+      expect(synced.room.matchStartsAt - synced.serverNow).toBeLessThanOrEqual(5_000);
       expect(synced.room).toMatchObject({
         status: 'waiting',
         round: 0,

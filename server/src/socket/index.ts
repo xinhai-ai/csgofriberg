@@ -1186,6 +1186,7 @@ export function setupSocket(io: Server) {
         room: publicRoom(room, me.key),
         role: room.players.some((p) => p.key === me.key) ? 'player' : 'spectator',
         selfKey: me.key,
+        serverNow: Date.now(),
       });
     });
 
@@ -1703,7 +1704,11 @@ export function setupSocket(io: Server) {
       await restorePromise;
       if (!(await socketAllowed('match', me.key, 10, 60))) return ack?.({ code: 'RATE_LIMITED' });
       const currentRoom = await getRoomForIdentity(me.key);
-      if (currentRoom) return ack?.({ queued: false, room: publicRoom(currentRoom, me.key) });
+      if (currentRoom) return ack?.({
+        queued: false,
+        room: publicRoom(currentRoom, me.key),
+        serverNow: Date.now(),
+      });
       await cancelQueue(me.key);
       const dbType: DbType = payload?.dbType === 'normal' ? 'normal' : 'easy';
       const queuedMe: QueuedIdentity = {
@@ -1773,7 +1778,11 @@ export function setupSocket(io: Server) {
             opponentRoom ? Promise.resolve() : requeueCandidate(dbType, opponent),
           ]);
           if (myRoom) {
-            return ack?.({ queued: false, room: publicRoom(myRoom, me.key) });
+            return ack?.({
+              queued: false,
+              room: publicRoom(myRoom, me.key),
+              serverNow: Date.now(),
+            });
           }
           return ack?.({ queued: true });
         }
@@ -1803,7 +1812,10 @@ export function setupSocket(io: Server) {
       socket.data.roomId = room.id;
       ack?.({ queued: false });
       const startsAt = savedRoom.nextRoundAt ?? Date.now() + MATCH_START_DELAY_MS;
-      emitRoomViews(io, savedRoom, 'match:found', () => ({ startsAt }));
+      emitRoomViews(io, savedRoom, 'match:found', () => ({
+        startsAt,
+        startsInMs: Math.max(0, startsAt - Date.now()),
+      }));
       setLocalTimer(`start:${savedRoom.id}`, Math.max(0, startsAt - Date.now()) + 10, () => {
         return startRound(io, savedRoom.id);
       });
