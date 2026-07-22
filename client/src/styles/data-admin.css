@@ -243,6 +243,11 @@
 }
 .admin-players-card > .muted,
 .admin-players-card > .error { text-align: center; }
+.leaderboard-player-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
 .admin-import-card {
   width: min(1160px, 100%);
   margin-inline: auto;

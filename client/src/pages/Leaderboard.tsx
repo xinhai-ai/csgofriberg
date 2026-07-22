@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { Trophy } from 'lucide-react';
 import Page from '../components/Page';
 import DataTable, { Column } from '../components/DataTable';
+import Badge from '../components/Badge';
 import { api, errMsg } from '../api/client';
 import { toast } from '../components/Toast';
+import { useAuth } from '../store/auth';
 
 interface BoardRow {
   id: number;
@@ -17,6 +19,7 @@ interface BoardRow {
 
 export default function Leaderboard() {
   const [rows, setRows] = useState<BoardRow[]>([]);
+  const currentUserId = useAuth((state) => state.user?.id ?? null);
 
   useEffect(() => {
     api
@@ -27,7 +30,16 @@ export default function Leaderboard() {
 
   const columns: Column<BoardRow>[] = [
     { key: 'rank', title: '#', render: (r) => rows.indexOf(r) + 1 },
-    { key: 'displayId', title: '玩家' },
+    {
+      key: 'displayId',
+      title: '玩家',
+      render: (row) => (
+        <span className="leaderboard-player-label">
+          {row.displayId}
+          {row.id === currentUserId && <Badge text="我" color="green" />}
+        </span>
+      ),
+    },
     { key: 'wins', title: '胜场' },
     { key: 'total', title: '总场次' },
     { key: 'winRate', title: '胜率', render: (r) => `${(r.winRate * 100).toFixed(1)}%` },
