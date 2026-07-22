@@ -248,6 +248,10 @@
   align-items: center;
   gap: 6px;
 }
+.leaderboard-card {
+  width: min(1160px, 100%);
+  margin-inline: auto;
+}
 .leaderboard-card table th,
 .leaderboard-card table td {
   text-align: center;
