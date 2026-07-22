@@ -54,6 +54,60 @@
   .btn-lg { min-height: 44px; padding: 11px 19px; }
   .input, select.input, textarea.input { min-height: 42px; padding: 10px 12px; }
 
+  .leaderboard-card {
+    overflow-x: hidden;
+    padding-inline: 8px;
+  }
+  .leaderboard-card > div { overflow-x: visible; }
+  .leaderboard-card table {
+    width: 100%;
+    min-width: 0;
+    table-layout: fixed;
+    font-size: 0.66rem;
+  }
+  .leaderboard-card table thead { display: table-header-group; }
+  .leaderboard-card table tbody { display: table-row-group; }
+  .leaderboard-card table tr { display: table-row; }
+  .leaderboard-card table th,
+  .leaderboard-card table td,
+  .leaderboard-card table td:first-child {
+    position: static;
+    display: table-cell;
+    padding: 7px 1px;
+    background: var(--card);
+    box-shadow: none;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .leaderboard-card table th {
+    padding-block: 7px;
+    font-size: 0.55rem;
+    line-height: 1.15;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .leaderboard-card table th:nth-child(1) { width: 7%; }
+  .leaderboard-card table th:nth-child(2) { width: 31%; }
+  .leaderboard-card table th:nth-child(3) { width: 11%; }
+  .leaderboard-card table th:nth-child(4) { width: 11%; }
+  .leaderboard-card table th:nth-child(5) { width: 13%; }
+  .leaderboard-card table th:nth-child(6) { width: 14%; }
+  .leaderboard-card table th:nth-child(7) { width: 13%; }
+  .leaderboard-card .leaderboard-player-label {
+    gap: 2px;
+    flex-wrap: nowrap;
+    justify-content: center;
+    width: 100%;
+  }
+  .leaderboard-card .leaderboard-self-marker {
+    min-width: 14px;
+    height: 14px;
+    padding-inline: 2px;
+    font-size: 0.52rem;
+  }
+  .leaderboard-self-summary { flex-wrap: wrap; }
+
   .home-hero { padding: 34px 18px 28px; border-radius: 18px; }
   .home-hero h1 { font-size: 2.35rem; }
   .menu-grid { gap: 12px; padding-block: 18px; }

@@ -248,6 +248,42 @@
   align-items: center;
   gap: 6px;
 }
+.leaderboard-card table th,
+.leaderboard-card table td {
+  text-align: center;
+  vertical-align: middle;
+}
+.leaderboard-card .leaderboard-player-label {
+  justify-content: center;
+  width: 100%;
+}
+.leaderboard-self-marker {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding-inline: 4px;
+  border-radius: var(--radius-sm);
+  background: var(--success);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.leaderboard-self-summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 10px;
+  width: min(1160px, 100%);
+  margin: 0 auto 14px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card-soft);
+  color: var(--text-sec);
+}
+.leaderboard-self-summary strong { color: var(--text); font-size: 1.05rem; }
 .admin-import-card {
   width: min(1160px, 100%);
   margin-inline: auto;

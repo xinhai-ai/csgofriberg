@@ -9,6 +9,8 @@ import { initDb } from '../db/init';
 import { initRedis } from '../redis';
 import { initPlayerCache } from '../services/playerCache';
 import { invalidateCached } from '../services/queryCache';
+import { signToken, userNameFromUsername } from '../middleware/auth';
+import { config } from '../config';
 
 let server: http.Server;
 let baseUrl: string;
@@ -58,9 +60,21 @@ describe('leaderboard', () => {
       const response = await fetch(`${baseUrl}/api/leaderboard`);
       const data = await response.json();
       expect(response.status).toBe(200);
-      expect(data).toHaveLength(50);
-      expect(data.every((row: any) => /^用户#[0-9A-Z]{5}$/.test(row.displayId))).toBe(true);
-      expect(data.every((row: any) => !Object.hasOwn(row, 'username'))).toBe(true);
+      expect(data.items).toHaveLength(50);
+      expect(data.items.every((row: any) => /^用户#[0-9A-Z]{5}$/.test(row.displayId))).toBe(true);
+      expect(data.items.every((row: any) => !Object.hasOwn(row, 'username'))).toBe(true);
+      expect(data.currentUser).toBeNull();
+
+      const token = signToken({ id: userIds[0], token_version: 0 });
+      const ownResponse = await fetch(`${baseUrl}/api/leaderboard`, {
+        headers: { Cookie: `csgofriberg_session=${token}` },
+      });
+      const ownData = await ownResponse.json();
+      expect(ownResponse.status).toBe(200);
+      expect(ownData.currentUser).toEqual({
+        displayId: userNameFromUsername(users[0].username),
+        rank: expect.any(Number),
+      });
     } finally {
       await db('games').whereIn('user_id', userIds).del();
       await db('users').whereIn('id', userIds).del();

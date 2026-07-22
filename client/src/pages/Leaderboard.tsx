@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Trophy } from 'lucide-react';
 import Page from '../components/Page';
 import DataTable, { Column } from '../components/DataTable';
-import Badge from '../components/Badge';
 import { api, errMsg } from '../api/client';
 import { toast } from '../components/Toast';
 import { useAuth } from '../store/auth';
@@ -17,14 +16,23 @@ interface BoardRow {
   multiWins: number;
 }
 
+interface LeaderboardResponse {
+  items: BoardRow[];
+  currentUser: { displayId: string; rank: number | null } | null;
+}
+
 export default function Leaderboard() {
   const [rows, setRows] = useState<BoardRow[]>([]);
+  const [currentUser, setCurrentUser] = useState<LeaderboardResponse['currentUser']>(null);
   const currentUserId = useAuth((state) => state.user?.id ?? null);
 
   useEffect(() => {
     api
-      .get<BoardRow[]>('/leaderboard')
-      .then((res) => setRows(res.data))
+      .get<LeaderboardResponse>('/leaderboard')
+      .then((res) => {
+        setRows(res.data.items);
+        setCurrentUser(res.data.currentUser);
+      })
       .catch((err) => toast.error(errMsg(err)));
   }, []);
 
@@ -36,7 +44,7 @@ export default function Leaderboard() {
       render: (row) => (
         <span className="leaderboard-player-label">
           {row.displayId}
-          {row.id === currentUserId && <Badge text="我" color="green" />}
+          {row.id === currentUserId && <span className="leaderboard-self-marker">我</span>}
         </span>
       ),
     },
@@ -49,7 +57,14 @@ export default function Leaderboard() {
 
   return (
     <Page title="排行榜" icon={<Trophy size={17} />}>
-      <div className="card" style={{ overflowX: 'auto' }}>
+      {currentUser && (
+        <div className="leaderboard-self-summary">
+          <span>我的排名</span>
+          <strong>{currentUser.rank == null ? '暂无排名' : `#${currentUser.rank}`}</strong>
+          <span>{currentUser.displayId}</span>
+        </div>
+      )}
+      <div className="card leaderboard-card">
         <DataTable columns={columns} rows={rows} rowKey={(r) => r.id} empty="还没有玩家上榜" />
       </div>
     </Page>

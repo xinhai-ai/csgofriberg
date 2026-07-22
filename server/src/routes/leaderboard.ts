@@ -4,15 +4,16 @@ import { asyncHandler, HttpError } from '../middleware/common';
 import { cached } from '../services/queryCache';
 import { rateLimit } from '../middleware/rateLimit';
 import { config } from '../config';
-import { userNameFromUsername } from '../middleware/auth';
+import { optionalAuth, userNameFromUsername } from '../middleware/auth';
 
 const router = Router();
+router.use(optionalAuth);
 
 /** 排行榜: 单人胜场/胜率/平均猜测次数 + 多人胜场 */
 router.get(
   '/',
   rateLimit({ name: 'leaderboard', limit: 60, windowSeconds: 60, failClosed: true }),
-  asyncHandler(async (_req, res) => {
+  asyncHandler(async (req, res) => {
     if (!config.showLeaderboard) throw new HttpError(404, 'FEATURE_DISABLED');
     const board = await cached('leaderboard', 30, async () => {
       const rows = await db('games as g')
@@ -48,10 +49,20 @@ router.get(
         multiWins: multiWins.get(r.id) ?? 0,
       }))
       .sort((a, b) => b.wins - a.wins || a.winRate - b.winRate)
-      .slice(0, 50);
     });
 
-    res.json(board);
+    const currentIndex = req.user
+      ? board.findIndex((row) => row.id === req.user!.id)
+      : -1;
+    res.json({
+      items: board.slice(0, 50),
+      currentUser: req.user
+        ? {
+            displayId: userNameFromUsername(req.user.username),
+            rank: currentIndex >= 0 ? currentIndex + 1 : null,
+          }
+        : null,
+    });
   })
 );
 
