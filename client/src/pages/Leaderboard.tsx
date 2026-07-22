@@ -7,7 +7,7 @@ import { toast } from '../components/Toast';
 
 interface BoardRow {
   id: number;
-  username: string;
+  displayId: string;
   total: number;
   wins: number;
   winRate: number;
@@ -27,7 +27,7 @@ export default function Leaderboard() {
 
   const columns: Column<BoardRow>[] = [
     { key: 'rank', title: '#', render: (r) => rows.indexOf(r) + 1 },
-    { key: 'username', title: '玩家' },
+    { key: 'displayId', title: '玩家' },
     { key: 'wins', title: '胜场' },
     { key: 'total', title: '总场次' },
     { key: 'winRate', title: '胜率', render: (r) => `${(r.winRate * 100).toFixed(1)}%` },

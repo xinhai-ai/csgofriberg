@@ -4,6 +4,7 @@ import { asyncHandler, HttpError } from '../middleware/common';
 import { cached } from '../services/queryCache';
 import { rateLimit } from '../middleware/rateLimit';
 import { config } from '../config';
+import { userNameFromUsername } from '../middleware/auth';
 
 const router = Router();
 
@@ -39,7 +40,7 @@ router.get(
     return (rows as any[])
       .map((r) => ({
         id: r.id,
-        username: r.username,
+        displayId: userNameFromUsername(r.username),
         total: Number(r.total),
         wins: Number(r.wins ?? 0),
         winRate: Number(r.total) ? Number(r.wins ?? 0) / Number(r.total) : 0,
