@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { db } from '../db/knex';
 import { asyncHandler, HttpError } from '../middleware/common';
 import { cached } from '../services/queryCache';
@@ -8,53 +9,57 @@ import { optionalAuth, userNameFromUsername } from '../middleware/auth';
 
 const router = Router();
 router.use(optionalAuth);
+const leaderboardQuery = z.object({
+  type: z.enum(['easy', 'normal', 'multi']).default('easy'),
+});
 
-/** 排行榜: 单人胜场/胜率/平均猜测次数 + 多人胜场 */
+/** 排行榜: 简单单人、完整单人和多人分别按胜率、场数排序。 */
 router.get(
   '/',
-  rateLimit({ name: 'leaderboard', limit: 60, windowSeconds: 60, failClosed: true }),
+  rateLimit({ name: 'leaderboard', limit: 20, windowSeconds: 60, failClosed: true }),
   asyncHandler(async (req, res) => {
     if (!config.showLeaderboard) throw new HttpError(404, 'FEATURE_DISABLED');
-    const board = await cached('leaderboard', 30, async () => {
-      const rows = await db('games as g')
-      .join('users as u', 'u.id', 'g.user_id')
-      .whereNot('g.status', 'playing')
-      .groupBy('u.id', 'u.username')
-      .select('u.id', 'u.username')
-      .count({ total: 'g.id' })
-      .sum({ wins: db.raw("case when g.status = 'won' then 1 else 0 end") })
-      .avg({
-        avgGuesses: db.raw("case when g.status = 'won' then g.guess_count else null end"),
-      });
+    const parsed = leaderboardQuery.safeParse(req.query);
+    if (!parsed.success) throw new HttpError(400, 'VALIDATION_FAILED');
+    const type = parsed.data.type;
+    const board = await cached(`leaderboard:${type}`, 30, async () => {
+      const rows = type === 'multi'
+        ? await db('match_players as mp')
+          .join('users as u', 'u.id', 'mp.user_id')
+          .join('match_records as m', 'm.id', 'mp.match_id')
+          .groupBy('u.id', 'u.username')
+          .select('u.id', 'u.username')
+          .count({ total: 'mp.id' })
+          .sum({ wins: db.raw("case when mp.is_winner then 1 else 0 end") })
+        : await db('games as g')
+          .join('users as u', 'u.id', 'g.user_id')
+          .where('g.mode', type)
+          .whereNot('g.status', 'playing')
+          .groupBy('u.id', 'u.username')
+          .select('u.id', 'u.username')
+          .count({ total: 'g.id' })
+          .sum({ wins: db.raw("case when g.status = 'won' then 1 else 0 end") })
+          .avg({
+            avgGuesses: db.raw("case when g.status = 'won' then g.guess_count else null end"),
+          });
 
-    const multiRows = await db('match_players')
-      .where({ is_winner: true })
-      .whereNotNull('user_id')
-      .groupBy('user_id')
-      .select('user_id')
-      .count({ wins: 'id' });
-    const multiWins = new Map<number, number>();
-    for (const r of multiRows as any[]) {
-      multiWins.set(Number(r.user_id), Number(r.wins));
-    }
-
-    return (rows as any[])
-      .map((r) => ({
-        id: r.id,
-        displayId: userNameFromUsername(r.username),
-        total: Number(r.total),
-        wins: Number(r.wins ?? 0),
-        winRate: Number(r.total) ? Number(r.wins ?? 0) / Number(r.total) : 0,
-        avgGuesses: r.avgGuesses != null ? Number(r.avgGuesses) : null,
-        multiWins: multiWins.get(r.id) ?? 0,
-      }))
-      .sort((a, b) => b.wins - a.wins || a.winRate - b.winRate)
+      return (rows as any[])
+        .map((row) => ({
+          id: Number(row.id),
+          displayId: userNameFromUsername(row.username),
+          total: Number(row.total),
+          wins: Number(row.wins ?? 0),
+          winRate: Number(row.total) ? Number(row.wins ?? 0) / Number(row.total) : 0,
+          avgGuesses: type === 'multi' || row.avgGuesses == null ? null : Number(row.avgGuesses),
+        }))
+        .sort((a, b) => b.winRate - a.winRate || b.total - a.total || b.wins - a.wins || a.id - b.id);
     });
 
     const currentIndex = req.user
       ? board.findIndex((row) => row.id === req.user!.id)
       : -1;
     res.json({
+      type,
       items: board.slice(0, 50),
       currentUser: req.user
         ? {

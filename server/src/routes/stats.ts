@@ -8,6 +8,7 @@ import { compareGuess, completeGuessFeedback, MAX_GUESSES } from '../services/ga
 import { getPlayer } from '../services/playerCache';
 import { GuessFeedback, Player } from '../types';
 import { rateLimit, requestIdentity } from '../middleware/rateLimit';
+import { config } from '../config';
 
 const router = Router();
 router.use(optionalAuth);
@@ -71,6 +72,58 @@ function singleAggregate(query: ReturnType<typeof db>) {
     .min({ bestGuesses: db.raw("case when status = 'won' then guess_count else null end") });
 }
 
+function firstGuessPlayerExpression() {
+  if (config.dbClient === 'pg') {
+    return db.raw(
+      `case
+        when jsonb_typeof(??::jsonb -> 0) = 'number'
+          then cast(??::jsonb ->> 0 as integer)
+        when jsonb_typeof(??::jsonb -> 0) = 'object'
+          then cast(??::jsonb -> 0 ->> 'playerId' as integer)
+        else null
+      end`,
+      ['guesses', 'guesses', 'guesses', 'guesses']
+    );
+  }
+  return db.raw(
+    `case
+      when json_type(??, '$[0]') in ('integer', 'real')
+        then cast(json_extract(??, '$[0]') as integer)
+      when json_type(??, '$[0]') = 'object'
+        then cast(json_extract(??, '$[0].playerId') as integer)
+      else null
+    end`,
+    ['guesses', 'guesses', 'guesses', 'guesses']
+  );
+}
+
+async function firstGuessSummary(query: ReturnType<typeof db>) {
+  const expression = firstGuessPlayerExpression();
+  const rows = await query
+    .whereNot('status', 'playing')
+    .where('guess_count', '>', 0)
+    .select({ playerId: expression })
+    .count({ count: 'id' })
+    .groupBy(expression);
+  const counts = (rows as any[])
+    .map((row) => ({ playerId: Number(row.playerId), count: Number(row.count) }))
+    .filter((row) => (
+      Number.isInteger(row.playerId)
+      && row.playerId > 0
+      && row.count > 0
+      && Boolean(getPlayer(row.playerId))
+    ));
+  const total = counts.reduce((sum, row) => sum + row.count, 0);
+  const top = counts
+    .sort((a, b) => b.count - a.count || a.playerId - b.playerId)[0];
+  if (!top || !total) return null;
+  return {
+    playerId: top.playerId,
+    nickname: getPlayer(top.playerId)!.nickname,
+    percentage: top.count / total,
+  };
+}
+
 function answerView(target: Player) {
   return {
     id: target.id,
@@ -88,15 +141,17 @@ function answerView(target: Player) {
 
 async function globalStats() {
   return cached('stats:global', 30, async () => {
-    const [single, multi, users] = await Promise.all([
+    const [single, multi, users, firstGuess] = await Promise.all([
       singleAggregate(db('games')),
       db('match_records').count({ total: 'id' }).first(),
       db('users').count({ total: 'id' }).first(),
+      firstGuessSummary(db('games')),
     ]);
     return {
       ...singleSummary(single),
       multiGames: Number(multi?.total ?? 0),
       registeredUsers: Number(users?.total ?? 0),
+      firstGuess,
     };
   });
 }
@@ -139,14 +194,16 @@ router.get(
     if (!identityKey) throw new HttpError(400, 'GUEST_KEY_REQUIRED');
 
     const personalSinglePromise = singleAggregate(db('games').where(owner));
+    const personalFirstGuessPromise = firstGuessSummary(db('games').where(owner));
     const personalMultiPromise = db('match_players')
       .where({ player_key: identityKey })
       .first()
       .count({ total: 'id' })
       .sum({ wins: db.raw('case when is_winner then 1 else 0 end') });
 
-    const [personalSingle, personalMulti, global] = await Promise.all([
+    const [personalSingle, personalFirstGuess, personalMulti, global] = await Promise.all([
       personalSinglePromise,
+      personalFirstGuessPromise,
       personalMultiPromise,
       globalStats(),
     ]);
@@ -156,6 +213,7 @@ router.get(
         ...singleSummary(personalSingle),
         multiGames: Number(personalMulti?.total ?? 0),
         multiWins: Number(personalMulti?.wins ?? 0),
+        firstGuess: personalFirstGuess,
       },
       global,
     });

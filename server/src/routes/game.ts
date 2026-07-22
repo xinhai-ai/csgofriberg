@@ -75,7 +75,7 @@ async function settleGame(game: SingleGameState, status: 'won' | 'lost'): Promis
     .onConflict('session_id')
     .ignore();
   await deleteSingleGame(game);
-  await invalidateCached('leaderboard', 'stats:global');
+  await invalidateCached('leaderboard:easy', 'leaderboard:normal', 'leaderboard:multi', 'stats:global');
 }
 
 router.post(

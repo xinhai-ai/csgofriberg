@@ -16,6 +16,7 @@ interface SingleStats {
   winRate: number;
   avgGuesses: number | null;
   bestGuesses: number | null;
+  firstGuess: { playerId: number; nickname: string; percentage: number } | null;
 }
 
 interface StatsResponse {
@@ -92,6 +93,10 @@ function formatAverage(value: number | null): string {
   return value == null ? '-' : value.toFixed(2);
 }
 
+function formatFirstGuess(value: SingleStats['firstGuess']): string {
+  return value ? `${value.nickname} ${(value.percentage * 100).toFixed(1)}%` : '-';
+}
+
 function formatMode(mode: string): string {
   return mode === 'easy' ? '简单' : '完整';
 }
@@ -105,7 +110,7 @@ function StatTable({ rows }: { rows: [string, string | number][] }) {
     <table className="table stats-summary-table">
       <tbody>
         {rows.map(([label, value]) => (
-          <tr key={label}><td>{label}</td><td>{value}</td></tr>
+          <tr key={label}><td>{label}</td><td className="stat-value">{value}</td></tr>
         ))}
       </tbody>
     </table>
@@ -360,6 +365,7 @@ export default function Stats() {
                 ['单人胜率', `${(stats.personal.winRate * 100).toFixed(1)}%`],
                 ['平均猜测次数(胜场)', formatAverage(stats.personal.avgGuesses)],
                 ['最快猜中', stats.personal.bestGuesses ?? '-'],
+                ['最多首猜选手', formatFirstGuess(stats.personal.firstGuess)],
                 ['多人对局 / 胜场', `${stats.personal.multiGames} / ${stats.personal.multiWins}`],
               ]} />
             </section>
@@ -371,6 +377,7 @@ export default function Stats() {
                 ['单人胜场', stats.global.wins],
                 ['全站单人胜率', `${(stats.global.winRate * 100).toFixed(1)}%`],
                 ['平均猜测次数(胜场)', formatAverage(stats.global.avgGuesses)],
+                ['最多首猜选手', formatFirstGuess(stats.global.firstGuess)],
                 ['多人对局', stats.global.multiGames],
               ]} />
             </section>

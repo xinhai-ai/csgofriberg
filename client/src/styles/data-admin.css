@@ -9,7 +9,11 @@
   gap: 16px;
 }
 .stats-overview-grid .card { min-width: 0; }
-.stats-summary-table td:last-child {
+.stats-summary-table {
+  width: 100%;
+  table-layout: fixed;
+}
+.stats-summary-table td.stat-value {
   width: 38%;
   font-weight: 600;
   text-align: right;
@@ -288,6 +292,32 @@
   color: var(--text-sec);
 }
 .leaderboard-self-summary strong { color: var(--text); font-size: 1.05rem; }
+.leaderboard-mode-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: min(620px, 100%);
+  margin: 0 auto 14px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card-soft);
+}
+.leaderboard-mode-tabs button {
+  min-width: 0;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: calc(var(--radius-sm) - 1px);
+  background: transparent;
+  color: var(--text-sec);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 650;
+}
+.leaderboard-mode-tabs button.active {
+  background: var(--card);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
 .admin-import-card {
   width: min(1160px, 100%);
   margin-inline: auto;

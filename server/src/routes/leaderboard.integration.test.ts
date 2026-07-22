@@ -54,19 +54,111 @@ describe('leaderboard', () => {
       guess_count: 1,
       finished_at: db.fn.now(),
     })));
-    await invalidateCached('leaderboard');
+    await db('games').insert([
+      {
+        session_id: `leaderboard-${stamp}-easy-extra`,
+        user_id: userIds[0],
+        target_player_id: Number(target.id),
+        mode: 'easy',
+        guesses: '[]',
+        status: 'won',
+        guess_count: 1,
+        finished_at: db.fn.now(),
+      },
+      {
+        session_id: `leaderboard-${stamp}-normal-a-win`,
+        user_id: userIds[0],
+        target_player_id: Number(target.id),
+        mode: 'normal',
+        guesses: '[]',
+        status: 'won',
+        guess_count: 2,
+        finished_at: db.fn.now(),
+      },
+      {
+        session_id: `leaderboard-${stamp}-normal-a-loss`,
+        user_id: userIds[0],
+        target_player_id: Number(target.id),
+        mode: 'normal',
+        guesses: '[]',
+        status: 'lost',
+        guess_count: 8,
+        finished_at: db.fn.now(),
+      },
+      {
+        session_id: `leaderboard-${stamp}-normal-b-win`,
+        user_id: userIds[1],
+        target_player_id: Number(target.id),
+        mode: 'normal',
+        guesses: '[]',
+        status: 'won',
+        guess_count: 3,
+        finished_at: db.fn.now(),
+      },
+    ]);
+    const matchRows = await db('match_records')
+      .insert([0, 1, 2].map((index) => ({
+        room_id: `leaderboard-${stamp}-${index}`,
+        db_type: 'easy',
+        bo_type: 1,
+        replay: '[]',
+      })))
+      .returning('id');
+    const matchIds = matchRows.map((row: any) => Number(typeof row === 'object' ? row.id : row));
+    await db('match_players').insert([
+      { match_id: matchIds[0], user_id: userIds[0], player_key: `u:${userIds[0]}`, player_name: '', score: 1, is_winner: true },
+      { match_id: matchIds[0], player_key: `g:leaderboard-${stamp}-0`, player_name: '', score: 0, is_winner: false },
+      { match_id: matchIds[1], user_id: userIds[0], player_key: `u:${userIds[0]}`, player_name: '', score: 0, is_winner: false },
+      { match_id: matchIds[1], player_key: `g:leaderboard-${stamp}-1`, player_name: '', score: 1, is_winner: true },
+      { match_id: matchIds[2], user_id: userIds[1], player_key: `u:${userIds[1]}`, player_name: '', score: 1, is_winner: true },
+      { match_id: matchIds[2], player_key: `g:leaderboard-${stamp}-2`, player_name: '', score: 0, is_winner: false },
+    ]);
+    await invalidateCached('leaderboard:easy', 'leaderboard:normal', 'leaderboard:multi');
 
     try {
-      const response = await fetch(`${baseUrl}/api/leaderboard`);
+      const response = await fetch(`${baseUrl}/api/leaderboard?type=easy`);
       const data = await response.json();
       expect(response.status).toBe(200);
+      expect(data.type).toBe('easy');
       expect(data.items).toHaveLength(50);
+      expect(data.items[0]).toMatchObject({ id: userIds[0], wins: 2, total: 2, winRate: 1 });
       expect(data.items.every((row: any) => /^用户#[0-9A-Z]{5}$/.test(row.displayId))).toBe(true);
       expect(data.items.every((row: any) => !Object.hasOwn(row, 'username'))).toBe(true);
       expect(data.currentUser).toBeNull();
 
+      const normalResponse = await fetch(`${baseUrl}/api/leaderboard?type=normal`);
+      const normalData = await normalResponse.json();
+      expect(normalResponse.status).toBe(200);
+      expect(normalData.type).toBe('normal');
+      expect(normalData.items[0]).toMatchObject({ id: userIds[1], wins: 1, total: 1, winRate: 1 });
+      expect(normalData.items.find((row: any) => row.id === userIds[0])).toMatchObject({
+        wins: 1,
+        total: 2,
+        winRate: 0.5,
+      });
+
+      const multiResponse = await fetch(`${baseUrl}/api/leaderboard?type=multi`);
+      const multiData = await multiResponse.json();
+      expect(multiResponse.status).toBe(200);
+      expect(multiData.type).toBe('multi');
+      const multiUserRows = multiData.items.filter((row: any) => userIds.includes(row.id));
+      expect(multiUserRows).toHaveLength(2);
+      expect(multiData.items.findIndex((row: any) => row.id === userIds[1]))
+        .toBeLessThan(multiData.items.findIndex((row: any) => row.id === userIds[0]));
+      expect(multiData.items.find((row: any) => row.id === userIds[1])).toMatchObject({
+        wins: 1,
+        total: 1,
+        winRate: 1,
+      });
+      expect(multiData.items.find((row: any) => row.id === userIds[0])).toMatchObject({
+        wins: 1,
+        total: 2,
+        winRate: 0.5,
+        avgGuesses: null,
+      });
+
       const token = signToken({ id: userIds[0], token_version: 0 });
-      const ownResponse = await fetch(`${baseUrl}/api/leaderboard`, {
+      const ownResponse = await fetch(`${baseUrl}/api/leaderboard?type=normal`, {
         headers: { Cookie: `csgofriberg_session=${token}` },
       });
       const ownData = await ownResponse.json();
@@ -75,10 +167,14 @@ describe('leaderboard', () => {
         displayId: userNameFromUsername(users[0].username),
         rank: expect.any(Number),
       });
+
+      const invalidResponse = await fetch(`${baseUrl}/api/leaderboard?type=unknown`);
+      expect(invalidResponse.status).toBe(400);
     } finally {
+      await db('match_records').whereIn('id', matchIds).del();
       await db('games').whereIn('user_id', userIds).del();
       await db('users').whereIn('id', userIds).del();
-      await invalidateCached('leaderboard');
+      await invalidateCached('leaderboard:easy', 'leaderboard:normal', 'leaderboard:multi');
     }
   });
 });

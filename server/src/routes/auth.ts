@@ -154,7 +154,7 @@ router.post(
       .whereNull('user_id')
       .update({ user_id: req.user!.id, guest_key: null });
     clearGuestCookie(res);
-    await invalidateCached('leaderboard');
+    await invalidateCached('leaderboard:easy', 'leaderboard:normal', 'leaderboard:multi');
     res.json({ claimed });
   })
 );

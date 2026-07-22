@@ -115,7 +115,19 @@ describe('stats and replay', () => {
       expect(stats.data.personal.wins).toBe(1);
       expect(stats.data.personal.multiGames).toBe(1);
       expect(stats.data.personal.multiWins).toBe(1);
+      expect(stats.data.personal.firstGuess).toEqual({
+        playerId: target.id,
+        nickname: target.nickname,
+        percentage: 1,
+      });
       expect(stats.data.global.totalGames).toBeGreaterThanOrEqual(1);
+      expect(stats.data.global.firstGuess).toMatchObject({
+        playerId: expect.any(Number),
+        nickname: expect.any(String),
+        percentage: expect.any(Number),
+      });
+      expect(stats.data.global.firstGuess.percentage).toBeGreaterThan(0);
+      expect(stats.data.global.firstGuess.percentage).toBeLessThanOrEqual(1);
       const singleList = await request('/api/stats/replays?type=single&page=1&pageSize=5', guestCookie(ownerKey));
       expect(singleList.response.status).toBe(200);
       expect(singleList.data.items[0]).toMatchObject({ type: 'single', id: gameId });
@@ -154,6 +166,44 @@ describe('stats and replay', () => {
     } finally {
       await db('games').where({ session_id: sessionId }).del();
       await db('match_records').where({ id: matchId }).del();
+      await invalidateCached('stats:global');
+    }
+  });
+
+  it('counts current and legacy first guesses and excludes invalid player ids', async () => {
+    const stamp = Date.now();
+    const ownerKey = `first-guess-owner-${stamp}`;
+    const players = await db('players').select('id').orderBy('id').limit(2);
+    const favorite = getPlayer(Number(players[0].id))!;
+    const other = getPlayer(Number(players[1].id))!;
+    const games = [
+      { suffix: 'current', guesses: [favorite.id] },
+      { suffix: 'legacy', guesses: [{ playerId: favorite.id }] },
+      { suffix: 'other', guesses: [other.id] },
+      { suffix: 'invalid', guesses: [99999999] },
+    ];
+
+    await db('games').insert(games.map((game) => ({
+      session_id: `first-guess-${game.suffix}-${stamp}`,
+      guest_key: ownerKey,
+      target_player_id: favorite.id,
+      mode: 'easy',
+      guesses: JSON.stringify(game.guesses),
+      status: 'won',
+      guess_count: 1,
+      finished_at: db.fn.now(),
+    })));
+
+    try {
+      const stats = await request('/api/stats/me', guestCookie(ownerKey));
+      expect(stats.response.status).toBe(200);
+      expect(stats.data.personal.firstGuess).toEqual({
+        playerId: favorite.id,
+        nickname: favorite.nickname,
+        percentage: 2 / 3,
+      });
+    } finally {
+      await db('games').where({ guest_key: ownerKey }).del();
       await invalidateCached('stats:global');
     }
   });
