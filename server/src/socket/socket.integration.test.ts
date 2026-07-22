@@ -443,7 +443,10 @@ describe('multiplayer socket integration', () => {
 
       const syncedB = await emit(b, 'room:sync');
       expect(syncedB.room.anonymous).toBe(true);
-      expect(syncedB.room.players.map((player: any) => player.name)).toEqual(['玩家 1', '玩家 2']);
+      expect(syncedB.room.players.map((player: any) => player.name)).toEqual([
+        guestNameFromKey(keyA),
+        guestNameFromKey(keyB),
+      ]);
       const opponentView = syncedB.room.players.find((player: any) => player.key === `g:${keyA}`);
       expect(opponentView.guesses[0]).toMatchObject({ hidden: true, correct: false });
       expect(opponentView.guesses[0]).not.toHaveProperty('playerId');
@@ -452,8 +455,8 @@ describe('multiplayer socket integration', () => {
 
       const spectatorSync = await emit(spectator, 'room:sync');
       expect(spectatorSync.room.players.map((player: any) => player.name)).toEqual([
-        '玩家 1',
-        '玩家 2',
+        guestNameFromKey(keyA),
+        guestNameFromKey(keyB),
       ]);
       const spectatorView = spectatorSync.room.players.find(
         (player: any) => player.key === `g:${keyA}`

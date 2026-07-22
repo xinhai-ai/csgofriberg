@@ -10,7 +10,7 @@ import { initDb } from '../db/init';
 import { db } from '../db/knex';
 import { initRedis } from '../redis';
 import { config } from '../config';
-import { optionalAuth } from '../middleware/auth';
+import { optionalAuth, userNameFromUsername } from '../middleware/auth';
 
 let server: http.Server;
 let baseUrl: string;
@@ -70,6 +70,12 @@ describe('cookie authentication', () => {
   afterAll(async () => {
     if (!server) return;
     await new Promise<void>((resolve) => server.close(() => resolve()));
+  });
+
+  it('derives a stable anonymous display ID for authenticated users', () => {
+    expect(userNameFromUsername('alice')).toMatch(/^用户#[0-9A-Z]{5}$/);
+    expect(userNameFromUsername('alice')).toBe(userNameFromUsername('alice'));
+    expect(userNameFromUsername('alice')).not.toBe(userNameFromUsername('bob'));
   });
 
   it('binds guest claims and revokes logout immediately', async () => {

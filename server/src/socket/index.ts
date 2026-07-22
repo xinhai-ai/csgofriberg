@@ -5,6 +5,8 @@ import {
   authenticateCookie,
   getGuestFromCookie,
   hasAuthSessionCookie,
+  guestNameFromKey,
+  userNameFromUsername,
 } from '../middleware/auth';
 import { consumeRateLimit } from '../middleware/rateLimit';
 import { compareGuess, completeGuessFeedback, MAX_GUESSES } from '../services/gameService';
@@ -159,6 +161,20 @@ function connectedSpectatorCount(room: StoredRoom): number {
   return room.spectators.reduce((count, spectator) => count + (spectator.connected ? 1 : 0), 0);
 }
 
+function identityDisplayName(identity: StoredIdentity): string {
+  if (identity.userId !== null) {
+    return /^用户#[0-9A-Z]{5}$/.test(identity.name)
+      ? identity.name
+      : userNameFromUsername(identity.name);
+  }
+  if (identity.key.startsWith('g:')) {
+    return /^访客#[0-9A-Z]{5}$/.test(identity.name)
+      ? identity.name
+      : guestNameFromKey(identity.key.slice(2));
+  }
+  return identity.name;
+}
+
 function buildPublicRoom(room: StoredRoom, viewerKey: string) {
   const viewerIsSpectator = room.spectators.some((spectator) => spectator.key === viewerKey);
   const target = room.targetPlayerId ? getPlayer(room.targetPlayerId) : undefined;
@@ -195,14 +211,14 @@ function buildPublicRoom(room: StoredRoom, viewerKey: string) {
           answer: answerView(room.targetPlayerId),
         }
       : null,
-    players: room.players.map((p, playerIndex) => {
+    players: room.players.map((p) => {
       const guesses = p.guesses.map((feedback) => {
         const guess = getPlayer(feedback.playerId);
         return completeGuessFeedback(feedback, guess, target);
       });
       return {
         key: p.key,
-        name: room.anonymous ? `玩家 ${playerIndex + 1}` : p.name,
+        name: identityDisplayName(p),
         ready: p.ready,
         connected: p.connected,
         score: p.score,
@@ -1046,7 +1062,11 @@ export function setupSocket(io: Server) {
       }
       let identity: StoredIdentity | null = null;
       if (user) {
-        identity = { key: `u:${user.id}`, userId: user.id, name: user.username };
+        identity = {
+          key: `u:${user.id}`,
+          userId: user.id,
+          name: userNameFromUsername(user.username),
+        };
       } else if (guest) {
         identity = {
           key: `g:${guest.key}`,
