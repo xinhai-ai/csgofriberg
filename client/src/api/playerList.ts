@@ -8,13 +8,13 @@ export interface PlayerSuggestion {
 interface CachedPlayerList {
   version: string;
   players: PlayerSuggestion[];
-  fetchedAt: number;
 }
 
 const STORAGE_KEY = 'player-list-v1';
 const REVALIDATE_INTERVAL_MS = 30_000;
 let memory: CachedPlayerList | null = null;
 let loading: Promise<PlayerSuggestion[]> | null = null;
+let validatedAt: number | null = null;
 
 function readStored(): CachedPlayerList | null {
   if (memory) return memory;
@@ -33,17 +33,16 @@ async function refresh(cached: CachedPlayerList | null): Promise<PlayerSuggestio
     validateStatus: (status) => (status >= 200 && status < 300) || status === 304,
   });
   if (response.status === 304 && cached) {
-    const next = { ...cached, fetchedAt: Date.now() };
-    memory = next;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    return next.players;
+    memory = cached;
+    validatedAt = performance.now();
+    return cached.players;
   }
   const next: CachedPlayerList = {
     version: String(response.data.version),
     players: response.data.players,
-    fetchedAt: Date.now(),
   };
   memory = next;
+  validatedAt = performance.now();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   return next.players;
 }
@@ -51,7 +50,7 @@ async function refresh(cached: CachedPlayerList | null): Promise<PlayerSuggestio
 export async function getPlayerList(): Promise<PlayerSuggestion[]> {
   const cached = readStored();
   if (cached) {
-    if (Date.now() - cached.fetchedAt > REVALIDATE_INTERVAL_MS) {
+    if (validatedAt === null || performance.now() - validatedAt > REVALIDATE_INTERVAL_MS) {
       loading ??= refresh(cached).finally(() => { loading = null; });
       try {
         return await loading;
@@ -67,6 +66,7 @@ export async function getPlayerList(): Promise<PlayerSuggestion[]> {
 
 export function clearPlayerListCache(): void {
   memory = null;
+  validatedAt = null;
   localStorage.removeItem(STORAGE_KEY);
 }
 

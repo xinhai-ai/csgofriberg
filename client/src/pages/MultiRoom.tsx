@@ -48,6 +48,26 @@ interface MatchOver {
 }
 
 const MULTI_GUESS_INTERVAL_MS = 3_000;
+const ROUND_TIME_MS = 120_000;
+const NEXT_ROUND_DELAY_MS = 6_000;
+
+interface ServerClockAnchor {
+  serverNow: number;
+  clientNow: number;
+}
+
+function createClockAnchor(value: unknown): ServerClockAnchor | null {
+  const serverNow = Number(value);
+  return Number.isFinite(serverNow) && serverNow > 0
+    ? { serverNow, clientNow: performance.now() }
+    : null;
+}
+
+function localDeadline(timestamp: unknown, anchor: ServerClockAnchor | null): number | null {
+  const serverDeadline = Number(timestamp);
+  if (!anchor || !Number.isFinite(serverDeadline) || serverDeadline <= 0) return null;
+  return anchor.clientNow + (serverDeadline - anchor.serverNow);
+}
 
 function applyRoomPatchState(current: RoomState, patch: RoomPatch): RoomState {
   const removedPlayers = new Set(patch.players?.removed ?? []);
@@ -164,18 +184,18 @@ function PlayerStatsDialog({ view, onClose }: { view: PlayerStatsView; onClose: 
   );
 }
 
-/** 每局倒计时,从服务端下发的截止时间戳换算 */
-function Countdown({ endsAt, onExpire }: { endsAt: number | null; onExpire?: () => void }) {
+/** 使用浏览器单调时钟显示服务端校准后的截止时间。 */
+function Countdown({ deadline, onExpire }: { deadline: number | null; onExpire?: () => void }) {
   const [left, setLeft] = useState(0);
   const expired = useRef(false);
   useEffect(() => {
     expired.current = false;
-    if (!endsAt) {
+    if (!deadline) {
       setLeft(0);
       return;
     }
     const tick = () => {
-      const next = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
+      const next = Math.max(0, Math.ceil((deadline - performance.now()) / 1000));
       setLeft(next);
       if (next === 0 && !expired.current) {
         expired.current = true;
@@ -185,8 +205,8 @@ function Countdown({ endsAt, onExpire }: { endsAt: number | null; onExpire?: () 
     tick();
     const t = setInterval(tick, 500);
     return () => clearInterval(t);
-  }, [endsAt, onExpire]);
-  if (!endsAt) return null;
+  }, [deadline, onExpire]);
+  if (!deadline) return null;
   const m = Math.floor(left / 60);
   const s = left % 60;
   return (
@@ -251,7 +271,9 @@ export default function MultiRoom() {
   const [rematchNotice, setRematchNotice] = useState('');
   const [inputFocused, setInputFocused] = useState(false);
   const [guessCooldownUntil, setGuessCooldownUntil] = useState(0);
-  const [cooldownClock, setCooldownClock] = useState(() => Date.now());
+  const [cooldownClock, setCooldownClock] = useState(() => performance.now());
+  const [roundDeadline, setRoundDeadline] = useState<number | null>(null);
+  const [nextRoundDeadline, setNextRoundDeadline] = useState<number | null>(null);
   const [statsLoadingKey, setStatsLoadingKey] = useState('');
   const [playerStats, setPlayerStats] = useState<PlayerStatsView | null>(null);
   const navigate = useNavigate();
@@ -259,14 +281,32 @@ export default function MultiRoom() {
   const roomRef = useRef<RoomState | null>(null);
   const myKeyRef = useRef('');
   const syncSequenceRef = useRef(0);
+  const clockAnchorRef = useRef<ServerClockAnchor | null>(null);
   const ownBoardRef = useRef<HTMLDivElement>(null);
   roomRef.current = room;
   myKeyRef.current = myKey;
 
-  const applyRoomSnapshot = useCallback((state: RoomState, authoritative = false) => {
+  const applyRoomSnapshot = useCallback((
+    state: RoomState,
+    authoritative = false,
+    serverNow?: unknown,
+    fallbackDurationMs?: number
+  ) => {
     const current = roomRef.current;
     if (!authoritative && (!current || state.id !== current.id)) return;
     if (current && state.id === current.id && state.stateVersion < current.stateVersion) return;
+    const receivedAnchor = createClockAnchor(serverNow);
+    if (receivedAnchor) clockAnchorRef.current = receivedAnchor;
+    const anchor = receivedAnchor ?? clockAnchorRef.current;
+    const fallbackDeadline = fallbackDurationMs
+      ? performance.now() + fallbackDurationMs
+      : null;
+    setRoundDeadline(state.status === 'playing'
+      ? localDeadline(state.roundEndsAt, anchor) ?? fallbackDeadline
+      : null);
+    setNextRoundDeadline(state.status === 'round_over'
+      ? localDeadline(state.roundResult?.nextRoundAt, anchor) ?? fallbackDeadline
+      : null);
     roomRef.current = state;
     setRoom(state);
     setRoundExpired(state.status !== 'playing');
@@ -280,7 +320,7 @@ export default function MultiRoom() {
     socket.emit('room:sync', {}, (res: any) => {
       if (sequence !== syncSequenceRef.current) return;
       if (res?.selfKey) setMyKey(res.selfKey);
-      if (res?.room) applyRoomSnapshot(res.room, true);
+      if (res?.room) applyRoomSnapshot(res.room, true, res.serverNow);
     });
   }, [applyRoomSnapshot]);
 
@@ -300,25 +340,25 @@ export default function MultiRoom() {
         return next;
       });
     };
-    const onRoundStart = (p: { room: RoomState }) => {
+    const onRoundStart = (p: { room: RoomState; serverNow?: number }) => {
       setGuessCooldownUntil(0);
       setRoundOver(null);
       setOfflineNote('');
       setRematchNotice('');
       setRoundExpired(false);
-      applyRoomSnapshot(p.room);
+      applyRoomSnapshot(p.room, false, p.serverNow, ROUND_TIME_MS);
     };
-    const onRoundOver = (p: { room: RoomState }) => {
+    const onRoundOver = (p: { room: RoomState; serverNow?: number }) => {
       setGuessCooldownUntil(0);
       setRoundExpired(true);
-      applyRoomSnapshot(p.room);
+      applyRoomSnapshot(p.room, false, p.serverNow, NEXT_ROUND_DELAY_MS);
     };
-    const onMatchOver = (p: { room: RoomState }) => {
+    const onMatchOver = (p: { room: RoomState; serverNow?: number }) => {
       setGuessCooldownUntil(0);
       setRoundExpired(true);
       setRoundOver(null);
       setRematchNotice('');
-      applyRoomSnapshot(p.room);
+      applyRoomSnapshot(p.room, false, p.serverNow);
     };
     const onRematchUpdate = (p: {
       roomId: string;
@@ -459,7 +499,7 @@ export default function MultiRoom() {
     socket.emit('room:sync', {}, (res: any) => {
       if (initialSequence !== syncSequenceRef.current) return;
       if (res?.selfKey) setMyKey(res.selfKey);
-      if (res?.room) applyRoomSnapshot(res.room, true);
+      if (res?.room) applyRoomSnapshot(res.room, true, res.serverNow);
       else if (!roomRef.current) {
         const code = res?.code === 'NOT_IN_ROOM' ? 'ROOM_NOT_FOUND' : res?.code ?? 'ROOM_NOT_FOUND';
         toast.error(translate(code));
@@ -486,7 +526,7 @@ export default function MultiRoom() {
   useEffect(() => {
     if (!guessCooldownUntil) return;
     const tick = () => {
-      const now = Date.now();
+      const now = performance.now();
       setCooldownClock(now);
       if (now >= guessCooldownUntil) setGuessCooldownUntil(0);
     };
@@ -505,9 +545,9 @@ export default function MultiRoom() {
   const submitGuess = (playerId: number): Promise<boolean> => new Promise((resolve) => {
     const current = roomRef.current;
     if (!current || current.status !== 'playing' || roundExpired) return resolve(false);
-    const remaining = guessCooldownUntil - Date.now();
+    const remaining = guessCooldownUntil - performance.now();
     if (remaining > 0) {
-      setCooldownClock(Date.now());
+      setCooldownClock(performance.now());
       return resolve(false);
     }
     const socket = getSocket();
@@ -532,7 +572,7 @@ export default function MultiRoom() {
       window.clearTimeout(timer);
       if (res?.room) applyRoomSnapshot(res.room);
       if (res?.code === 'GUESS_COOLDOWN') {
-        setGuessCooldownUntil(Date.now() + Math.max(0, Number(res.retryAfterMs) || 0));
+        setGuessCooldownUntil(performance.now() + Math.max(0, Number(res.retryAfterMs) || 0));
         finish(false);
         return;
       }
@@ -551,7 +591,7 @@ export default function MultiRoom() {
         finish(false);
         return;
       }
-      setGuessCooldownUntil(Date.now() + Math.max(
+      setGuessCooldownUntil(performance.now() + Math.max(
         MULTI_GUESS_INTERVAL_MS,
         Number(res?.cooldownMs) || 0
       ));
@@ -654,7 +694,7 @@ export default function MultiRoom() {
   );
   const guessCooldownRemaining = Math.max(
     0,
-    guessCooldownUntil - Math.max(cooldownClock, Date.now())
+    guessCooldownUntil - Math.max(cooldownClock, performance.now())
   );
 
   const viewPlayerStats = (player: RoomPlayer) => {
@@ -781,7 +821,7 @@ export default function MultiRoom() {
           {room.status === 'waiting'
             ? `等待开始 · ${room.dbType === 'normal' ? '完整版' : '简单版'}数据库 · ${room.winsNeeded} 胜制`
             : `第 ${room.round} 局 · 先胜 ${room.winsNeeded} 局`}
-          {playing && <Countdown endsAt={room.roundEndsAt} onExpire={() => setRoundExpired(true)} />}
+          {playing && <Countdown deadline={roundDeadline} onExpire={() => setRoundExpired(true)} />}
           {isSpectator && (
             <span className="badge">
               <Eye size={12} />
@@ -924,8 +964,8 @@ export default function MultiRoom() {
           extra={
             <p className="muted">
               {ROUND_OVER_REASON[roundOver.reason] ?? ''} · 下一局{' '}
-              {roundOver.nextRoundAt
-                ? <><Countdown endsAt={roundOver.nextRoundAt} /> 后</>
+              {nextRoundDeadline
+                ? <><Countdown deadline={nextRoundDeadline} /> 后</>
                 : '即将'}自动开始
             </p>
           }

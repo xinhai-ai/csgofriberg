@@ -30,7 +30,7 @@ function localMatchDeadline(input: {
 }): number | null {
   const startsInMs = Number(input.startsInMs);
   if (Number.isFinite(startsInMs) && startsInMs >= 0) {
-    return Date.now() + startsInMs;
+    return performance.now() + startsInMs;
   }
 
   const startsAt = Number(input.startsAt);
@@ -40,7 +40,7 @@ function localMatchDeadline(input: {
     Number.isFinite(serverNow) &&
     startsAt > serverNow
   ) {
-    return Date.now() + (startsAt - serverNow);
+    return performance.now() + (startsAt - serverNow);
   }
 
   return null;
@@ -126,7 +126,7 @@ export default function MultiLobby() {
       return;
     }
     const tick = () => {
-      const left = Math.max(0, Math.ceil((matchDeadline - Date.now()) / 1000));
+      const left = Math.max(0, Math.ceil((matchDeadline - performance.now()) / 1000));
       setMatchCountdown(left);
       if (left <= 0) {
         setMatchDeadline(null);

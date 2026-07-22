@@ -40,7 +40,7 @@ function scheduleDismiss(id: number, duration: number): void {
 function show(message: string, tone: ToastTone, duration = tone === 'error' ? 5_000 : 3_500): number {
   const normalized = message.trim();
   if (!normalized) return 0;
-  const now = Date.now();
+  const now = performance.now();
   const duplicate = items.find(
     (item) => item.tone === tone && item.message === normalized && now - item.createdAt < 1_500
   );

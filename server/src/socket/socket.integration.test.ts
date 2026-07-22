@@ -247,6 +247,7 @@ describe('multiplayer socket integration', () => {
 
       const [startedA, startedB] = await Promise.all([roundA, roundB]);
       expect(Date.now() - matchedAt).toBeGreaterThanOrEqual(4_500);
+      expect(startedA.serverNow).toEqual(expect.any(Number));
       expect(startedA.room).toMatchObject({ status: 'playing', round: 1, matchStartsAt: null });
       expect(startedB.room.id).toBe(startedA.room.id);
 
@@ -509,7 +510,8 @@ describe('multiplayer socket integration', () => {
       expect(guessAck.eventId).toBeUndefined();
       expect(guessAck.feedback).toBeUndefined();
       expect(guessAck.room).toBeUndefined();
-      expect(Object.keys(matchOver)).toEqual(['room']);
+      expect(Object.keys(matchOver).sort()).toEqual(['room', 'serverNow']);
+      expect(matchOver.serverNow).toEqual(expect.any(Number));
       expect(matchOver.room.matchResult).toMatchObject({ reason: 'score' });
       expect(appliedEvents).toBe(0);
       expect(roundOverEvents).toBe(0);
@@ -1084,7 +1086,8 @@ describe('multiplayer socket integration', () => {
       const roundOver = await roundOverPromise;
       expect(results.filter((result) => result.ok)).toHaveLength(1);
       expect(results.some((result) => result.code === 'NO_ACTIVE_ROUND')).toBe(true);
-      expect(Object.keys(roundOver)).toEqual(['room']);
+      expect(Object.keys(roundOver).sort()).toEqual(['room', 'serverNow']);
+      expect(roundOver.serverNow).toEqual(expect.any(Number));
       expect(matchOverEvents).toBe(0);
 
       const synced = await emit(b, 'room:sync');

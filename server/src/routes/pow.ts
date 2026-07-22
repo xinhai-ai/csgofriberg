@@ -24,7 +24,11 @@ router.post(
     res.setHeader('Cache-Control', 'no-store');
     const current = getRequestPow(req);
     if (current && current.expiresAt > Date.now() + 30_000) {
-      return res.json({ valid: true, expiresAt: current.expiresAt });
+      return res.json({
+        valid: true,
+        expiresAt: current.expiresAt,
+        expiresInMs: Math.max(0, current.expiresAt - Date.now()),
+      });
     }
     res.json(await createChallenge(req.headers['user-agent']));
   })
@@ -42,7 +46,12 @@ router.post(
         req.headers['user-agent']
       );
       res.setHeader('Cache-Control', 'no-store');
-      res.json({ ok: true, ...signPowCookie(res, req.headers['user-agent'], difficulty) });
+      const access = signPowCookie(res, req.headers['user-agent'], difficulty);
+      res.json({
+        ok: true,
+        ...access,
+        expiresInMs: Math.max(0, access.expiresAt - Date.now()),
+      });
     } catch (err) {
       if (err instanceof PowVerificationError) {
         return res.status(400).json({ code: err.code });

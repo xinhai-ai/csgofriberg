@@ -473,6 +473,7 @@ async function finishMatch(
   if ('stale' in result) return 'stale';
   emitRoomViews(io, result.room, 'match:over', (viewerKey) => ({
     room: publicRoom(result.room, viewerKey),
+    serverNow: Date.now(),
   }));
   void persistMatch(result.room, winnerKey, actor?.key ?? null)
     .catch((err) => console.error('[match:persist]', err));
@@ -521,6 +522,7 @@ async function startRound(io: Server, roomId: string) {
   const room = result.room;
   emitRoomViews(io, room, 'round:start', (viewerKey) => ({
     room: publicRoom(room, viewerKey),
+    serverNow: Date.now(),
   }));
   setLocalTimer(`round:${roomId}`, ROUND_TIME_MS, () => {
     return finishRound(io, roomId, null, 'timeout', room.round);
@@ -562,6 +564,7 @@ async function finishRound(
   if (matchOver) {
     emitRoomViews(io, room, 'match:over', (viewerKey) => ({
       room: publicRoom(room, viewerKey),
+      serverNow: Date.now(),
     }));
     void persistMatch(room, winnerKey).catch((err) => console.error('[match:persist]', err));
     setLocalTimer(`cleanup:${roomId}`, FINISHED_ROOM_TTL_MS, () => {
@@ -571,6 +574,7 @@ async function finishRound(
   }
   emitRoomViews(io, room, 'round:over', (viewerKey) => ({
     room: publicRoom(room, viewerKey),
+    serverNow: Date.now(),
   }));
   setLocalTimer(`next:${roomId}`, NEXT_ROUND_DELAY_MS, () => startRound(io, roomId));
 }
@@ -617,6 +621,7 @@ async function surrenderRound(
   if (result.matchOver) {
     emitRoomViews(io, result.room, 'match:over', (viewerKey) => ({
       room: publicRoom(result.room, viewerKey),
+      serverNow: Date.now(),
     }));
     void persistMatch(result.room, winnerKey).catch((err) => console.error('[match:persist]', err));
     setLocalTimer(`cleanup:${roomId}`, FINISHED_ROOM_TTL_MS, () => {
@@ -625,6 +630,7 @@ async function surrenderRound(
   } else {
     emitRoomViews(io, result.room, 'round:over', (viewerKey) => ({
       room: publicRoom(result.room, viewerKey),
+      serverNow: Date.now(),
     }));
     setLocalTimer(`next:${roomId}`, NEXT_ROUND_DELAY_MS, () => startRound(io, roomId));
   }
@@ -709,6 +715,7 @@ async function processDisconnectedPlayer(
 
   emitRoomViews(io, result.room, 'match:over', (viewerKey) => ({
     room: publicRoom(result.room, viewerKey),
+    serverNow: Date.now(),
   }));
   void persistMatch(result.room, result.winnerKey, result.forfeitedKey)
     .catch((err) => console.error('[match:persist]', err));
@@ -1580,6 +1587,7 @@ export function setupSocket(io: Server) {
         if (result.matchOver) {
           emitRoomViews(io, finishedRoom, 'match:over', (viewerKey) => ({
             room: publicRoom(finishedRoom, viewerKey),
+            serverNow: Date.now(),
           }));
           void persistMatch(finishedRoom, winnerKey).catch((err) => console.error('[match:persist]', err));
           setLocalTimer(`cleanup:${roomId}`, FINISHED_ROOM_TTL_MS, () => {
@@ -1588,6 +1596,7 @@ export function setupSocket(io: Server) {
         } else {
           emitRoomViews(io, finishedRoom, 'round:over', (viewerKey) => ({
             room: publicRoom(finishedRoom, viewerKey),
+            serverNow: Date.now(),
           }));
           setLocalTimer(`next:${roomId}`, NEXT_ROUND_DELAY_MS, () => startRound(io, roomId));
         }

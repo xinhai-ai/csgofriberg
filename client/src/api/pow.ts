@@ -1,44 +1,44 @@
 import axios from 'axios';
 
 const powApi = axios.create({ baseURL: '/api/pow', withCredentials: true });
-const EXPIRY_STORAGE_KEY = 'csgofriberg_pow_expires_at';
+const LEGACY_EXPIRY_STORAGE_KEY = 'csgofriberg_pow_expires_at';
+const LEGACY_VALIDITY_MS = 30_000;
 
 interface ChallengeResponse {
   valid?: boolean;
   expiresAt?: number;
+  expiresInMs?: number;
   id?: string;
   challenge?: string;
   difficulty?: number;
   algorithm?: string;
 }
 
-function readStoredExpiry(): number {
-  try {
-    const value = Number(localStorage.getItem(EXPIRY_STORAGE_KEY));
-    return Number.isFinite(value) && value > 0 ? value : 0;
-  } catch {
-    return 0;
-  }
-}
-
-function persistExpiry(value: number): void {
-  expiresAt = value;
-  try {
-    if (value > 0) localStorage.setItem(EXPIRY_STORAGE_KEY, String(value));
-    else localStorage.removeItem(EXPIRY_STORAGE_KEY);
-  } catch {
-    /* Storage may be unavailable in strict privacy modes. */
-  }
-}
-
-let expiresAt = readStoredExpiry();
+let validUntil = 0;
 let activeRequest: Promise<void> | null = null;
 let refreshTimer: number | null = null;
 
+function noteValidity(expiresInMs: unknown, legacyExpiresAt?: unknown): boolean {
+  const duration = Number(expiresInMs);
+  const legacyExpiry = Number(legacyExpiresAt);
+  const validityMs = Number.isFinite(duration) && duration > 0
+    ? duration
+    : Number.isFinite(legacyExpiry) && legacyExpiry > 0
+      ? LEGACY_VALIDITY_MS
+      : 0;
+  if (validityMs <= 0) return false;
+  validUntil = performance.now() + validityMs;
+  return true;
+}
+
 function scheduleRefresh(): void {
-  if (refreshTimer !== null) window.clearTimeout(refreshTimer);
-  if (expiresAt <= Date.now()) return;
-  const delay = Math.max(1_000, expiresAt - Date.now());
+  if (refreshTimer !== null) {
+    window.clearTimeout(refreshTimer);
+    refreshTimer = null;
+  }
+  const remaining = validUntil - performance.now();
+  if (remaining <= 0) return;
+  const delay = Math.max(1_000, remaining);
   refreshTimer = window.setTimeout(() => {
     refreshTimer = null;
     void ensurePow(true).catch(() => undefined);
@@ -68,7 +68,7 @@ async function refreshPow(): Promise<void> {
   });
   const data = challengeResponse.data;
   if (data.valid && data.expiresAt) {
-    persistExpiry(data.expiresAt);
+    noteValidity(data.expiresInMs, data.expiresAt);
     scheduleRefresh();
     return;
   }
@@ -80,24 +80,24 @@ async function refreshPow(): Promise<void> {
   ) throw new Error('POW_CHALLENGE_INVALID');
 
   const nonce = await solveChallenge(data.challenge, data.difficulty);
-  const verifyResponse = await powApi.post<{ expiresAt: number }>('/verify', {
+  const verifyResponse = await powApi.post<{ expiresAt: number; expiresInMs?: number }>('/verify', {
     id: data.id,
     nonce,
   });
-  persistExpiry(verifyResponse.data.expiresAt);
+  noteValidity(verifyResponse.data.expiresInMs, verifyResponse.data.expiresAt);
   scheduleRefresh();
 }
 
 export function ensurePow(force = false): Promise<void> {
   if (activeRequest) return activeRequest;
-  if (!force && expiresAt > Date.now()) {
+  if (!force && validUntil > performance.now()) {
     scheduleRefresh();
     return Promise.resolve();
   }
-  if (force) persistExpiry(0);
+  if (force) validUntil = 0;
   activeRequest = refreshPow()
     .catch((error) => {
-      persistExpiry(0);
+      validUntil = 0;
       throw error;
     })
     .finally(() => {
@@ -106,12 +106,12 @@ export function ensurePow(force = false): Promise<void> {
   return activeRequest;
 }
 
-export function notePowExpiry(value: unknown): void {
-  const parsed = Number(value);
-  if (Number.isFinite(parsed) && parsed > expiresAt) {
-    persistExpiry(parsed);
-    scheduleRefresh();
-  }
+export function notePowExpiry(expiresAt: unknown, expiresInMs?: unknown): void {
+  if (noteValidity(expiresInMs, expiresAt)) scheduleRefresh();
 }
 
-scheduleRefresh();
+try {
+  localStorage.removeItem(LEGACY_EXPIRY_STORAGE_KEY);
+} catch {
+  /* Storage may be unavailable in strict privacy modes. */
+}

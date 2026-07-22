@@ -82,6 +82,8 @@ describe('proof of work gateway', () => {
     const verified = await request('/api/pow/verify', { method: 'POST', body });
     expect(verified.response.status).toBe(200);
     expect(verified.data.expiresAt).toBeGreaterThan(Date.now());
+    expect(verified.data.expiresInMs).toBeGreaterThan(0);
+    expect(verified.data.expiresInMs).toBeLessThanOrEqual(verified.data.expiresAt - Date.now() + 1_000);
     const powCookie = setCookies(verified.response)
       .map((value) => value.split(';')[0])
       .find((value) => value.startsWith(`${POW_COOKIE}=`));
@@ -99,6 +101,7 @@ describe('proof of work gateway', () => {
       headers: { Cookie: powCookie! },
     });
     expect(session.response.status).toBe(200);
+    expect(Number(session.response.headers.get('x-pow-expires-in'))).toBeGreaterThan(0);
     expect(setCookies(session.response).join(';')).toContain('csgofriberg_guest=');
   });
 

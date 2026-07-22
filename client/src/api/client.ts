@@ -14,7 +14,10 @@ api.interceptors.request.use(async (request) => {
 
 api.interceptors.response.use(
   (response) => {
-    notePowExpiry(response.headers['x-pow-expires-at']);
+    notePowExpiry(
+      response.headers['x-pow-expires-at'],
+      response.headers['x-pow-expires-in']
+    );
     return response;
   },
   async (error) => {
