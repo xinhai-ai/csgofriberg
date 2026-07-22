@@ -68,6 +68,23 @@ export interface RoomPlayer {
   guesses: MultiplayerGuessFeedback[];
 }
 
+export interface PlayerPerformanceStats {
+  single: {
+    games: number;
+    wins: number;
+    losses: number;
+    winRate: number;
+    avgGuesses: number | null;
+    bestGuesses: number | null;
+  };
+  multi: {
+    games: number;
+    wins: number;
+    losses: number;
+    winRate: number;
+  };
+}
+
 export interface RoomState {
   id: string;
   hostKey: string;
@@ -84,11 +101,13 @@ export interface RoomState {
   winsNeeded: number;
   maxGuesses: number;
   roundEndsAt: number | null;
+  matchStartsAt: number | null;
   spectatorCount: number;
   players: RoomPlayer[];
   roundResult: {
     winnerKey: string | null;
     reason: string;
+    nextRoundAt: number | null;
     answer: {
       nickname: string;
       team: string;

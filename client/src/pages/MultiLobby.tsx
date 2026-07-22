@@ -18,6 +18,7 @@ import { translate } from '../i18n/messages';
 import { RoomState } from '../types';
 import { useConfirm } from '../components/ConfirmDialog';
 import { toast } from '../components/Toast';
+import ModalPortal from '../components/ModalPortal';
 
 type DbType = 'easy' | 'normal';
 const BO_OPTIONS = [1, 3, 5, 7];
@@ -51,6 +52,29 @@ function OptionGroup<T extends string | number>({
   );
 }
 
+function MatchFoundDialog({ countdown }: { countdown: number }) {
+  useEffect(() => {
+    const oldOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = oldOverflow;
+    };
+  }, []);
+
+  return (
+    <ModalPortal>
+      <div className="overlay" role="presentation">
+        <div className="overlay-card match-found-dialog" role="dialog" aria-modal="true" aria-labelledby="match-found-title">
+          <Check size={34} color="var(--success)" aria-hidden="true" />
+          <h2 id="match-found-title">已找到对手</h2>
+          <p className="match-found-countdown" aria-live="polite">{countdown}</p>
+          <p className="muted">秒后进入比赛</p>
+        </div>
+      </div>
+    </ModalPortal>
+  );
+}
+
 export default function MultiLobby() {
   const [dbType, setDbType] = useState<DbType>('normal');
   const [boType, setBoType] = useState(3);
@@ -64,6 +88,8 @@ export default function MultiLobby() {
   const [currentRole, setCurrentRole] = useState<'player' | 'spectator'>('player');
   const [copied, setCopied] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [matchStartsAt, setMatchStartsAt] = useState<number | null>(null);
+  const [matchCountdown, setMatchCountdown] = useState(0);
   const navigate = useNavigate();
   const confirm = useConfirm();
   const searchingRef = useRef(false);
@@ -72,10 +98,34 @@ export default function MultiLobby() {
   matchOptionsRef.current = { dbType: mmDbType, anonymous: mmAnonymous };
 
   useEffect(() => {
+    if (!matchStartsAt) {
+      setMatchCountdown(0);
+      return;
+    }
+    const tick = () => {
+      const left = Math.max(0, Math.ceil((matchStartsAt - Date.now()) / 1000));
+      setMatchCountdown(left);
+      if (left <= 0) {
+        setMatchStartsAt(null);
+        navigate('/multi/room');
+      }
+    };
+    tick();
+    const timer = window.setInterval(tick, 200);
+    return () => window.clearInterval(timer);
+  }, [matchStartsAt, navigate]);
+
+  useEffect(() => {
     const socket = getSocket();
-    const onMatchFound = () => {
+    const onMatchFound = (payload: { startsAt?: number } = {}) => {
       searchingRef.current = false;
-      navigate('/multi/room');
+      setSearching(false);
+      const startsAt = Number(payload.startsAt);
+      if (Number.isFinite(startsAt) && startsAt > Date.now()) {
+        setMatchStartsAt(startsAt);
+      } else {
+        navigate('/multi/room');
+      }
     };
     const restoreSearch = () => {
       if (!searchingRef.current) return;
@@ -83,7 +133,12 @@ export default function MultiLobby() {
         if (res?.room) {
           searchingRef.current = false;
           setSearching(false);
-          navigate('/multi/room');
+          const startsAt = Number(res.room.matchStartsAt);
+          if (Number.isFinite(startsAt) && startsAt > Date.now()) {
+            setMatchStartsAt(startsAt);
+          } else {
+            navigate('/multi/room');
+          }
           return;
         }
         if (!res?.code) return;
@@ -97,6 +152,18 @@ export default function MultiLobby() {
     // 查询自己是否还挂在某个房间里(断线重进/误退出场景)
     socket.emit('room:sync', {}, (res: any) => {
       if (res?.room) {
+        if (res.room.status === 'finished') {
+          socket.emit('room:leave', {}, (leaveRes: any) => {
+            if (leaveRes?.code) toast.error(translate(leaveRes.code));
+            else setCurrentRoom(null);
+          });
+          return;
+        }
+        const startsAt = Number(res.room.matchStartsAt);
+        if (Number.isFinite(startsAt) && startsAt > Date.now()) {
+          setMatchStartsAt(startsAt);
+          return;
+        }
         setCurrentRoom(res.room);
         setCurrentRole(res.role ?? 'player');
       }
@@ -221,7 +288,12 @@ export default function MultiLobby() {
       if (res?.room) {
         setSearching(false);
         searchingRef.current = false;
-        navigate('/multi/room');
+        const startsAt = Number(res.room.matchStartsAt);
+        if (Number.isFinite(startsAt) && startsAt > Date.now()) {
+          setMatchStartsAt(startsAt);
+        } else {
+          navigate('/multi/room');
+        }
         return;
       }
       if (res?.code) {
@@ -419,6 +491,7 @@ export default function MultiLobby() {
           </div>
         </div>
       )}
+      {matchStartsAt && <MatchFoundDialog countdown={matchCountdown} />}
     </Page>
   );
 }

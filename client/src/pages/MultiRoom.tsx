@@ -15,6 +15,7 @@ import {
   Flag,
   RotateCcw,
   X,
+  CircleAlert,
 } from 'lucide-react';
 import Page from '../components/Page';
 import GuessBoard from '../components/GuessBoard';
@@ -22,13 +23,21 @@ import GuessInputBar from '../components/GuessInputBar';
 import AnswerOverlay, { AnswerInfo } from '../components/AnswerOverlay';
 import { getSocket } from '../api/socket';
 import { translate } from '../i18n/messages';
-import { MultiplayerGuessFeedback, RoomPatch, RoomState, RoomPlayer } from '../types';
+import {
+  MultiplayerGuessFeedback,
+  PlayerPerformanceStats,
+  RoomPatch,
+  RoomState,
+  RoomPlayer,
+} from '../types';
 import { useConfirm } from '../components/ConfirmDialog';
 import { toast } from '../components/Toast';
+import ModalPortal from '../components/ModalPortal';
 
 interface RoundOver {
   winnerKey: string | null;
   reason: string;
+  nextRoundAt: number | null;
   answer: AnswerInfo | null;
 }
 
@@ -87,6 +96,73 @@ const ROUND_OVER_REASON: Record<string, string> = {
   timeout: '本局时间到',
   surrender: '一方选择本轮投降',
 };
+
+interface PlayerStatsView {
+  playerKey: string;
+  displayId: string;
+  stats: PlayerPerformanceStats;
+}
+
+function formatWinRate(value: number): string {
+  return `${(value * 100).toFixed(1)}%`;
+}
+
+function PlayerStatsDialog({ view, onClose }: { view: PlayerStatsView; onClose: () => void }) {
+  const titleId = `player-stats-${view.playerKey.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+  useEffect(() => {
+    const oldOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = oldOverflow;
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [onClose]);
+
+  const { single, multi } = view.stats;
+  return (
+    <ModalPortal>
+      <div className="replay-backdrop" onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}>
+        <div className="replay-dialog player-stats-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+          <div className="replay-heading">
+            <div>
+              <h2 id={titleId}>玩家战绩</h2>
+              <p>{view.displayId}</p>
+            </div>
+            <button className="confirm-close" type="button" aria-label="关闭战绩" onClick={onClose}>
+              <X size={18} />
+            </button>
+          </div>
+          <div className="replay-dialog-body player-stats-body">
+            <section>
+              <h3>单人战绩</h3>
+              <dl className="player-stats-list">
+                <div><dt>总场次</dt><dd>{single.games}</dd></div>
+                <div><dt>胜 / 负</dt><dd>{single.wins} / {single.losses}</dd></div>
+                <div><dt>胜率</dt><dd>{formatWinRate(single.winRate)}</dd></div>
+                <div><dt>胜场平均猜测</dt><dd>{single.avgGuesses?.toFixed(1) ?? '-'}</dd></div>
+                <div><dt>最快猜中</dt><dd>{single.bestGuesses ?? '-'}</dd></div>
+              </dl>
+            </section>
+            <section>
+              <h3>多人战绩</h3>
+              <dl className="player-stats-list">
+                <div><dt>总场次</dt><dd>{multi.games}</dd></div>
+                <div><dt>胜 / 负</dt><dd>{multi.wins} / {multi.losses}</dd></div>
+                <div><dt>胜率</dt><dd>{formatWinRate(multi.winRate)}</dd></div>
+              </dl>
+            </section>
+          </div>
+        </div>
+      </div>
+    </ModalPortal>
+  );
+}
 
 /** 每局倒计时,从服务端下发的截止时间戳换算 */
 function Countdown({ endsAt, onExpire }: { endsAt: number | null; onExpire?: () => void }) {
@@ -176,6 +252,8 @@ export default function MultiRoom() {
   const [inputFocused, setInputFocused] = useState(false);
   const [guessCooldownUntil, setGuessCooldownUntil] = useState(0);
   const [cooldownClock, setCooldownClock] = useState(() => Date.now());
+  const [statsLoadingKey, setStatsLoadingKey] = useState('');
+  const [playerStats, setPlayerStats] = useState<PlayerStatsView | null>(null);
   const navigate = useNavigate();
   const confirm = useConfirm();
   const roomRef = useRef<RoomState | null>(null);
@@ -579,6 +657,52 @@ export default function MultiRoom() {
     guessCooldownUntil - Math.max(cooldownClock, Date.now())
   );
 
+  const viewPlayerStats = (player: RoomPlayer) => {
+    if (statsLoadingKey) return;
+    setStatsLoadingKey(player.key);
+    const socket = getSocket();
+    let settled = false;
+    const timer = window.setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      setStatsLoadingKey('');
+      toast.error(translate('NETWORK_ERROR'));
+    }, 5_000);
+    socket.emit('room:player-stats', { playerKey: player.key }, (res: any) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timer);
+      setStatsLoadingKey('');
+      if (res?.code) {
+        toast.error(translate(res.code));
+        return;
+      }
+      if (!res?.stats || res.playerKey !== player.key) {
+        toast.error(translate('INTERNAL_ERROR'));
+        return;
+      }
+      setPlayerStats(res as PlayerStatsView);
+    });
+  };
+
+  const statsButton = (player: RoomPlayer | undefined) => {
+    const allowed = Boolean(player && (isSpectator || (me && player.key !== myKey)));
+    if (!player || !allowed) return null;
+    const loading = statsLoadingKey === player.key;
+    return (
+      <button
+        type="button"
+        className="player-stats-trigger"
+        aria-label={`查看 ${player.name} 的战绩`}
+        title="查看战绩"
+        disabled={Boolean(statsLoadingKey)}
+        onClick={() => viewPlayerStats(player)}
+      >
+        {loading ? <span className="player-stats-spinner" /> : <CircleAlert size={16} />}
+      </button>
+    );
+  };
+
   useEffect(() => {
     if (!inputFocused || !me || !window.matchMedia('(max-width: 640px)').matches) return;
     let frame = 0;
@@ -690,14 +814,16 @@ export default function MultiRoom() {
       <div className="card score-bar">
         <span className="player-name score-bar-player-left">
           {leftPlayer?.key === room.hostKey && <Crown size={16} color="var(--warning)" />}
-          {leftPlayer?.name ?? '-'}
+          <span className="player-id-text">{leftPlayer?.name ?? '-'}</span>
+          {statsButton(leftPlayer)}
         </span>
         <span className="score">
           {leftPlayer?.score ?? 0} : {rightPlayer?.score ?? 0}
         </span>
         <span className="player-name score-bar-player-right">
           {rightPlayer?.key === room.hostKey && <Crown size={16} color="var(--warning)" />}
-          {rightPlayer?.name ?? '等待加入'}
+          <span className="player-id-text">{rightPlayer?.name ?? '等待加入'}</span>
+          {statsButton(rightPlayer)}
         </span>
       </div>
 
@@ -797,7 +923,10 @@ export default function MultiRoom() {
           answer={roundOver.answer}
           extra={
             <p className="muted">
-              {ROUND_OVER_REASON[roundOver.reason] ?? ''} · 下一局即将自动开始
+              {ROUND_OVER_REASON[roundOver.reason] ?? ''} · 下一局{' '}
+              {roundOver.nextRoundAt
+                ? <><Countdown endsAt={roundOver.nextRoundAt} /> 后</>
+                : '即将'}自动开始
             </p>
           }
           actions={
@@ -879,6 +1008,10 @@ export default function MultiRoom() {
             </>
           }
         />
+      )}
+
+      {playerStats && (
+        <PlayerStatsDialog view={playerStats} onClose={() => setPlayerStats(null)} />
       )}
     </Page>
   );

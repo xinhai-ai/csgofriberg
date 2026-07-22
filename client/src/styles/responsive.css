@@ -27,6 +27,9 @@
 
 @media (max-width: 640px) {
   :root { --page-inline: 14px; }
+  .player-stats-body { grid-template-columns: 1fr; }
+  .player-stats-body section { padding: 20px 18px; }
+  .player-stats-body section + section { border-top: 1px solid var(--border); border-left: 0; }
   .page-scroll { padding-block: 16px 20px; padding-bottom: calc(20px + env(safe-area-inset-bottom)); gap: 14px; }
   .header-bar { gap: 8px; padding-block: 12px; padding-top: calc(12px + env(safe-area-inset-top)); }
   .header-bar .title { max-width: 50vw; gap: 7px; font-size: 1.05rem; }
@@ -237,6 +240,8 @@
   .replay-answer { padding: 12px; }
   .admin-player-form-grid { grid-template-columns: 1fr; gap: 12px; }
   .admin-player-dialog-actions .btn { flex: 1; }
+  .admin-announcement-row { align-items: flex-start; flex-direction: column; }
+  .admin-announcement-row > .btn { align-self: flex-end; }
   .overlay-card .btns,
   .confirm-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .overlay-card .btns .btn,

@@ -59,18 +59,18 @@ export default function AdminAnnouncements() {
   };
 
   return (
-    <div className="card">
+    <div className="card admin-announcements-card">
       <h3>公告管理</h3>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div className="admin-announcement-form">
         <input className="input" placeholder="公告标题" value={title} onChange={(e) => setTitle(e.target.value)} />
         <textarea className="input" rows={4} placeholder="公告内容" value={content} onChange={(e) => setContent(e.target.value)} />
         <button className="btn btn-green" onClick={() => void publish()} disabled={!title.trim() || !content.trim()}>
           发布公告
         </button>
       </div>
-      <div style={{ marginTop: 12 }}>
+      <div className="admin-announcement-list">
         {items.map((a) => (
-          <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', padding: '8px 0' }}>
+          <div className="admin-announcement-row" key={a.id}>
             <span>
               <b>{a.title}</b>{' '}
               <span className="muted">{new Date(a.created_at).toLocaleString('zh-CN')}</span>

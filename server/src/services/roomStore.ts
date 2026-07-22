@@ -697,7 +697,12 @@ export async function saveRoom(room: StoredRoom): Promise<void> {
   }
   const members = [...room.players, ...room.spectators];
   const schedules: { score: number; value: string }[] = [];
-  if (room.status === 'playing' && room.roundEndsAt) {
+  if (room.status === 'starting' && room.nextRoundAt) {
+    schedules.push({
+      score: room.nextRoundAt,
+      value: `start|${room.id}|0`,
+    });
+  } else if (room.status === 'playing' && room.roundEndsAt) {
     schedules.push({
       score: room.roundEndsAt,
       value: `round|${room.id}|${room.round}`,

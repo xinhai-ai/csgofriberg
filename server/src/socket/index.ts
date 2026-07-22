@@ -54,8 +54,10 @@ import { GuessFeedback } from '../types';
 import { config } from '../config';
 import { logTransientError, logTransientWarning } from '../services/transientLog';
 import { getResourceVersionNotice } from '../services/resourceVersion';
+import { getPlayerPerformance } from '../services/playerPerformance';
 
 const NEXT_ROUND_DELAY_MS = 6_000;
+const MATCH_START_DELAY_MS = 5_000;
 const ROUND_TIME_MS = 120_000;
 const MULTI_GUESS_INTERVAL_MS = 3_000;
 const FINISHED_ROOM_TTL_MS = 5 * 60_000;
@@ -194,6 +196,7 @@ function buildPublicRoom(room: StoredRoom, viewerKey: string) {
     winsNeeded: winsNeeded(room.boType),
     maxGuesses: MAX_GUESSES,
     roundEndsAt: room.roundEndsAt,
+    matchStartsAt: room.status === 'starting' ? room.nextRoundAt : null,
     roundId: room.round,
     stateVersion: room.revision,
     spectatorCount: connectedSpectatorCount(room),
@@ -202,6 +205,7 @@ function buildPublicRoom(room: StoredRoom, viewerKey: string) {
       : {
           winnerKey: room.roundResult.winnerKey,
           reason: room.roundResult.reason,
+          nextRoundAt: room.roundResult.nextRoundAt,
           answer: answerView(room.targetPlayerId),
         },
     matchResult: room.matchResult
@@ -486,6 +490,9 @@ async function startRound(io: Server, roomId: string) {
     if (room.players.length < 2 || !room.players.every((player) => player.connected)) {
       return { waitingForReconnect: true as const };
     }
+    if (room.status === 'starting' && room.nextRoundAt && room.nextRoundAt > Date.now()) {
+      return { waitingForStart: room.nextRoundAt };
+    }
     const target = pickCachedTarget(room.dbType);
     if (!target) return { error: 'EMPTY_PLAYER_POOL' as const };
     room.status = 'playing';
@@ -501,9 +508,12 @@ async function startRound(io: Server, roomId: string) {
       player.lastGuessAt = null;
     }
     return { room };
-  }, (value) => Boolean(value && !('waitingForReconnect' in value)));
+  }, (value) => Boolean(
+    value && !('waitingForReconnect' in value) && !('waitingForStart' in value)
+  ));
   if (!result) return false;
   if ('waitingForReconnect' in result) return false;
+  if ('waitingForStart' in result) return false;
   if ('error' in result) {
     io.to(roomId).emit('room:error', { code: result.error });
     return false;
@@ -712,6 +722,8 @@ async function processSchedule(io: Server, item: string): Promise<number | null>
   if (!room) return null;
   if (kind === 'round' && room.status === 'playing' && room.round === Number(discriminator)) {
     await finishRound(io, roomId, null, 'timeout', room.round);
+  } else if (kind === 'start' && room.status === 'starting') {
+    await startRound(io, roomId);
   } else if (kind === 'next' && room.status === 'round_over' && room.round === Number(discriminator)) {
     await startRound(io, roomId);
   } else if (kind === 'disconnect') {
@@ -1177,6 +1189,32 @@ export function setupSocket(io: Server) {
       });
     });
 
+    safeOn(socket, 'room:player-stats', async (payload, ack) => {
+      await restorePromise;
+      if (!(await socketAllowedWithIp(socket, 'player-stats', me.key, 20, 60, 60))) {
+        return ack?.({ code: 'RATE_LIMITED' });
+      }
+      const room = await getRoomForIdentity(me.key, true);
+      if (!room) return ack?.({ code: 'NOT_IN_ROOM' });
+
+      const requesterIsPlayer = room.players.some((player) => player.key === me.key);
+      const requesterIsSpectator = room.spectators.some((spectator) => spectator.key === me.key);
+      const target = room.players.find((player) => player.key === payload?.playerKey);
+      const allowed = Boolean(
+        target && (
+          requesterIsSpectator ||
+          (requesterIsPlayer && target.key !== me.key)
+        )
+      );
+      if (!allowed || !target) return ack?.({ code: 'FORBIDDEN' });
+
+      ack?.({
+        playerKey: target.key,
+        displayId: identityDisplayName(target),
+        stats: await getPlayerPerformance(target),
+      });
+    });
+
     safeOn(socket, 'presence:subscribe', async (_payload, ack) => {
       const user = await authenticateCookie(socket.handshake.headers.cookie);
       if (!user || user.role !== 'admin') return ack?.({ code: 'FORBIDDEN' });
@@ -1586,7 +1624,9 @@ export function setupSocket(io: Server) {
         const left = await withRoomLock(room.id, (locked) => {
           const player = locked.players.find((candidate) => candidate.key === me.key);
           if (!player) return null;
-          if (player.socketId !== socket.id) return { stale: true as const };
+          if (player.socketId !== socket.id && locked.rematchAllowed) {
+            return { stale: true as const };
+          }
           const cancelledInvite = locked.rematchInviterKey !== null;
           player.connected = false;
           locked.rematchInviterKey = null;
@@ -1710,7 +1750,7 @@ export function setupSocket(io: Server) {
         spectators: [],
         targetPlayerId: null,
         roundEndsAt: null,
-        nextRoundAt: null,
+        nextRoundAt: now + MATCH_START_DELAY_MS,
         eventResults: {},
         roundResult: null,
         matchResult: null,
@@ -1762,8 +1802,11 @@ export function setupSocket(io: Server) {
       socket.join(room.id);
       socket.data.roomId = room.id;
       ack?.({ queued: false });
-      emitRoomViews(io, savedRoom, 'match:found', () => ({}));
-      await startRound(io, savedRoom.id);
+      const startsAt = savedRoom.nextRoundAt ?? Date.now() + MATCH_START_DELAY_MS;
+      emitRoomViews(io, savedRoom, 'match:found', () => ({ startsAt }));
+      setLocalTimer(`start:${savedRoom.id}`, Math.max(0, startsAt - Date.now()) + 10, () => {
+        return startRound(io, savedRoom.id);
+      });
     });
 
     safeOn(socket, 'match:cancel', async (_payload, ack) => {

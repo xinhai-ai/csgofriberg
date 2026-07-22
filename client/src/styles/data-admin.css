@@ -325,6 +325,25 @@
 .admin-import-card h3 { justify-content: center; text-align: center; }
 .admin-import-card > .muted { text-align: center; }
 .admin-import-card > .btn { display: flex; width: fit-content; margin: 12px auto 0 !important; }
+.admin-centered-card,
+.admin-announcements-card {
+  width: min(1160px, 100%);
+  margin-inline: auto;
+}
+.admin-announcements-card > h3 { justify-content: center; text-align: center; }
+.admin-announcement-form { display: flex; flex-direction: column; gap: 8px; }
+.admin-announcement-form > .btn { width: fit-content; align-self: center; margin-top: 4px; }
+.admin-announcement-list { margin-top: 12px; }
+.admin-announcement-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.admin-announcement-row > span { min-width: 0; overflow-wrap: anywhere; }
+.admin-announcement-row > .btn { flex-shrink: 0; }
 .admin-player-backdrop {
   position: fixed;
   inset: 0;

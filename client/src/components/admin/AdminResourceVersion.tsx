@@ -29,7 +29,7 @@ export default function AdminResourceVersion() {
   };
 
   return (
-    <div className="card admin-resource-card">
+    <div className="card admin-resource-card admin-centered-card">
       <div className="admin-resource-heading">
         <div>
           <h3>资源版本</h3>

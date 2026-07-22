@@ -54,9 +54,9 @@ function emit(socket: ClientSocket, event: string, payload: unknown = {}): Promi
   return new Promise((resolve) => socket.emit(event, payload, resolve));
 }
 
-function onceEvent(socket: ClientSocket, event: string): Promise<any> {
+function onceEvent(socket: ClientSocket, event: string, timeoutMs = 2_000): Promise<any> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`EVENT_TIMEOUT:${event}`)), 2_000);
+    const timer = setTimeout(() => reject(new Error(`EVENT_TIMEOUT:${event}`)), timeoutMs);
     socket.once(event, (payload) => {
       clearTimeout(timer);
       resolve(payload);
@@ -98,6 +98,172 @@ describe('multiplayer socket integration', () => {
       true
     )).toBe('198.51.100.11');
   });
+
+  it('only exposes room player stats to opponents and room spectators', async () => {
+    const stamp = Date.now();
+    const keyA = `stats-room-a-${stamp}`;
+    const keyB = `stats-room-b-${stamp}`;
+    const spectatorKey = `stats-room-spectator-${stamp}`;
+    const outsiderKey = `stats-room-outsider-${stamp}`;
+    const historyPrefix = `socket-player-stats-${stamp}`;
+    const guestToken = (key: string) => jwt.sign(
+      { key, typ: 'guest' },
+      config.jwtSecret,
+      { expiresIn: '1h' }
+    );
+    const a = await connect(withPowCookie(`csgofriberg_guest=${guestToken(keyA)}`));
+    const b = await connect(withPowCookie(`csgofriberg_guest=${guestToken(keyB)}`));
+    const spectator = await connect(withPowCookie(`csgofriberg_guest=${guestToken(spectatorKey)}`));
+    const outsider = await connect(withPowCookie(`csgofriberg_guest=${guestToken(outsiderKey)}`));
+    try {
+      const [target] = await db('players').select('id').limit(1);
+      await db('games').insert([
+        {
+          session_id: `${historyPrefix}-single-win`,
+          guest_key: keyB,
+          target_player_id: target.id,
+          mode: 'easy',
+          guesses: JSON.stringify([target.id]),
+          first_guess_player_id: target.id,
+          status: 'won',
+          guess_count: 2,
+          finished_at: db.fn.now(),
+        },
+        {
+          session_id: `${historyPrefix}-single-loss`,
+          guest_key: keyB,
+          target_player_id: target.id,
+          mode: 'normal',
+          guesses: JSON.stringify([target.id]),
+          first_guess_player_id: target.id,
+          status: 'lost',
+          guess_count: 6,
+          finished_at: db.fn.now(),
+        },
+      ]);
+      for (const [index, won] of [true, false].entries()) {
+        const [inserted] = await db('match_records')
+          .insert({
+            room_id: `${historyPrefix}-multi-${index}`,
+            db_type: 'easy',
+            bo_type: 3,
+            winner_key: won ? `g:${keyB}` : `g:${keyA}`,
+            finish_reason: 'score',
+          })
+          .returning('id');
+        const matchId = typeof inserted === 'object' ? inserted.id : inserted;
+        await db('match_players').insert({
+          match_id: matchId,
+          player_key: `g:${keyB}`,
+          player_name: guestNameFromKey(keyB),
+          score: won ? 2 : 1,
+          is_winner: won,
+        });
+      }
+
+      const created = await emit(a, 'room:create', {
+        dbType: 'easy',
+        boType: 3,
+        allowSpectators: true,
+      });
+      createdRoomIds.push(created.room.id);
+      await emit(b, 'room:join', { roomId: created.room.id });
+      await emit(spectator, 'room:join', { roomId: created.room.id, spectate: true });
+
+      const opponentStats = await emit(a, 'room:player-stats', { playerKey: `g:${keyB}` });
+      expect(opponentStats).toEqual({
+        playerKey: `g:${keyB}`,
+        displayId: guestNameFromKey(keyB),
+        stats: {
+          single: {
+            games: 2,
+            wins: 1,
+            losses: 1,
+            winRate: 0.5,
+            avgGuesses: 2,
+            bestGuesses: 2,
+          },
+          multi: { games: 2, wins: 1, losses: 1, winRate: 0.5 },
+        },
+      });
+      expect(await emit(a, 'room:player-stats', { playerKey: `g:${keyA}` }))
+        .toEqual({ code: 'FORBIDDEN' });
+      expect(await emit(a, 'room:player-stats', { playerKey: `g:${outsiderKey}` }))
+        .toEqual({ code: 'FORBIDDEN' });
+
+      const spectatorA = await emit(spectator, 'room:player-stats', { playerKey: `g:${keyA}` });
+      const spectatorB = await emit(spectator, 'room:player-stats', { playerKey: `g:${keyB}` });
+      expect(spectatorA.stats.single.games).toBe(0);
+      expect(spectatorB.stats.multi.wins).toBe(1);
+      expect(await emit(outsider, 'room:player-stats', { playerKey: `g:${keyB}` }))
+        .toEqual({ code: 'NOT_IN_ROOM' });
+    } finally {
+      a.disconnect();
+      b.disconnect();
+      spectator.disconnect();
+      outsider.disconnect();
+      await db('games').where('session_id', 'like', `${historyPrefix}%`).del();
+      await db('match_records').where('room_id', 'like', `${historyPrefix}%`).del();
+    }
+  });
+
+  it('waits five seconds after matchmaking before starting the first round', async () => {
+    const stamp = Date.now();
+    const keyA = `match-delay-a-${stamp}`;
+    const keyB = `match-delay-b-${stamp}`;
+    const tokenA = jwt.sign({ key: keyA, typ: 'guest' }, config.jwtSecret, { expiresIn: '1h' });
+    const tokenB = jwt.sign({ key: keyB, typ: 'guest' }, config.jwtSecret, { expiresIn: '1h' });
+    const a = await connect(withPowCookie(`csgofriberg_guest=${tokenA}`));
+    const b = await connect(withPowCookie(`csgofriberg_guest=${tokenB}`));
+    let replacement: ClientSocket | null = null;
+    try {
+      expect(await emit(a, 'match:start', { dbType: 'easy', anonymous: true }))
+        .toEqual({ queued: true });
+      const foundA = onceEvent(a, 'match:found');
+      const foundB = onceEvent(b, 'match:found');
+      const roundA = onceEvent(a, 'round:start', 8_000);
+      const roundB = onceEvent(b, 'round:start', 8_000);
+      const matchedAt = Date.now();
+      expect(await emit(b, 'match:start', { dbType: 'easy', anonymous: true }))
+        .toEqual({ queued: false });
+
+      const [matchA, matchB] = await Promise.all([foundA, foundB]);
+      expect(matchA.startsAt).toBe(matchB.startsAt);
+      expect(matchA.startsAt - matchedAt).toBeGreaterThanOrEqual(4_500);
+      expect(matchA.startsAt - matchedAt).toBeLessThanOrEqual(5_500);
+
+      const synced = await emit(a, 'room:sync');
+      createdRoomIds.push(synced.room.id);
+      expect(synced.room).toMatchObject({
+        status: 'waiting',
+        round: 0,
+        matchStartsAt: matchA.startsAt,
+      });
+
+      const [startedA, startedB] = await Promise.all([roundA, roundB]);
+      expect(Date.now() - matchedAt).toBeGreaterThanOrEqual(4_500);
+      expect(startedA.room).toMatchObject({ status: 'playing', round: 1, matchStartsAt: null });
+      expect(startedB.room.id).toBe(startedA.room.id);
+
+      await withRoomLock(startedA.room.id, (room) => {
+        room.status = 'finished';
+        room.rematchAllowed = false;
+        room.roundEndsAt = null;
+        room.nextRoundAt = null;
+        room.matchResult = { winnerKey: null, reason: 'test', forfeitedKey: null };
+        return { room };
+      });
+      a.disconnect();
+      replacement = await connect(withPowCookie(`csgofriberg_guest=${tokenA}`));
+      expect((await emit(replacement, 'room:sync')).room.status).toBe('finished');
+      expect(await emit(replacement, 'room:leave')).toEqual({ ok: true });
+      expect(await emit(replacement, 'room:sync')).toEqual({ code: 'NOT_IN_ROOM' });
+    } finally {
+      a.disconnect();
+      b.disconnect();
+      replacement?.disconnect();
+    }
+  }, 10_000);
 
   afterAll(async () => {
     const client = redis();
@@ -921,6 +1087,7 @@ describe('multiplayer socket integration', () => {
       expect(synced.room.roundResult).toMatchObject({
         winnerKey: `g:${keyB}`,
         reason: 'surrender',
+        nextRoundAt: expect.any(Number),
       });
       expect(synced.room.players.find((player: any) => player.key === `g:${keyB}`).score).toBe(1);
       expect(synced.room.players.find((player: any) => player.key === `g:${keyA}`).score).toBe(0);

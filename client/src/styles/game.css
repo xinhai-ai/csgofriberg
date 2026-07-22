@@ -235,14 +235,16 @@
 .confirm-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
 .confirm-actions .btn { display: inline-flex; align-items: center; gap: 7px; }
 
-.admin-resource-card { display: grid; gap: 14px; }
+.admin-resource-card { display: grid; justify-items: center; gap: 14px; }
 .admin-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
 .admin-resource-heading {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 16px;
+  width: 100%;
+  text-align: center;
 }
 .admin-resource-heading h3,
 .admin-resource-heading p { margin: 0; }
@@ -268,4 +270,3 @@
 .player-info-table td.label svg { vertical-align: -2px; margin-right: 8px; }
 .player-info-table td.value { font-weight: 600; text-align: right; }
 .player-info-table tr:last-child td { border-bottom: none; }
-
