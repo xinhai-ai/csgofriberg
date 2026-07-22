@@ -8,7 +8,6 @@ import { compareGuess, completeGuessFeedback, MAX_GUESSES } from '../services/ga
 import { getPlayer } from '../services/playerCache';
 import { GuessFeedback, Player } from '../types';
 import { rateLimit, requestIdentity } from '../middleware/rateLimit';
-import { config } from '../config';
 
 const router = Router();
 router.use(optionalAuth);
@@ -72,49 +71,55 @@ function singleAggregate(query: ReturnType<typeof db>) {
     .min({ bestGuesses: db.raw("case when status = 'won' then guess_count else null end") });
 }
 
-function firstGuessPlayerExpression() {
-  if (config.dbClient === 'pg') {
-    return db.raw(
-      `case
-        when jsonb_typeof(??::jsonb -> 0) = 'number'
-          then cast(??::jsonb ->> 0 as integer)
-        when jsonb_typeof(??::jsonb -> 0) = 'object'
-          then cast(??::jsonb -> 0 ->> 'playerId' as integer)
-        else null
-      end`,
-      ['guesses', 'guesses', 'guesses', 'guesses']
+function firstGuessPlayerId(value: unknown): number | null {
+  try {
+    const guesses = JSON.parse(String(value));
+    if (!Array.isArray(guesses) || !guesses.length) return null;
+    const first = guesses[0];
+    const id = Number(
+      typeof first === 'object' && first
+        ? (first as { playerId?: unknown }).playerId
+        : first
     );
+    return Number.isInteger(id) && id > 0 ? id : null;
+  } catch {
+    return null;
   }
-  return db.raw(
-    `case
-      when json_type(??, '$[0]') in ('integer', 'real')
-        then cast(json_extract(??, '$[0]') as integer)
-      when json_type(??, '$[0]') = 'object'
-        then cast(json_extract(??, '$[0].playerId') as integer)
-      else null
-    end`,
-    ['guesses', 'guesses', 'guesses', 'guesses']
-  );
 }
 
 async function firstGuessSummary(query: ReturnType<typeof db>) {
-  const expression = firstGuessPlayerExpression();
-  const rows = await query
-    .whereNot('status', 'playing')
-    .where('guess_count', '>', 0)
-    .select({ playerId: expression })
-    .count({ count: 'id' })
-    .groupBy(expression);
-  const counts = (rows as any[])
-    .map((row) => ({ playerId: Number(row.playerId), count: Number(row.count) }))
-    .filter((row) => (
-      Number.isInteger(row.playerId)
-      && row.playerId > 0
-      && row.count > 0
-      && Boolean(getPlayer(row.playerId))
-    ));
-  const total = counts.reduce((sum, row) => sum + row.count, 0);
-  const top = counts
+  const [rows, missingRows] = await Promise.all([
+    query.clone()
+      .where('first_guess_player_id', '>', 0)
+      .select({ playerId: 'first_guess_player_id' })
+      .count({ count: '*' })
+      .groupBy('first_guess_player_id'),
+    // During a rolling update, old instances may briefly insert rows without the new column.
+    query.clone()
+      .whereNull('first_guess_player_id')
+      .where('guess_count', '>', 0)
+      .whereNot('status', 'playing')
+      .select('guesses'),
+  ]) as unknown as [
+    Array<{ playerId: unknown; count: unknown }>,
+    Array<{ guesses: unknown }>,
+  ];
+  const counts = new Map<number, number>();
+  for (const row of rows) {
+    const playerId = Number(row.playerId);
+    const count = Number(row.count);
+    if (Number.isInteger(playerId) && playerId > 0 && count > 0) {
+      counts.set(playerId, (counts.get(playerId) ?? 0) + count);
+    }
+  }
+  for (const row of missingRows) {
+    const playerId = firstGuessPlayerId(row.guesses);
+    if (playerId) counts.set(playerId, (counts.get(playerId) ?? 0) + 1);
+  }
+  const validCounts = Array.from(counts, ([playerId, count]) => ({ playerId, count }))
+    .filter((row) => Boolean(getPlayer(row.playerId)));
+  const total = validCounts.reduce((sum, row) => sum + row.count, 0);
+  const top = validCounts
     .sort((a, b) => b.count - a.count || a.playerId - b.playerId)[0];
   if (!top || !total) return null;
   return {
@@ -140,7 +145,7 @@ function answerView(target: Player) {
 }
 
 async function globalStats() {
-  return cached('stats:global', 30, async () => {
+  return cached('stats:global', 60, async () => {
     const [single, multi, users, firstGuess] = await Promise.all([
       singleAggregate(db('games')),
       db('match_records').count({ total: 'id' }).first(),
@@ -151,6 +156,26 @@ async function globalStats() {
       ...singleSummary(single),
       multiGames: Number(multi?.total ?? 0),
       registeredUsers: Number(users?.total ?? 0),
+      firstGuess,
+    };
+  });
+}
+
+async function personalStats(owner: Owner, identityKey: string) {
+  return cached(`stats:personal:${identityKey}`, 30, async () => {
+    const [single, firstGuess, multi] = await Promise.all([
+      singleAggregate(db('games').where(owner)),
+      firstGuessSummary(db('games').where(owner)),
+      db('match_players')
+        .where({ player_key: identityKey })
+        .first()
+        .count({ total: 'id' })
+        .sum({ wins: db.raw('case when is_winner then 1 else 0 end') }),
+    ]);
+    return {
+      ...singleSummary(single),
+      multiGames: Number(multi?.total ?? 0),
+      multiWins: Number(multi?.wins ?? 0),
       firstGuess,
     };
   });
@@ -193,28 +218,13 @@ router.get(
     const identityKey = identityKeyFor(req);
     if (!identityKey) throw new HttpError(400, 'GUEST_KEY_REQUIRED');
 
-    const personalSinglePromise = singleAggregate(db('games').where(owner));
-    const personalFirstGuessPromise = firstGuessSummary(db('games').where(owner));
-    const personalMultiPromise = db('match_players')
-      .where({ player_key: identityKey })
-      .first()
-      .count({ total: 'id' })
-      .sum({ wins: db.raw('case when is_winner then 1 else 0 end') });
-
-    const [personalSingle, personalFirstGuess, personalMulti, global] = await Promise.all([
-      personalSinglePromise,
-      personalFirstGuessPromise,
-      personalMultiPromise,
+    const [personal, global] = await Promise.all([
+      personalStats(owner, identityKey),
       globalStats(),
     ]);
 
     res.json({
-      personal: {
-        ...singleSummary(personalSingle),
-        multiGames: Number(personalMulti?.total ?? 0),
-        multiWins: Number(personalMulti?.wins ?? 0),
-        firstGuess: personalFirstGuess,
-      },
+      personal,
       global,
     });
   })

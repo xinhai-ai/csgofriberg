@@ -49,7 +49,6 @@ router.post(
       .then((rows) => rows.map((r: any) => (typeof r === 'object' ? r.id : r)));
 
     const user = { id, username, role, token_version: 0 };
-    await invalidateCached('stats:global');
     setAuthCookies(res, user);
     res.json({ user: { id, username, role } });
   })
@@ -149,12 +148,19 @@ router.post(
   }),
   asyncHandler(async (req, res) => {
     if (!req.guestKey) throw new HttpError(400, 'GUEST_KEY_REQUIRED');
+    const guestKey = req.guestKey;
     const claimed = await db('games')
-      .where({ guest_key: req.guestKey })
+      .where({ guest_key: guestKey })
       .whereNull('user_id')
       .update({ user_id: req.user!.id, guest_key: null });
     clearGuestCookie(res);
-    await invalidateCached('leaderboard:easy', 'leaderboard:normal', 'leaderboard:multi');
+    await invalidateCached(
+      'leaderboard:easy',
+      'leaderboard:normal',
+      'leaderboard:multi',
+      `stats:personal:g:${guestKey}`,
+      `stats:personal:u:${req.user!.id}`
+    );
     res.json({ claimed });
   })
 );

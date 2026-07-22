@@ -13,7 +13,7 @@ const REQUIRED_COLUMNS: Record<string, string[]> = {
     'is_easy',
     'is_enabled',
   ],
-  games: ['id', 'session_id', 'user_id', 'guest_key', 'status'],
+  games: ['id', 'session_id', 'user_id', 'guest_key', 'first_guess_player_id', 'status'],
   match_records: [
     'id',
     'room_id',

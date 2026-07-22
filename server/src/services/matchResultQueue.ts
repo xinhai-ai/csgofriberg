@@ -72,7 +72,12 @@ async function persist(payload: MatchResultPayload): Promise<void> {
     return true;
   });
   if (insertedMatch) {
-    await invalidateCached('leaderboard:easy', 'leaderboard:normal', 'leaderboard:multi', 'stats:global');
+    await invalidateCached(
+      'leaderboard:easy',
+      'leaderboard:normal',
+      'leaderboard:multi',
+      ...payload.participants.map((player) => `stats:personal:${player.key}`)
+    );
   }
 }
 

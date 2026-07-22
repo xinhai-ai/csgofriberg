@@ -52,11 +52,27 @@ describe('player schema migration', () => {
     expect(await instance.schema.hasColumn('match_records', 'winner_key')).toBe(true);
     expect(await instance.schema.hasColumn('match_records', 'finish_reason')).toBe(true);
     expect(await instance.schema.hasColumn('match_records', 'forfeited_key')).toBe(true);
+    expect(await instance.schema.hasColumn('games', 'first_guess_player_id')).toBe(true);
     const player = await instance('players').where({ nickname: 'legacy' }).first();
     expect(player.age).toBe(new Date().getFullYear() - 1990);
     expect((await instance('players').columnInfo('age')).nullable).toBe(false);
     expect(player.major_championships).toBe(0);
     expect(player.is_easy).toBe(0);
     expect(player.is_enabled).toBe(1);
+
+    await instance('games').insert({
+      session_id: 'legacy-first-guess',
+      guest_key: 'legacy-guest',
+      target_player_id: player.id,
+      mode: 'easy',
+      guesses: JSON.stringify([{ playerId: player.id }]),
+      first_guess_player_id: null,
+      status: 'won',
+      guess_count: 1,
+      finished_at: instance.fn.now(),
+    });
+    await ensureSchema(instance);
+    const game = await instance('games').where({ session_id: 'legacy-first-guess' }).first();
+    expect(game.first_guess_player_id).toBe(player.id);
   });
 });

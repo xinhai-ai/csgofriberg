@@ -13,7 +13,7 @@ const leaderboardQuery = z.object({
   type: z.enum(['easy', 'normal', 'multi']).default('easy'),
 });
 
-/** 排行榜: 简单单人、完整单人和多人分别按胜率、场数排序。 */
+/** 排行榜: 简单单人、完整单人和多人分别按胜场排序。 */
 router.get(
   '/',
   rateLimit({ name: 'leaderboard', limit: 20, windowSeconds: 60, failClosed: true }),
@@ -52,7 +52,7 @@ router.get(
           winRate: Number(row.total) ? Number(row.wins ?? 0) / Number(row.total) : 0,
           avgGuesses: type === 'multi' || row.avgGuesses == null ? null : Number(row.avgGuesses),
         }))
-        .sort((a, b) => b.winRate - a.winRate || b.total - a.total || b.wins - a.wins || a.id - b.id);
+        .sort((a, b) => b.wins - a.wins || b.winRate - a.winRate || b.total - a.total || a.id - b.id);
     });
 
     const currentIndex = req.user

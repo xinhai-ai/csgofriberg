@@ -1,6 +1,53 @@
 import { Knex } from 'knex';
 import { db } from './knex';
 
+const FIRST_GUESS_BACKFILL_BATCH_SIZE = 1000;
+
+function firstGuessPlayerId(value: unknown): number {
+  try {
+    const guesses = JSON.parse(String(value));
+    if (!Array.isArray(guesses) || !guesses.length) return 0;
+    const first = guesses[0];
+    const id = Number(
+      typeof first === 'object' && first
+        ? (first as { playerId?: unknown }).playerId
+        : first
+    );
+    return Number.isInteger(id) && id > 0 ? id : 0;
+  } catch {
+    return 0;
+  }
+}
+
+async function backfillFirstGuessPlayerIds(instance: Knex): Promise<void> {
+  let cursor = 0;
+  while (true) {
+    const rows = await instance('games')
+      .select('id', 'guesses')
+      .where('id', '>', cursor)
+      .whereNull('first_guess_player_id')
+      .where('guess_count', '>', 0)
+      .whereNot('status', 'playing')
+      .orderBy('id')
+      .limit(FIRST_GUESS_BACKFILL_BATCH_SIZE);
+    if (!rows.length) return;
+    cursor = Number(rows[rows.length - 1].id);
+
+    const grouped = new Map<number, number[]>();
+    for (const row of rows) {
+      const playerId = firstGuessPlayerId(row.guesses);
+      const ids = grouped.get(playerId) ?? [];
+      ids.push(Number(row.id));
+      grouped.set(playerId, ids);
+    }
+    await instance.transaction(async (trx) => {
+      for (const [playerId, ids] of grouped) {
+        await trx('games').whereIn('id', ids).update({ first_guess_player_id: playerId });
+      }
+    });
+  }
+}
+
 export async function ensureSchema(instance: Knex = db): Promise<void> {
   if (!(await instance.schema.hasTable('users'))) {
     await instance.schema.createTable('users', (t) => {
@@ -114,6 +161,7 @@ export async function ensureSchema(instance: Knex = db): Promise<void> {
       t.integer('target_player_id').notNullable().references('id').inTable('players');
       t.string('mode', 16).notNullable().defaultTo('easy');
       t.text('guesses').notNullable().defaultTo('[]');
+      t.integer('first_guess_player_id').nullable();
       t.string('status', 16).notNullable().defaultTo('playing');
       t.integer('guess_count').notNullable().defaultTo(0);
       t.timestamp('created_at').notNullable().defaultTo(instance.fn.now());
@@ -123,6 +171,10 @@ export async function ensureSchema(instance: Knex = db): Promise<void> {
   if (!(await instance.schema.hasColumn('games', 'session_id'))) {
     await instance.schema.alterTable('games', (t) => t.string('session_id', 64).nullable());
   }
+  if (!(await instance.schema.hasColumn('games', 'first_guess_player_id'))) {
+    await instance.schema.alterTable('games', (t) => t.integer('first_guess_player_id').nullable());
+  }
+  await backfillFirstGuessPlayerIds(instance);
   await instance.raw(
     'create unique index if not exists "games_session_id_unique" on "games" ("session_id")'
   );
@@ -233,6 +285,18 @@ export async function ensureSchema(instance: Knex = db): Promise<void> {
   for (const [name, columns] of gameIndexes) {
     const quotedColumns = columns.map((column) => `\"${column}\"`).join(', ');
     await instance.raw(`create index if not exists \"${name}\" on \"games\" (${quotedColumns})`);
+  }
+  const firstGuessIndexes = [
+    ['games_first_guess_idx', ['first_guess_player_id']],
+    ['games_user_first_guess_idx', ['user_id', 'first_guess_player_id']],
+    ['games_guest_first_guess_idx', ['guest_key', 'first_guess_player_id']],
+  ] as const;
+  for (const [name, columns] of firstGuessIndexes) {
+    const quotedColumns = columns.map((column) => `\"${column}\"`).join(', ');
+    const concurrently = instance.client.config.client === 'pg' ? ' concurrently' : '';
+    await instance.raw(
+      `create index${concurrently} if not exists \"${name}\" on \"games\" (${quotedColumns})`
+    );
   }
 
   await instance.raw(

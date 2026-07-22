@@ -63,6 +63,7 @@ describe('stats and replay', () => {
         target_player_id: target.id,
         mode: 'easy',
         guesses: JSON.stringify([target.id]),
+        first_guess_player_id: target.id,
         status: 'won',
         guess_count: 1,
         finished_at: db.fn.now(),
@@ -176,11 +177,11 @@ describe('stats and replay', () => {
     const players = await db('players').select('id').orderBy('id').limit(2);
     const favorite = getPlayer(Number(players[0].id))!;
     const other = getPlayer(Number(players[1].id))!;
-    const games = [
-      { suffix: 'current', guesses: [favorite.id] },
-      { suffix: 'legacy', guesses: [{ playerId: favorite.id }] },
-      { suffix: 'other', guesses: [other.id] },
-      { suffix: 'invalid', guesses: [99999999] },
+    const games: Array<{ suffix: string; guesses: unknown[]; firstGuessPlayerId: number | null }> = [
+      { suffix: 'current', guesses: [favorite.id], firstGuessPlayerId: favorite.id },
+      { suffix: 'legacy', guesses: [{ playerId: favorite.id }], firstGuessPlayerId: null },
+      { suffix: 'other', guesses: [other.id], firstGuessPlayerId: other.id },
+      { suffix: 'invalid', guesses: [99999999], firstGuessPlayerId: 0 },
     ];
 
     await db('games').insert(games.map((game) => ({
@@ -189,6 +190,7 @@ describe('stats and replay', () => {
       target_player_id: favorite.id,
       mode: 'easy',
       guesses: JSON.stringify(game.guesses),
+      first_guess_player_id: game.firstGuessPlayerId,
       status: 'won',
       guess_count: 1,
       finished_at: db.fn.now(),

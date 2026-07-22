@@ -67,6 +67,7 @@ async function settleGame(game: SingleGameState, status: 'won' | 'lost'): Promis
       target_player_id: game.targetPlayerId,
       mode: game.mode,
       guesses: JSON.stringify(game.guesses.map((guess) => guess.playerId)),
+      first_guess_player_id: game.guesses[0]?.playerId ?? null,
       status,
       guess_count: game.guesses.length,
       created_at: new Date(game.createdAt),
@@ -75,7 +76,15 @@ async function settleGame(game: SingleGameState, status: 'won' | 'lost'): Promis
     .onConflict('session_id')
     .ignore();
   await deleteSingleGame(game);
-  await invalidateCached('leaderboard:easy', 'leaderboard:normal', 'leaderboard:multi', 'stats:global');
+  const personalStatsKey = game.userId != null
+    ? `stats:personal:u:${game.userId}`
+    : `stats:personal:g:${game.guestKey}`;
+  await invalidateCached(
+    'leaderboard:easy',
+    'leaderboard:normal',
+    'leaderboard:multi',
+    personalStatsKey
+  );
 }
 
 router.post(

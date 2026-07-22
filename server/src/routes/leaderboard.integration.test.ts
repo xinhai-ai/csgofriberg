@@ -95,9 +95,19 @@ describe('leaderboard', () => {
         guess_count: 3,
         finished_at: db.fn.now(),
       },
+      {
+        session_id: `leaderboard-${stamp}-normal-a-second-win`,
+        user_id: userIds[0],
+        target_player_id: Number(target.id),
+        mode: 'normal',
+        guesses: '[]',
+        status: 'won',
+        guess_count: 4,
+        finished_at: db.fn.now(),
+      },
     ]);
     const matchRows = await db('match_records')
-      .insert([0, 1, 2].map((index) => ({
+      .insert([0, 1, 2, 3].map((index) => ({
         room_id: `leaderboard-${stamp}-${index}`,
         db_type: 'easy',
         bo_type: 1,
@@ -112,6 +122,8 @@ describe('leaderboard', () => {
       { match_id: matchIds[1], player_key: `g:leaderboard-${stamp}-1`, player_name: '', score: 1, is_winner: true },
       { match_id: matchIds[2], user_id: userIds[1], player_key: `u:${userIds[1]}`, player_name: '', score: 1, is_winner: true },
       { match_id: matchIds[2], player_key: `g:leaderboard-${stamp}-2`, player_name: '', score: 0, is_winner: false },
+      { match_id: matchIds[3], user_id: userIds[0], player_key: `u:${userIds[0]}`, player_name: '', score: 1, is_winner: true },
+      { match_id: matchIds[3], player_key: `g:leaderboard-${stamp}-3`, player_name: '', score: 0, is_winner: false },
     ]);
     await invalidateCached('leaderboard:easy', 'leaderboard:normal', 'leaderboard:multi');
 
@@ -130,11 +142,11 @@ describe('leaderboard', () => {
       const normalData = await normalResponse.json();
       expect(normalResponse.status).toBe(200);
       expect(normalData.type).toBe('normal');
-      expect(normalData.items[0]).toMatchObject({ id: userIds[1], wins: 1, total: 1, winRate: 1 });
+      expect(normalData.items[0]).toMatchObject({ id: userIds[0], wins: 2, total: 3, winRate: 2 / 3 });
       expect(normalData.items.find((row: any) => row.id === userIds[0])).toMatchObject({
-        wins: 1,
-        total: 2,
-        winRate: 0.5,
+        wins: 2,
+        total: 3,
+        winRate: 2 / 3,
       });
 
       const multiResponse = await fetch(`${baseUrl}/api/leaderboard?type=multi`);
@@ -143,17 +155,17 @@ describe('leaderboard', () => {
       expect(multiData.type).toBe('multi');
       const multiUserRows = multiData.items.filter((row: any) => userIds.includes(row.id));
       expect(multiUserRows).toHaveLength(2);
-      expect(multiData.items.findIndex((row: any) => row.id === userIds[1]))
-        .toBeLessThan(multiData.items.findIndex((row: any) => row.id === userIds[0]));
+      expect(multiData.items.findIndex((row: any) => row.id === userIds[0]))
+        .toBeLessThan(multiData.items.findIndex((row: any) => row.id === userIds[1]));
       expect(multiData.items.find((row: any) => row.id === userIds[1])).toMatchObject({
         wins: 1,
         total: 1,
         winRate: 1,
       });
       expect(multiData.items.find((row: any) => row.id === userIds[0])).toMatchObject({
-        wins: 1,
-        total: 2,
-        winRate: 0.5,
+        wins: 2,
+        total: 3,
+        winRate: 2 / 3,
         avgGuesses: null,
       });
 
