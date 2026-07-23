@@ -4,6 +4,7 @@ import { useAuth } from './store/auth';
 import Home from './pages/Home';
 import Page from './components/Page';
 import { Wrench } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const Login = lazy(() => import('./pages/Login'));
 const Search = lazy(() => import('./pages/Search'));
@@ -23,11 +24,12 @@ function route(element: React.ReactNode) {
 
 /* 所有游戏与数据页面均不强制登录,仅管理后台需要管理员身份 */
 function RequireAdmin() {
+  const { t } = useTranslation();
   const { user, initialized } = useAuth();
   if (!initialized) {
     return (
-      <Page title="管理后台" icon={<Wrench size={17} />}>
-        <div className="page-loading" aria-label="正在恢复登录状态">
+      <Page title={t('admin.title')} icon={<Wrench size={17} />}>
+        <div className="page-loading" aria-label={t('home.restoring')}>
           <div className="spinner" />
         </div>
       </Page>

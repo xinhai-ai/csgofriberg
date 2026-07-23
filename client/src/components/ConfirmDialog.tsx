@@ -10,6 +10,7 @@ import {
 } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 import ModalPortal from './ModalPortal';
+import { useTranslation } from 'react-i18next';
 
 export interface ConfirmOptions {
   title: string;
@@ -28,6 +29,7 @@ type ConfirmFunction = (options: ConfirmOptions) => Promise<boolean>;
 const ConfirmContext = createContext<ConfirmFunction | null>(null);
 
 export function ConfirmProvider({ children }: { children: ReactNode }) {
+  const { t } = useTranslation();
   const [pending, setPending] = useState<PendingConfirm | null>(null);
   const pendingRef = useRef<PendingConfirm | null>(null);
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
@@ -101,7 +103,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                   <button
                     className="confirm-close"
                     type="button"
-                    aria-label="关闭"
+                    aria-label={t('common.close')}
                     onClick={() => settle(false)}
                   >
                     <X size={18} />
@@ -115,14 +117,14 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                     type="button"
                     onClick={() => settle(false)}
                   >
-                    {pending.cancelLabel ?? '取消'}
+                    {pending.cancelLabel ?? t('common.cancel')}
                   </button>
                   <button
                     className={`btn ${pending.tone === 'danger' ? 'btn-danger' : 'btn-warning'}`}
                     type="button"
                     onClick={() => settle(true)}
                   >
-                    {pending.confirmLabel ?? '确认'}
+                    {pending.confirmLabel ?? t('common.confirm')}
                   </button>
                 </div>
               </div>

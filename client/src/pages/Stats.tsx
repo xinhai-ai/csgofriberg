@@ -6,6 +6,8 @@ import Badge from '../components/Badge';
 import { api, errMsg } from '../api/client';
 import { toast } from '../components/Toast';
 import ReplayDialog, { type MultiReplay, type Replay, type SingleReplay } from '../components/ReplayDialog';
+import { useTranslation } from 'react-i18next';
+import { currentLocale } from '../i18n';
 
 interface SingleStats {
   totalGames: number;
@@ -60,11 +62,6 @@ function formatFirstGuess(value: SingleStats['firstGuess']): string {
   return value ? `${value.nickname} ${(value.percentage * 100).toFixed(1)}%` : '-';
 }
 
-function formatMode(mode: string): string {
-  return mode === 'easy' ? '简单' : '完整';
-}
-
-
 function StatTable({ rows }: { rows: [string, string | number][] }) {
   return (
     <table className="table stats-summary-table">
@@ -78,6 +75,7 @@ function StatTable({ rows }: { rows: [string, string | number][] }) {
 }
 
 export default function Stats() {
+  const { t } = useTranslation();
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [type, setType] = useState<ReplayType>('single');
   const [page, setPage] = useState(1);
@@ -142,63 +140,63 @@ export default function Stats() {
       type="button"
       onClick={() => void openReplay(item)}
       disabled={replayLoadingId === item.id}
-      aria-label={`回放对局 ${item.id}`}
+      aria-label={t('stats.replayAria', { id: item.id })}
     >
       <Play size={14} />
-      {replayLoadingId === item.id ? '加载中' : '回放'}
+      {replayLoadingId === item.id ? t('stats.loading') : t('stats.replay')}
     </button>
   );
 
   const singleColumns: Column<SingleReplayItem>[] = [
-    { key: 'mode', title: '模式', render: (game) => formatMode(game.mode) },
-    { key: 'status', title: '结果', render: (game) => game.status === 'won'
-      ? <Badge text="胜利" color="green" /> : <Badge text="失败" color="gray" /> },
-    { key: 'guessCount', title: '猜测' },
-    { key: 'answer', title: '答案' },
-    { key: 'finishedAt', title: '时间', render: (game) => new Date(game.finishedAt).toLocaleString('zh-CN') },
-    { key: 'replay', title: '回放', render: replayButton },
+    { key: 'mode', title: t('stats.mode'), render: (game) => game.mode === 'easy' ? t('common.easy') : t('common.normal') },
+    { key: 'status', title: t('stats.result'), render: (game) => game.status === 'won'
+      ? <Badge text={t('common.win')} color="green" /> : <Badge text={t('common.loss')} color="gray" /> },
+    { key: 'guessCount', title: t('stats.guesses') },
+    { key: 'answer', title: t('stats.answer') },
+    { key: 'finishedAt', title: t('stats.time'), render: (game) => new Date(game.finishedAt).toLocaleString(currentLocale()) },
+    { key: 'replay', title: t('stats.replay'), render: replayButton },
   ];
 
   const multiColumns: Column<MultiReplayItem>[] = [
-    { key: 'mode', title: '模式', render: (game) => `${formatMode(game.mode)} · BO${game.boType}` },
-    { key: 'result', title: '结果', render: (game) => game.result === 'won'
-      ? <Badge text="胜利" color="green" />
+    { key: 'mode', title: t('stats.mode'), render: (game) => `${game.mode === 'easy' ? t('common.easy') : t('common.normal')} · BO${game.boType}` },
+    { key: 'result', title: t('stats.result'), render: (game) => game.result === 'won'
+      ? <Badge text={t('common.win')} color="green" />
       : game.result === 'draw'
-        ? <Badge text="平局" color="gray" />
-        : <Badge text="失败" color="gray" /> },
-    { key: 'opponent', title: '对阵', render: (game) => `我方 / ${game.opponent?.displayId ?? '未知对手'}` },
-    { key: 'score', title: '比分', render: (game) => `${game.me.score}:${game.opponent?.score ?? 0}` },
-    { key: 'finishedAt', title: '时间', render: (game) => new Date(game.finishedAt).toLocaleString('zh-CN') },
-    { key: 'replay', title: '回放', render: replayButton },
+        ? <Badge text={t('common.draw')} color="gray" />
+        : <Badge text={t('common.loss')} color="gray" /> },
+    { key: 'opponent', title: t('stats.matchup'), render: (game) => `${t('common.me')} / ${game.opponent?.displayId ?? t('stats.unknownOpponent')}` },
+    { key: 'score', title: t('stats.score'), render: (game) => `${game.me.score}:${game.opponent?.score ?? 0}` },
+    { key: 'finishedAt', title: t('stats.time'), render: (game) => new Date(game.finishedAt).toLocaleString(currentLocale()) },
+    { key: 'replay', title: t('stats.replay'), render: replayButton },
   ];
 
   return (
-    <Page title="统计" icon={<BarChart3 size={17} />}>
+    <Page title={t('stats.title')} icon={<BarChart3 size={17} />}>
       <div className="stats-content">
         {stats && (
           <div className="stats-overview-grid">
             <section className="card">
-              <h3><BarChart3 size={16} />个人统计</h3>
+              <h3><BarChart3 size={16} />{t('stats.personal')}</h3>
               <StatTable rows={[
-                ['单人总场次', stats.personal.totalGames],
-                ['单人胜场', stats.personal.wins],
-                ['单人胜率', `${(stats.personal.winRate * 100).toFixed(1)}%`],
-                ['平均猜测次数(胜场)', formatAverage(stats.personal.avgGuesses)],
-                ['最快猜中', stats.personal.bestGuesses ?? '-'],
-                ['最多首猜选手', formatFirstGuess(stats.personal.firstGuess)],
-                ['多人对局 / 胜场', `${stats.personal.multiGames} / ${stats.personal.multiWins}`],
+                [t('stats.singleGames'), stats.personal.totalGames],
+                [t('stats.singleWins'), stats.personal.wins],
+                [t('stats.singleWinRate'), `${(stats.personal.winRate * 100).toFixed(1)}%`],
+                [t('stats.avgWinningGuesses'), formatAverage(stats.personal.avgGuesses)],
+                [t('stats.bestGuess'), stats.personal.bestGuesses ?? '-'],
+                [t('stats.topFirstGuess'), formatFirstGuess(stats.personal.firstGuess)],
+                [t('stats.multiGamesWins'), `${stats.personal.multiGames} / ${stats.personal.multiWins}`],
               ]} />
             </section>
             <section className="card">
-              <h3><Users size={16} />全站统计</h3>
+              <h3><Users size={16} />{t('stats.global')}</h3>
               <StatTable rows={[
-                ['注册用户', stats.global.registeredUsers],
-                ['单人总场次', stats.global.totalGames],
-                ['单人胜场', stats.global.wins],
-                ['全站单人胜率', `${(stats.global.winRate * 100).toFixed(1)}%`],
-                ['平均猜测次数(胜场)', formatAverage(stats.global.avgGuesses)],
-                ['最多首猜选手', formatFirstGuess(stats.global.firstGuess)],
-                ['多人对局', stats.global.multiGames],
+                [t('stats.registeredUsers'), stats.global.registeredUsers],
+                [t('stats.singleGames'), stats.global.totalGames],
+                [t('stats.singleWins'), stats.global.wins],
+                [t('stats.globalWinRate'), `${(stats.global.winRate * 100).toFixed(1)}%`],
+                [t('stats.avgWinningGuesses'), formatAverage(stats.global.avgGuesses)],
+                [t('stats.topFirstGuess'), formatFirstGuess(stats.global.firstGuess)],
+                [t('stats.multiGames'), stats.global.multiGames],
               ]} />
             </section>
           </div>
@@ -206,13 +204,13 @@ export default function Stats() {
 
         <section className="card stats-recent-card">
           <div className="stats-replay-toolbar">
-            <h3>个人回放</h3>
-            <div className="stats-replay-segments" role="tablist" aria-label="回放类型">
+            <h3>{t('stats.personalReplays')}</h3>
+            <div className="stats-replay-segments" role="tablist" aria-label={t('stats.replayType')}>
               <button type="button" role="tab" aria-selected={type === 'single'} className={type === 'single' ? 'active' : ''} onClick={() => chooseType('single')}>
-                <User size={15} />单人
+                <User size={15} />{t('stats.single')}
               </button>
               <button type="button" role="tab" aria-selected={type === 'multi'} className={type === 'multi' ? 'active' : ''} onClick={() => chooseType('multi')}>
-                <Swords size={15} />多人
+                <Swords size={15} />{t('stats.multi')}
               </button>
             </div>
           </div>
@@ -222,57 +220,60 @@ export default function Stats() {
                 columns={singleColumns}
                 rows={items.filter((item): item is SingleReplayItem => item.type === 'single')}
                 rowKey={(game) => game.id}
-                empty={loading ? '正在加载...' : '还没有单人对局记录'}
+                empty={loading ? t('common.loading') : t('stats.noSingle')}
               />
             ) : (
               <DataTable
                 columns={multiColumns}
                 rows={items.filter((item): item is MultiReplayItem => item.type === 'multi')}
                 rowKey={(game) => game.id}
-                empty={loading ? '正在加载...' : '还没有多人对局记录'}
+                empty={loading ? t('common.loading') : t('stats.noMulti')}
               />
             )}
           </div>
           <div className="stats-replay-mobile-list">
-            {items.length ? items.map((item) => (
+            {items.length ? items.map((item) => {
+              const result = item.type === 'single' ? item.status : item.result;
+              return (
               <article className="stats-replay-mobile-item" key={`${item.type}:${item.id}`}>
                 <div className="stats-replay-mobile-heading">
                   <strong>{item.type === 'single'
-                    ? formatMode(item.mode)
-                    : `${formatMode(item.mode)} · BO${item.boType}`}</strong>
+                    ? (item.mode === 'easy' ? t('common.easy') : t('common.normal'))
+                    : `${item.mode === 'easy' ? t('common.easy') : t('common.normal')} · BO${item.boType}`}</strong>
                   <Badge
-                    text={(item.type === 'single' ? item.status : item.result) === 'won' ? '胜利' : '失败'}
-                    color={(item.type === 'single' ? item.status : item.result) === 'won' ? 'green' : 'gray'}
+                    text={result === 'won' ? t('common.win') : result === 'draw' ? t('common.draw') : t('common.loss')}
+                    color={result === 'won' ? 'green' : 'gray'}
                   />
                 </div>
                 <div className="stats-replay-mobile-details">
                   {item.type === 'single' ? (
                     <>
-                      <span>答案 <strong>{item.answer}</strong></span>
-                      <span>猜测 <strong>{item.guessCount}</strong></span>
+                      <span>{t('stats.answer')} <strong>{item.answer}</strong></span>
+                      <span>{t('stats.guesses')} <strong>{item.guessCount}</strong></span>
                     </>
                   ) : (
                     <>
-                      <span>对阵 <strong>我方 / {item.opponent?.displayId ?? '未知对手'}</strong></span>
-                      <span>比分 <strong>{item.me.score}:{item.opponent?.score ?? 0}</strong></span>
+                      <span>{t('stats.matchup')} <strong>{t('common.me')} / {item.opponent?.displayId ?? t('stats.unknownOpponent')}</strong></span>
+                      <span>{t('stats.score')} <strong>{item.me.score}:{item.opponent?.score ?? 0}</strong></span>
                     </>
                   )}
                 </div>
                 <div className="stats-replay-mobile-footer">
-                  <time dateTime={item.finishedAt}>{new Date(item.finishedAt).toLocaleString('zh-CN')}</time>
+                  <time dateTime={item.finishedAt}>{new Date(item.finishedAt).toLocaleString(currentLocale())}</time>
                   {replayButton(item)}
                 </div>
               </article>
-            )) : <p className="muted">{loading
-              ? '正在加载...'
-              : type === 'single' ? '还没有单人对局记录' : '还没有多人对局记录'}</p>}
+              );
+            }) : <p className="muted">{loading
+              ? t('common.loading')
+              : type === 'single' ? t('stats.noSingle') : t('stats.noMulti')}</p>}
           </div>
           <div className="stats-pagination">
-            <button className="btn btn-ghost" type="button" aria-label="上一页" title="上一页" disabled={page === 1 || loading} onClick={() => setPage((current) => Math.max(1, current - 1))}>
+            <button className="btn btn-ghost" type="button" aria-label={t('common.previousPage')} title={t('common.previousPage')} disabled={page === 1 || loading} onClick={() => setPage((current) => Math.max(1, current - 1))}>
               <ChevronLeft size={17} />
             </button>
-            <span>第 {page} 页</span>
-            <button className="btn btn-ghost" type="button" aria-label="下一页" title="下一页" disabled={!hasNext || loading} onClick={() => setPage((current) => current + 1)}>
+            <span>{t('common.page', { page })}</span>
+            <button className="btn btn-ghost" type="button" aria-label={t('common.nextPage')} title={t('common.nextPage')} disabled={!hasNext || loading} onClick={() => setPage((current) => current + 1)}>
               <ChevronRight size={17} />
             </button>
           </div>

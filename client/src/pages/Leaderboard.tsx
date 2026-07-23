@@ -5,6 +5,7 @@ import DataTable, { Column } from '../components/DataTable';
 import { api, errMsg } from '../api/client';
 import { toast } from '../components/Toast';
 import { useAuth } from '../store/auth';
+import { useTranslation } from 'react-i18next';
 
 interface BoardRow {
   id: number;
@@ -23,13 +24,10 @@ interface LeaderboardResponse {
   currentUser: { displayId: string; rank: number | null } | null;
 }
 
-const LEADERBOARD_TYPES: Array<{ value: LeaderboardType; label: string }> = [
-  { value: 'easy', label: '单人简单版' },
-  { value: 'normal', label: '单人完整版' },
-  { value: 'multi', label: '多人对局' },
-];
+const LEADERBOARD_TYPES: LeaderboardType[] = ['easy', 'normal', 'multi'];
 
 export default function Leaderboard() {
+  const { t } = useTranslation();
   const [type, setType] = useState<LeaderboardType>('easy');
   const [rows, setRows] = useState<BoardRow[]>([]);
   const [currentUser, setCurrentUser] = useState<LeaderboardResponse['currentUser']>(null);
@@ -52,44 +50,44 @@ export default function Leaderboard() {
     { key: 'rank', title: '#', render: (r) => rows.indexOf(r) + 1 },
     {
       key: 'displayId',
-      title: '玩家',
+      title: t('leaderboard.player'),
       render: (row) => (
         <span className="leaderboard-player-label">
           {row.displayId}
-          {row.id === currentUserId && <span className="leaderboard-self-marker">我</span>}
+          {row.id === currentUserId && <span className="leaderboard-self-marker">{t('leaderboard.self')}</span>}
         </span>
       ),
     },
-    { key: 'wins', title: '胜场' },
-    { key: 'total', title: '总场次' },
-    { key: 'winRate', title: '胜率', render: (r) => `${(r.winRate * 100).toFixed(1)}%` },
+    { key: 'wins', title: t('leaderboard.wins') },
+    { key: 'total', title: t('leaderboard.total') },
+    { key: 'winRate', title: t('leaderboard.winRate'), render: (r) => `${(r.winRate * 100).toFixed(1)}%` },
     ...(type === 'multi' ? [] : [{
       key: 'avgGuesses',
-      title: '平均猜测',
+      title: t('leaderboard.avgGuesses'),
       render: (r: BoardRow) => (r.avgGuesses != null ? r.avgGuesses.toFixed(2) : '-'),
     }]),
   ];
 
   return (
-    <Page title="排行榜" icon={<Trophy size={17} />}>
+    <Page title={t('leaderboard.title')} icon={<Trophy size={17} />}>
       {currentUser && (
         <div className="leaderboard-self-summary">
-          <span>我的排名</span>
-          <strong>{currentUser.rank == null ? '暂无排名' : `#${currentUser.rank}`}</strong>
+          <span>{t('leaderboard.myRank')}</span>
+          <strong>{currentUser.rank == null ? t('leaderboard.unranked') : `#${currentUser.rank}`}</strong>
           <span>{currentUser.displayId}</span>
         </div>
       )}
-      <div className="leaderboard-mode-tabs" role="tablist" aria-label="排行榜类型">
+      <div className="leaderboard-mode-tabs" role="tablist" aria-label={t('leaderboard.typeLabel')}>
         {LEADERBOARD_TYPES.map((option) => (
           <button
             type="button"
             role="tab"
-            aria-selected={type === option.value}
-            className={type === option.value ? 'active' : ''}
-            key={option.value}
-            onClick={() => setType(option.value)}
+            aria-selected={type === option}
+            className={type === option ? 'active' : ''}
+            key={option}
+            onClick={() => setType(option)}
           >
-            {option.label}
+            {t(`leaderboard.${option}`)}
           </button>
         ))}
       </div>
@@ -98,7 +96,7 @@ export default function Leaderboard() {
           columns={columns}
           rows={rows}
           rowKey={(r) => r.id}
-          empty={`还没有${LEADERBOARD_TYPES.find((option) => option.value === type)?.label ?? ''}排行记录`}
+          empty={t('leaderboard.empty', { type: t(`leaderboard.${type}`) })}
         />
       </div>
     </Page>

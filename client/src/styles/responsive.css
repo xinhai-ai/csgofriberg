@@ -36,6 +36,10 @@
   .header-bar .btns { gap: 6px; }
   .header-bar .btns .btn { min-width: 36px; padding-inline: 9px; }
   .header-bar .btns .theme-toggle { width: 36px; padding-inline: 0; flex: 0 0 36px; }
+  .header-bar .btns .language-select { flex-basis: 36px; width: 36px; }
+  .header-bar .btns .language-select-button { padding-inline: 0; }
+  .header-bar .btns .language-current,
+  .header-bar .btns .language-chevron { display: none; }
   .header-bar .btns .btn-text { display: none; }
   .home-page .header-bar .muted { display: none; }
   .status-bar { padding-block: 9px; font-size: 0.87rem; line-height: 1.45; }

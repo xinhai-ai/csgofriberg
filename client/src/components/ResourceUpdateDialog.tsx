@@ -4,6 +4,7 @@ import { RESOURCE_VERSION } from '../resourceVersion';
 import type { ResourceVersionNotice } from '../resourceVersion';
 import ModalPortal from './ModalPortal';
 import { toast } from './Toast';
+import { useTranslation } from 'react-i18next';
 
 const DISMISSED_NOTICE_KEY = 'dismissed-resource-version-notice';
 const VERSION_PATTERN = /^\d{13}$/;
@@ -34,6 +35,7 @@ function dismissNotice(
 }
 
 export default function ResourceUpdateDialog() {
+  const { t } = useTranslation();
   const [notice, setNotice] = useState<ResourceVersionNotice | null>(null);
   const refreshButtonRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
@@ -54,12 +56,12 @@ export default function ResourceUpdateDialog() {
     };
     void import('../api/socket').then(({ subscribeResourceVersion }) => {
       if (!disposed) unsubscribe = subscribeResourceVersion(onVersion);
-    }).catch(() => toast.error('无法监听资源更新，请稍后刷新页面'));
+    }).catch(() => toast.error(t('resourceUpdate.listenFailed')));
     return () => {
       disposed = true;
       unsubscribe?.();
     };
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (!notice) return;
@@ -95,14 +97,14 @@ export default function ResourceUpdateDialog() {
           </div>
           <div className="confirm-content">
             <div className="confirm-heading">
-              <h2 id={titleId}>资源已更新</h2>
-              <button className="confirm-close" type="button" aria-label="稍后刷新" onClick={dismiss}>
+              <h2 id={titleId}>{t('resourceUpdate.title')}</h2>
+              <button className="confirm-close" type="button" aria-label={t('resourceUpdate.laterAria')} onClick={dismiss}>
                 <X size={18} />
               </button>
             </div>
-            <p id={messageId}>检测到新的页面资源，刷新后即可使用最新版本。</p>
+            <p id={messageId}>{t('resourceUpdate.message')}</p>
             <div className="confirm-actions">
-              <button className="btn btn-ghost" type="button" onClick={dismiss}>稍后</button>
+              <button className="btn btn-ghost" type="button" onClick={dismiss}>{t('resourceUpdate.later')}</button>
               <button
                 ref={refreshButtonRef}
                 className="btn btn-warning"
@@ -110,7 +112,7 @@ export default function ResourceUpdateDialog() {
                 onClick={() => window.location.reload()}
               >
                 <RefreshCw size={16} />
-                立即刷新
+                {t('resourceUpdate.refresh')}
               </button>
             </div>
           </div>

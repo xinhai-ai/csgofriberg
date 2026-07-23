@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useRef, useState } from 'react';
 import { getPlayerList, searchPlayerList } from '../api/playerList';
 import { errMsg } from '../api/client';
 import { toast } from './Toast';
+import { useTranslation } from 'react-i18next';
 
 interface Suggestion {
   id: number;
@@ -26,9 +27,10 @@ export default function GuessInputBar({
   onFocusChange,
   statusText,
   disabled,
-  placeholder = '输入选手昵称...',
-  buttonText = '提交猜测',
+  placeholder,
+  buttonText,
 }: Props) {
+  const { t } = useTranslation();
   const [text, setText] = useState('');
   const [items, setItems] = useState<Suggestion[]>([]);
   const [active, setActive] = useState(0);
@@ -39,7 +41,9 @@ export default function GuessInputBar({
   const textRef = useRef('');
   const refocusAfterSubmit = useRef(false);
   const players = useRef<Suggestion[]>([]);
-  const visibleStatusText = submitting ? '正在提交...' : statusText;
+  const visibleStatusText = submitting ? t('guess.submittingStatus') : statusText;
+  const visiblePlaceholder = placeholder ?? t('guess.placeholder');
+  const visibleButtonText = buttonText ?? t('guess.submit');
 
   useEffect(() => {
     void getPlayerList().then((list) => {
@@ -143,7 +147,7 @@ export default function GuessInputBar({
           className="input"
           value={text}
           disabled={disabled}
-          placeholder={placeholder}
+          placeholder={visiblePlaceholder}
           autoComplete="off"
           onChange={(e) => {
             textRef.current = e.target.value;
@@ -173,7 +177,7 @@ export default function GuessInputBar({
           disabled={disabled || submitting || !items.length}
           onMouseDown={(event) => event.preventDefault()}
         >
-          {submitting ? '提交中...' : buttonText}
+          {submitting ? t('guess.submitting') : visibleButtonText}
         </button>
       </form>
       {visibleStatusText !== undefined && (

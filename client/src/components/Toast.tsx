@@ -2,6 +2,7 @@ import { CircleAlert, CircleCheck, Info, X } from 'lucide-react';
 import { useSyncExternalStore } from 'react';
 import ModalPortal from './ModalPortal';
 import styles from './Toast.module.css';
+import { useTranslation } from 'react-i18next';
 
 type ToastTone = 'error' | 'success' | 'info';
 
@@ -84,6 +85,7 @@ const ICONS = {
 };
 
 export default function ToastViewport() {
+  const { t } = useTranslation();
   const visibleItems = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
   return (
@@ -102,8 +104,8 @@ export default function ToastViewport() {
               <button
                 className={styles.close}
                 type="button"
-                aria-label="关闭通知"
-                title="关闭"
+                aria-label={t('common.close')}
+                title={t('common.close')}
                 onClick={() => dismiss(item.id)}
               >
                 <X size={16} />

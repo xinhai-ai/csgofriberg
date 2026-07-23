@@ -8,6 +8,7 @@ import { ensurePow } from './api/pow';
 import { initializeTheme } from './store/theme';
 import ResourceUpdateDialog from './components/ResourceUpdateDialog';
 import ToastViewport from './components/Toast';
+import './i18n';
 
 localStorage.removeItem('token');
 localStorage.removeItem('user');

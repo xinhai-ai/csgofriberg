@@ -7,10 +7,12 @@ import AdminResourceVersion from '../components/admin/AdminResourceVersion';
 import AdminUsers from '../components/admin/AdminUsers';
 import { getSocket } from '../api/socket';
 import { PresenceStats } from '../types';
+import { useTranslation } from 'react-i18next';
 
 type Tab = 'players' | 'users' | 'announcements' | 'resources';
 
 export default function Admin() {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>('players');
   const [presence, setPresence] = useState<PresenceStats | null>(null);
 
@@ -29,36 +31,36 @@ export default function Admin() {
   }, []);
 
   return (
-    <Page title="管理后台" icon={<Wrench size={17} />}>
-      <section className="presence-grid" aria-label="实时在线统计">
+    <Page title={t('admin.title')} icon={<Wrench size={17} />}>
+      <section className="presence-grid" aria-label={t('admin.presence')}>
         <div className="presence-item">
           <Users size={20} />
-          <span>在线人数</span>
+          <span>{t('admin.online')}</span>
           <strong>{presence?.onlineUsers ?? '-'}</strong>
         </div>
         <div className="presence-item">
           <Swords size={20} />
-          <span>多人房间</span>
+          <span>{t('admin.multiRooms')}</span>
           <strong>{presence?.multiplayerRooms ?? '-'}</strong>
         </div>
         <div className="presence-item">
           <Gamepad2 size={20} />
-          <span>单人游戏</span>
+          <span>{t('admin.singleGames')}</span>
           <strong>{presence?.singleGames ?? '-'}</strong>
         </div>
       </section>
       <div className="admin-tabs">
         <button className={tab === 'players' ? 'btn' : 'btn btn-ghost'} onClick={() => setTab('players')}>
-          选手管理
+          {t('admin.playersTab')}
         </button>
         <button className={tab === 'users' ? 'btn' : 'btn btn-ghost'} onClick={() => setTab('users')}>
-          用户管理
+          {t('admin.usersTab')}
         </button>
         <button className={tab === 'announcements' ? 'btn' : 'btn btn-ghost'} onClick={() => setTab('announcements')}>
-          公告管理
+          {t('admin.announcementsTab')}
         </button>
         <button className={tab === 'resources' ? 'btn' : 'btn btn-ghost'} onClick={() => setTab('resources')}>
-          资源版本
+          {t('admin.resourcesTab')}
         </button>
       </div>
       {tab === 'players' && <AdminPlayers />}

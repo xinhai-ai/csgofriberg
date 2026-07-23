@@ -7,6 +7,7 @@ import { useConfirm } from '../ConfirmDialog';
 import { playerRoleLabel } from '../../utils/playerRoles';
 import { clearPlayerListCache } from '../../api/playerList';
 import { toast } from '../Toast';
+import { useTranslation } from 'react-i18next';
 
 interface AdminPlayer extends PlayerForm {
   id: number;
@@ -22,6 +23,7 @@ interface PlayerPage {
 
 /** 管理后台 - 选手管理(列表/新增/编辑/删除/JSON 导入) */
 export default function AdminPlayers() {
+  const { t } = useTranslation();
   const confirm = useConfirm();
   const [players, setPlayers] = useState<AdminPlayer[]>([]);
   const [total, setTotal] = useState(0);
@@ -79,7 +81,7 @@ export default function AdminPlayers() {
       }
       clearPlayerListCache();
       setEditing(null);
-      toast.success(id ? '修改已保存' : '新增成功');
+      toast.success(id ? t('admin.saved') : t('admin.added'));
       if (!id && page !== 1) setPage(1);
       else await load();
     } catch (err) {
@@ -89,15 +91,15 @@ export default function AdminPlayers() {
 
   const setEnabled = async (p: AdminPlayer, isEnabled: boolean) => {
     if (!isEnabled && !await confirm({
-      title: `停用选手 ${p.nickname}?`,
-      message: '停用后，该选手会立即从目标池和猜测候选列表中移除，但历史对局仍会保留。',
-      confirmLabel: '确认停用',
+      title: t('admin.disableTitle', { player: p.nickname }),
+      message: t('admin.disableMessage'),
+      confirmLabel: t('admin.disableConfirm'),
       tone: 'warning',
     })) return;
     try {
       await api.put(`/admin/players/${p.id}`, { is_enabled: isEnabled });
       clearPlayerListCache();
-      toast.success(isEnabled ? `${p.nickname} 已重新加入选手池` : `${p.nickname} 已停用并移出选手池`);
+      toast.success(isEnabled ? t('admin.enabledSuccess', { player: p.nickname }) : t('admin.disabledSuccess', { player: p.nickname }));
       await load();
     } catch (err) {
       toast.error(errMsg(err));
@@ -106,15 +108,15 @@ export default function AdminPlayers() {
 
   const remove = async (p: AdminPlayer) => {
     if (!await confirm({
-      title: `永久删除 ${p.nickname}?`,
-      message: '永久删除无法撤销。已有历史对局的选手不能永久删除，请改用停用。',
-      confirmLabel: '永久删除',
+      title: t('admin.deleteTitle', { player: p.nickname }),
+      message: t('admin.deleteMessage'),
+      confirmLabel: t('admin.deleteConfirm'),
       tone: 'danger',
     })) return;
     try {
       await api.delete(`/admin/players/${p.id}`);
       clearPlayerListCache();
-      toast.success(`${p.nickname} 已永久删除`);
+      toast.success(t('admin.deleted', { player: p.nickname }));
       await load();
     } catch (err) {
       toast.error(errMsg(err));
@@ -127,48 +129,48 @@ export default function AdminPlayers() {
       const list = Array.isArray(parsed) ? parsed : parsed.players;
       const res = await api.post('/admin/players/import', { players: list });
       clearPlayerListCache();
-      toast.success(`导入完成：新增 ${res.data.created}，更新 ${res.data.updated}`);
+      toast.success(t('admin.importDone', { created: res.data.created, updated: res.data.updated }));
       setImportText('');
       if (page !== 1) setPage(1);
       else await load();
     } catch (err) {
-      toast.error(err instanceof SyntaxError ? 'JSON 格式错误' : errMsg(err));
+      toast.error(err instanceof SyntaxError ? t('admin.jsonError') : errMsg(err));
     }
   };
 
   const columns: Column<AdminPlayer>[] = [
-    { key: 'nickname', title: '昵称' },
-    { key: 'nationality', title: '国家或地区' },
-    { key: 'region', title: '赛区' },
-    { key: 'team', title: '队伍' },
-    { key: 'age', title: '年龄' },
-    { key: 'role', title: '位置', render: (p) => playerRoleLabel(p.role) },
-    { key: 'major_championships', title: 'Major 冠军' },
-    { key: 'major_appearances', title: 'Major' },
-    { key: 'is_easy', title: '简单版', render: (p) => (p.is_easy ? '是' : '否') },
-    { key: 'is_active', title: '状态', render: (p) => (p.is_active ? '现役' : '退役') },
-    { key: 'is_enabled', title: '选手池', render: (p) => (p.is_enabled ? '可用' : '已停用') },
+    { key: 'nickname', title: t('admin.nickname') },
+    { key: 'nationality', title: t('admin.nationality') },
+    { key: 'region', title: t('admin.region') },
+    { key: 'team', title: t('admin.team') },
+    { key: 'age', title: t('admin.age') },
+    { key: 'role', title: t('admin.role'), render: (p) => playerRoleLabel(p.role) },
+    { key: 'major_championships', title: t('admin.majorTitles') },
+    { key: 'major_appearances', title: t('admin.major') },
+    { key: 'is_easy', title: t('admin.easy'), render: (p) => (p.is_easy ? t('admin.yes') : t('admin.no')) },
+    { key: 'is_active', title: t('admin.status'), render: (p) => (p.is_active ? t('common.active') : t('common.retired')) },
+    { key: 'is_enabled', title: t('admin.pool'), render: (p) => (p.is_enabled ? t('admin.available') : t('admin.disabled')) },
     {
       key: 'actions',
-      title: '操作',
+      title: t('admin.actions'),
       render: (p) => (
         <span className="admin-player-actions">
-          <button type="button" className="btn btn-ghost" onClick={() => setEditing(p)}>编辑</button>
+          <button type="button" className="btn btn-ghost" onClick={() => setEditing(p)}>{t('admin.edit')}</button>
           <button
             type="button"
             className="btn btn-ghost"
             onClick={() => void setEnabled(p, !p.is_enabled)}
           >
-            {p.is_enabled ? '停用' : '启用'}
+            {p.is_enabled ? t('admin.disable') : t('admin.enable')}
           </button>
           <button
             type="button"
             className="btn btn-red"
             onClick={() => void remove(p)}
             disabled={p.is_enabled}
-            title={p.is_enabled ? '请先停用，再永久删除' : '永久删除'}
+            title={p.is_enabled ? t('admin.disableFirst') : t('admin.delete')}
           >
-            永久删除
+            {t('admin.delete')}
           </button>
         </span>
       ),
@@ -180,8 +182,8 @@ export default function AdminPlayers() {
       <div className="card admin-players-card">
         <div className="admin-players-header">
           <div className="admin-players-title">
-            <h3>选手管理</h3>
-            <p className="muted">共 {total} 名选手</p>
+            <h3>{t('admin.playersTitle')}</h3>
+            <p className="muted">{t('admin.totalPlayers', { count: total })}</p>
           </div>
           <button
             type="button"
@@ -189,7 +191,7 @@ export default function AdminPlayers() {
             onClick={() => setEditing({ ...emptyPlayer })}
           >
             <Plus size={16} />
-            新增选手
+            {t('admin.addPlayer')}
           </button>
         </div>
         <div className="admin-list-toolbar">
@@ -199,11 +201,11 @@ export default function AdminPlayers() {
               className="input"
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="搜索昵称、国家、赛区或队伍"
+              placeholder={t('admin.searchPlayers')}
             />
           </label>
           <label className="admin-page-size">
-            <span>每页显示</span>
+            <span>{t('admin.pageSize')}</span>
             <select
               className="input"
               value={pageSize}
@@ -221,28 +223,28 @@ export default function AdminPlayers() {
             columns={columns}
             rows={players}
             rowKey={(p) => p.id}
-            empty={loading ? '正在加载...' : search ? '没有匹配的选手' : '暂无选手'}
+            empty={loading ? t('common.loading') : search ? t('admin.noMatchPlayers') : t('admin.noPlayers')}
           />
         </div>
         <div className="admin-pagination">
           <span className="muted">
-            {total ? `${(page - 1) * pageSize + 1}-${Math.min(page * pageSize, total)} / ${total}` : '0 条'}
+            {total ? `${(page - 1) * pageSize + 1}-${Math.min(page * pageSize, total)} / ${total}` : t('admin.zeroItems')}
           </span>
           <div className="admin-pagination-actions">
             <button
               className="btn btn-ghost"
-              aria-label="上一页"
-              title="上一页"
+              aria-label={t('common.previousPage')}
+              title={t('common.previousPage')}
               disabled={loading || page <= 1}
               onClick={() => setPage((current) => Math.max(1, current - 1))}
             >
               <ChevronLeft size={17} />
             </button>
-            <span>第 {page} / {Math.max(1, Math.ceil(total / pageSize))} 页</span>
+            <span>{t('admin.pageOf', { page, total: Math.max(1, Math.ceil(total / pageSize)) })}</span>
             <button
               className="btn btn-ghost"
-              aria-label="下一页"
-              title="下一页"
+              aria-label={t('common.nextPage')}
+              title={t('common.nextPage')}
               disabled={loading || page >= Math.max(1, Math.ceil(total / pageSize))}
               onClick={() => setPage((current) => current + 1)}
             >
@@ -252,20 +254,19 @@ export default function AdminPlayers() {
         </div>
       </div>
       <div className="card admin-import-card">
-        <h3>JSON 批量导入</h3>
+        <h3>{t('admin.importTitle')}</h3>
         <p className="muted">
-          粘贴选手数组,字段: nickname, nationality, region, team, age, role,
-          major_championships, major_appearances, is_easy, is_active, is_enabled。按昵称去重,已存在则更新。
+          {t('admin.importDescription')}
         </p>
         <textarea
           className="input"
           rows={6}
           value={importText}
           onChange={(e) => setImportText(e.target.value)}
-          placeholder='[{"nickname":"s1mple","nationality":"乌克兰","region":"欧洲","team":"NAVI","age":29,"role":"AWPer","major_championships":1,"major_appearances":12,"is_easy":true,"is_active":true,"is_enabled":true}]'
+          placeholder={t('admin.importPlaceholder')}
         />
         <button className="btn" style={{ marginTop: 8 }} onClick={() => void doImport()} disabled={!importText.trim()}>
-          导入
+          {t('admin.importAction')}
         </button>
       </div>
       {editing && (

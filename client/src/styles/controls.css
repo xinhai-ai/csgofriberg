@@ -47,6 +47,97 @@
 }
 .btn-ghost:hover:not(:disabled) { background: var(--primary-soft); border-color: #bed2f3; color: var(--primary-hover); box-shadow: none; }
 .btn svg { flex-shrink: 0; }
+.language-select {
+  --language-accent: var(--primary-strong);
+  position: relative;
+  flex: 0 0 58px;
+  width: 58px;
+  height: 34px;
+}
+.language-select-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 100%;
+  height: 100%;
+  padding: 0 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--text-sec);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease;
+}
+.language-select-button:hover,
+.language-select.open .language-select-button {
+  border-color: var(--language-accent);
+  background: var(--primary-soft);
+  color: var(--language-accent);
+}
+.language-select-button:focus-visible {
+  outline: 3px solid var(--primary-soft);
+  outline-offset: 2px;
+}
+.language-chevron { transition: transform 0.16s ease; }
+.language-select.open .language-chevron { transform: rotate(180deg); }
+.language-select-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 260;
+  display: grid;
+  gap: 3px;
+  width: 164px;
+  margin: 0;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: var(--shadow-lg);
+  list-style: none;
+  animation: language-menu-enter 0.16s ease-out both;
+}
+.language-select-option {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 38px;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-sec);
+  text-align: left;
+  cursor: pointer;
+}
+.language-select-option:hover,
+.language-select-option:focus-visible {
+  outline: none;
+  background: var(--card-soft);
+  color: var(--text);
+}
+.language-select-option.active {
+  background: var(--primary-soft);
+  color: var(--language-accent);
+  font-weight: 700;
+}
+.language-option-code {
+  color: var(--text-light);
+  font-family: Consolas, monospace;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+.language-select-option.active .language-option-code { color: var(--language-accent); }
+.language-select-option > svg { justify-self: end; }
+@keyframes language-menu-enter {
+  from { opacity: 0; transform: translateY(-5px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
 
 /* ===== 卡片 ===== */
 .card {
@@ -89,4 +180,3 @@
 .error { color: var(--danger); font-size: 0.9rem; overflow-wrap: anywhere; }
 .success { color: var(--success); font-size: 0.9rem; overflow-wrap: anywhere; }
 .muted { color: var(--text-light); font-size: 0.9rem; overflow-wrap: anywhere; }
-

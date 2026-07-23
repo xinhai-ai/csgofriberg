@@ -2,6 +2,8 @@ import { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Home } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
+import LanguageSelect from './LanguageSelect';
+import { useTranslation } from 'react-i18next';
 
 interface Props {
   title: string;
@@ -31,6 +33,7 @@ export default function Page({
   dock,
   showHome = true,
 }: Props) {
+  const { t } = useTranslation();
   return (
     <div className={`page${className ? ` ${className}` : ''}`}>
       <div className="header-bar">
@@ -40,11 +43,12 @@ export default function Page({
         </span>
         <span className="btns">
           {actions}
+          <LanguageSelect />
           <ThemeToggle />
           {showHome && (
-            <Link to="/" className="btn btn-ghost btn-sm" aria-label="主菜单">
+            <Link to="/" className="btn btn-ghost btn-sm" aria-label={t('common.home')}>
               <Home size={15} />
-              <span className="btn-text">主菜单</span>
+              <span className="btn-text">{t('common.home')}</span>
             </Link>
           )}
         </span>

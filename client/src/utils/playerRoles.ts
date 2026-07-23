@@ -1,13 +1,16 @@
+import i18n from '../i18n';
+
 export const PLAYER_ROLE_OPTIONS = [
-  { value: 'Rifler', label: '步枪手' },
-  { value: 'AWPer', label: '狙击手' },
-  { value: 'Coach', label: '教练' },
+  { value: 'Rifler', labelKey: 'player.roles.rifler' },
+  { value: 'AWPer', labelKey: 'player.roles.awper' },
+  { value: 'Coach', labelKey: 'player.roles.coach' },
 ] as const;
 
 const ROLE_LABELS = new Map<string, string>(
-  PLAYER_ROLE_OPTIONS.map(({ value, label }) => [value, label])
+  PLAYER_ROLE_OPTIONS.map(({ value, labelKey }) => [value, labelKey])
 );
 
 export function playerRoleLabel(role: string): string {
-  return ROLE_LABELS.get(role) ?? role;
+  const key = ROLE_LABELS.get(role);
+  return key ? i18n.t(key) : role;
 }

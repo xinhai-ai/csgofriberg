@@ -22,6 +22,8 @@ import { markGuestSession } from '../api/session';
 import { useConfirm } from '../components/ConfirmDialog';
 import ThemeToggle from '../components/ThemeToggle';
 import { toast } from '../components/Toast';
+import { useTranslation } from 'react-i18next';
+import LanguageSelect from '../components/LanguageSelect';
 
 function BilibiliIcon() {
   return (
@@ -44,6 +46,7 @@ function BilibiliIcon() {
 }
 
 export default function Home() {
+  const { t } = useTranslation();
   const { user, initialized, setUser } = useAuth();
   const navigate = useNavigate();
   const confirm = useConfirm();
@@ -64,9 +67,9 @@ export default function Home() {
 
   const logout = async () => {
     if (!await confirm({
-      title: '退出当前账号?',
-      message: '退出后将切换为访客身份，未完成的联机连接会被关闭。',
-      confirmLabel: '退出账号',
+      title: t('home.logoutTitle'),
+      message: t('home.logoutMessage'),
+      confirmLabel: t('home.logoutConfirm'),
       tone: 'warning',
     })) return;
     setLoggingOut(true);
@@ -90,39 +93,40 @@ export default function Home() {
   return (
     <div className="page home-page">
       <div className="header-bar">
-        <span className="title">弗一把</span>
+        <span className="title">{t('common.brand')}</span>
         <span className="btns">
+          <LanguageSelect />
           <ThemeToggle />
           {!initialized ? (
-            <span className="auth-pending" aria-label="正在恢复登录状态" />
+            <span className="auth-pending" aria-label={t('home.restoring')} />
           ) : user ? (
             <>
               <span className="muted">
                 {user.username}
-                {user.role === 'admin' && ' · 管理员'}
+                {user.role === 'admin' && ` · ${t('home.admin')}`}
               </span>
               {user.role === 'admin' && (
-                <Link className="btn btn-ghost btn-sm" to="/admin" aria-label="管理后台">
+                <Link className="btn btn-ghost btn-sm" to="/admin" aria-label={t('home.adminPanel')}>
                   <Wrench size={15} />
-                  <span className="btn-text">管理</span>
+                  <span className="btn-text">{t('home.manage')}</span>
                 </Link>
               )}
               <button
                 className="btn btn-ghost btn-sm"
-                aria-label="退出登录"
+                aria-label={t('home.logout')}
                 onClick={() => void logout()}
                 disabled={loggingOut}
               >
                 <LogOut size={15} />
-                <span className="btn-text">退出</span>
+                <span className="btn-text">{t('home.logout')}</span>
               </button>
             </>
           ) : (
             <>
-              <span className="muted">{guestName}</span>
-              <Link className="btn btn-sm" to="/login" aria-label="登录或注册">
+              <span className="muted">{guestName === '访客' ? t('common.guest') : guestName}</span>
+              <Link className="btn btn-sm" to="/login" aria-label={t('home.loginRegister')}>
                 <LogIn size={15} />
-                <span className="btn-text">登录 / 注册</span>
+                <span className="btn-text">{t('home.loginRegister')}</span>
               </Link>
             </>
           )}
@@ -131,12 +135,12 @@ export default function Home() {
       <main className="page-scroll" id="main-content">
         <div className="home-hero">
           <span className="hero-kicker">CS MAJOR // PLAYER GUESSING</span>
-          <h1>弗一把</h1>
-          <p className="hero-subtitle">CS:GO / CS2 Major 选手猜测游戏</p>
+          <h1>{t('common.brand')}</h1>
+          <p className="hero-subtitle">{t('home.subtitle')}</p>
           <GameRules />
           {initialized && !user && (
             <p className="muted" style={{ marginTop: 6 }}>
-              无需登录即可游玩,战绩保存在本机;登录后自动同步到账号
+              {t('home.guestHint')}
             </p>
           )}
         </div>
@@ -144,46 +148,46 @@ export default function Home() {
           <MenuCard
             to="/single/easy"
             icon={<Gamepad2 size={22} />}
-            label="简单版"
-            description="知名选手池 · 快速上手"
+            label={t('common.easy')}
+            description={t('home.easyDescription')}
             color="#74e38f"
           />
           <MenuCard
             to="/single/normal"
             icon={<Flame size={22} />}
-            label="完整版"
-            description="完整数据库 · 终极挑战"
+            label={t('common.normal')}
+            description={t('home.normalDescription')}
             color="#ff6578"
           />
           <MenuCard
             to="/search"
             icon={<Search size={22} />}
-            label="查选手"
-            description="队伍、国家或地区与 Major 履历"
+            label={t('home.search')}
+            description={t('home.searchDescription')}
             color="#65a8ff"
           />
           <MenuCard
             to="/multi"
             icon={<Globe size={22} />}
-            label="多人联机"
-            description="创建房间或随机匹配"
+            label={t('home.multiplayer')}
+            description={t('home.multiplayerDescription')}
             color="#ffb64e"
           />
         </div>
         <div className="bottom-bar">
           <Link to="/stats" className="btn">
             <BarChart3 size={15} />
-            统计
+            {t('home.stats')}
           </Link>
           {showLeaderboard && (
             <Link to="/leaderboard" className="btn btn-warning">
               <Trophy size={15} />
-              排行榜
+              {t('home.leaderboard')}
             </Link>
           )}
           <Link to="/announcement" className="btn btn-success">
             <Megaphone size={15} />
-            更新公告
+            {t('home.announcements')}
           </Link>
           <a
             href="https://space.bilibili.com/290893104"
@@ -192,7 +196,7 @@ export default function Home() {
             rel="noopener noreferrer"
           >
             <BilibiliIcon />
-            B站:怂皇的一天
+            {t('home.bilibili')}
           </a>
         </div>
       </main>

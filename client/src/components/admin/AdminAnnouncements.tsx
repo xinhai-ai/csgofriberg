@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, errMsg } from '../../api/client';
 import { useConfirm } from '../ConfirmDialog';
 import { toast } from '../Toast';
+import { useTranslation } from 'react-i18next';
+import { currentLocale } from '../../i18n';
 
 interface Announcement {
   id: number;
@@ -12,6 +14,7 @@ interface Announcement {
 
 /** 管理后台 - 公告管理 */
 export default function AdminAnnouncements() {
+  const { t } = useTranslation();
   const confirm = useConfirm();
   const [items, setItems] = useState<Announcement[]>([]);
   const [title, setTitle] = useState('');
@@ -35,7 +38,7 @@ export default function AdminAnnouncements() {
       await api.post('/admin/announcements', { title, content });
       setTitle('');
       setContent('');
-      toast.success('公告已发布');
+      toast.success(t('admin.announcementPublished'));
       await load();
     } catch (err) {
       toast.error(errMsg(err));
@@ -44,14 +47,14 @@ export default function AdminAnnouncements() {
 
   const remove = async (id: number) => {
     if (!await confirm({
-      title: '删除公告?',
-      message: '删除后公告将立即从所有用户页面移除，此操作无法撤销。',
-      confirmLabel: '删除公告',
+      title: t('admin.deleteAnnouncementTitle'),
+      message: t('admin.deleteAnnouncementMessage'),
+      confirmLabel: t('admin.deleteAnnouncementConfirm'),
       tone: 'danger',
     })) return;
     try {
       await api.delete(`/admin/announcements/${id}`);
-      toast.success('公告已删除');
+      toast.success(t('admin.announcementDeleted'));
       await load();
     } catch (err) {
       toast.error(errMsg(err));
@@ -60,12 +63,12 @@ export default function AdminAnnouncements() {
 
   return (
     <div className="card admin-announcements-card">
-      <h3>公告管理</h3>
+      <h3>{t('admin.announcementsTitle')}</h3>
       <div className="admin-announcement-form">
-        <input className="input" placeholder="公告标题" value={title} onChange={(e) => setTitle(e.target.value)} />
-        <textarea className="input" rows={4} placeholder="公告内容" value={content} onChange={(e) => setContent(e.target.value)} />
+        <input className="input" placeholder={t('admin.announcementTitle')} value={title} onChange={(e) => setTitle(e.target.value)} />
+        <textarea className="input" rows={4} placeholder={t('admin.announcementContent')} value={content} onChange={(e) => setContent(e.target.value)} />
         <button className="btn btn-green" onClick={() => void publish()} disabled={!title.trim() || !content.trim()}>
-          发布公告
+          {t('admin.publish')}
         </button>
       </div>
       <div className="admin-announcement-list">
@@ -73,9 +76,9 @@ export default function AdminAnnouncements() {
           <div className="admin-announcement-row" key={a.id}>
             <span>
               <b>{a.title}</b>{' '}
-              <span className="muted">{new Date(a.created_at).toLocaleString('zh-CN')}</span>
+              <span className="muted">{new Date(a.created_at).toLocaleString(currentLocale())}</span>
             </span>
-            <button className="btn btn-red" onClick={() => void remove(a.id)}>删除</button>
+            <button className="btn btn-red" onClick={() => void remove(a.id)}>{t('admin.deleteAnnouncementConfirm')}</button>
           </div>
         ))}
       </div>

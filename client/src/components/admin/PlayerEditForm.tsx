@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { PLAYER_ROLE_OPTIONS } from '../../utils/playerRoles';
 import ModalPortal from '../ModalPortal';
 import { toast } from '../Toast';
+import { useTranslation } from 'react-i18next';
 
 export interface PlayerForm {
   id?: number;
@@ -40,6 +41,7 @@ interface Props {
 }
 
 export default function PlayerEditForm({ initial, onSubmit, onCancel }: Props) {
+  const { t } = useTranslation();
   const [form, setForm] = useState<PlayerForm>(initial);
   const [saving, setSaving] = useState(false);
   const titleId = useId();
@@ -71,7 +73,7 @@ export default function PlayerEditForm({ initial, onSubmit, onCancel }: Props) {
     try {
       await onSubmit(form);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : '保存失败，请稍后重试');
+      toast.error(error instanceof Error ? error.message : t('admin.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -88,10 +90,10 @@ export default function PlayerEditForm({ initial, onSubmit, onCancel }: Props) {
         <div className="admin-player-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId}>
           <div className="admin-player-dialog-heading">
             <div>
-              <h2 id={titleId}>{form.id ? `修改选手: ${form.nickname}` : '新增选手'}</h2>
-              <p>完整填写选手属性，带星号的字段为必填项。</p>
+              <h2 id={titleId}>{form.id ? t('admin.editPlayer', { player: form.nickname }) : t('admin.addPlayer')}</h2>
+              <p>{t('admin.formDescription')}</p>
             </div>
-            <button className="confirm-close" type="button" aria-label="关闭" onClick={onCancel} disabled={saving}>
+            <button className="confirm-close" type="button" aria-label={t('common.close')} onClick={onCancel} disabled={saving}>
               <X size={18} />
             </button>
           </div>
@@ -99,50 +101,50 @@ export default function PlayerEditForm({ initial, onSubmit, onCancel }: Props) {
           <form onSubmit={submit}>
           <div className="admin-player-form-grid">
             <label className="admin-player-field">
-              <span>选手昵称 *</span>
+              <span>{t('admin.playerNickname')}</span>
               <input ref={firstInputRef} className="input" value={form.nickname} onChange={(event) => set({ nickname: event.target.value })} required />
             </label>
             <label className="admin-player-field">
-              <span>国家或地区 *</span>
+              <span>{t('admin.nationalityRequired')}</span>
               <input className="input" value={form.nationality} onChange={(event) => set({ nationality: event.target.value })} required />
             </label>
             <label className="admin-player-field">
-              <span>赛区</span>
-              <input className="input" value={form.region} onChange={(event) => set({ region: event.target.value })} placeholder="欧洲、独联体、北美等" />
+              <span>{t('admin.region')}</span>
+              <input className="input" value={form.region} onChange={(event) => set({ region: event.target.value })} placeholder={t('admin.regionPlaceholder')} />
             </label>
             <label className="admin-player-field">
-              <span>当前队伍</span>
+              <span>{t('admin.currentTeam')}</span>
               <input className="input" value={form.team} onChange={(event) => set({ team: event.target.value })} />
             </label>
             <label className="admin-player-field">
-              <span>年龄 *</span>
+              <span>{t('admin.ageRequired')}</span>
               <input className="input" type="number" min="10" max="100" value={form.age} onChange={(event) => set({ age: Number(event.target.value) })} required />
             </label>
             <label className="admin-player-field">
-              <span>选手位置</span>
+              <span>{t('admin.playerRole')}</span>
               <select className="input" value={form.role} onChange={(event) => set({ role: event.target.value })}>
-                {PLAYER_ROLE_OPTIONS.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
+                {PLAYER_ROLE_OPTIONS.map(({ value, labelKey }) => <option key={value} value={value}>{t(labelKey)}</option>)}
               </select>
             </label>
             <label className="admin-player-field">
-              <span>Major 冠军数</span>
+              <span>{t('player.majorChampionships')}</span>
               <input className="input" type="number" min="0" value={form.major_championships} onChange={(event) => set({ major_championships: Number(event.target.value) })} />
             </label>
             <label className="admin-player-field">
-              <span>Major 参赛次数</span>
+              <span>{t('admin.majorAppearances')}</span>
               <input className="input" type="number" min="0" value={form.major_appearances} onChange={(event) => set({ major_appearances: Number(event.target.value) })} />
             </label>
           </div>
 
           <div className="admin-player-flags">
-            <label><input type="checkbox" checked={form.is_easy} onChange={(event) => set({ is_easy: event.target.checked })} />加入简单版选手池</label>
-            <label><input type="checkbox" checked={form.is_active} onChange={(event) => set({ is_active: event.target.checked })} />现役选手</label>
-            <label><input type="checkbox" checked={form.is_enabled} onChange={(event) => set({ is_enabled: event.target.checked })} />允许进入选手池和猜测列表</label>
+            <label><input type="checkbox" checked={form.is_easy} onChange={(event) => set({ is_easy: event.target.checked })} />{t('admin.easyPool')}</label>
+            <label><input type="checkbox" checked={form.is_active} onChange={(event) => set({ is_active: event.target.checked })} />{t('admin.activePlayer')}</label>
+            <label><input type="checkbox" checked={form.is_enabled} onChange={(event) => set({ is_enabled: event.target.checked })} />{t('admin.enabledPlayer')}</label>
           </div>
 
           <div className="admin-player-dialog-actions">
-            <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={saving}>取消</button>
-            <button className="btn btn-green" disabled={saving}>{saving ? '保存中...' : form.id ? '保存修改' : '新增选手'}</button>
+            <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={saving}>{t('common.cancel')}</button>
+            <button className="btn btn-green" disabled={saving}>{saving ? t('admin.saving') : form.id ? t('admin.saveChanges') : t('admin.addPlayer')}</button>
           </div>
           </form>
         </div>

@@ -6,9 +6,11 @@ import { PlayerInfoTable } from '../components/AnswerOverlay';
 import { api, errMsg } from '../api/client';
 import { PlayerInfo } from '../types';
 import { toast } from '../components/Toast';
+import { useTranslation } from 'react-i18next';
 
 /** 查选手:底部输入 + 自动补全,选中后在上方展示选手卡片(原版布局) */
 export default function Search() {
+  const { t } = useTranslation();
   const [player, setPlayer] = useState<PlayerInfo | null>(null);
 
   const lookup = async (nickname: string) => {
@@ -28,13 +30,13 @@ export default function Search() {
 
   return (
     <Page
-      title="选手查询"
+      title={t('search.title')}
       icon={<SearchIcon size={17} />}
       dock={
         <GuessInputBar
           onPick={(p) => void lookup(p.nickname)}
-          placeholder="输入选手昵称(支持模糊搜索)..."
-          buttonText="查询"
+          placeholder={t('search.placeholder')}
+          buttonText={t('search.button')}
         />
       }
     >
@@ -45,7 +47,7 @@ export default function Search() {
               <CircleDot size={15} color={player.isActive ? '#16a34a' : '#9aa3b2'} />
               {player.nickname}
               <span className="muted" style={{ fontWeight: 400 }}>
-                {player.isActive ? '现役' : '退役'} · {player.age} 岁
+                {player.isActive ? t('common.active') : t('common.retired')} · {t('search.age', { age: player.age })}
               </span>
             </h3>
             <PlayerInfoTable
@@ -62,8 +64,8 @@ export default function Search() {
         ) : (
           <div style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--text-light)' }}>
             <SearchIcon size={32} strokeWidth={1.5} />
-            <p>在下方输入框中输入选手名称即可查询</p>
-            <p style={{ fontSize: '0.8rem' }}>支持模糊搜索:输入部分名称即可匹配</p>
+            <p>{t('search.empty')}</p>
+            <p style={{ fontSize: '0.8rem' }}>{t('search.fuzzy')}</p>
           </div>
         )}
       </div>

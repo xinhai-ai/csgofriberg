@@ -9,12 +9,14 @@ import { api, errMsg } from '../api/client';
 import { GuessFeedback } from '../types';
 import { useConfirm } from '../components/ConfirmDialog';
 import { toast } from '../components/Toast';
+import { useTranslation } from 'react-i18next';
 
 function exitGame(gameId: string): Promise<unknown> {
   return api.post(`/game/${gameId}/exit`);
 }
 
 export default function SingleGame() {
+  const { t } = useTranslation();
   const { mode = 'easy' } = useParams();
   const navigate = useNavigate();
   const confirm = useConfirm();
@@ -76,9 +78,9 @@ export default function SingleGame() {
   const leave = async () => {
     const isGameActive = Boolean(gameIdRef.current) && status === 'playing';
     if (isGameActive && !await confirm({
-      title: '返回主菜单?',
-      message: '当前游戏进度会被清除，返回后无法继续本局。',
-      confirmLabel: '返回主菜单',
+      title: t('game.leaveTitle'),
+      message: t('game.leaveMessage'),
+      confirmLabel: t('game.leaveConfirm'),
       tone: 'danger',
     })) return;
     const id = gameIdRef.current;
@@ -94,9 +96,9 @@ export default function SingleGame() {
   const restart = async () => {
     const isGameActive = Boolean(gameIdRef.current) && status === 'playing';
     if (isGameActive && !await confirm({
-      title: '重新开始?',
-      message: '当前游戏进度会被清除，并立即生成一局新游戏。',
-      confirmLabel: '重新开始',
+      title: t('game.restartTitle'),
+      message: t('game.restartMessage'),
+      confirmLabel: t('game.restart'),
       tone: 'danger',
     })) return;
     await start(true);
@@ -120,9 +122,9 @@ export default function SingleGame() {
   const reveal = async () => {
     if (!gameId || status !== 'playing') return;
     if (!await confirm({
-      title: '查看答案?',
-      message: '查看答案会立即结束本局，并按失败结算。',
-      confirmLabel: '查看答案',
+      title: t('game.revealTitle'),
+      message: t('game.revealMessage'),
+      confirmLabel: t('game.reveal'),
       tone: 'danger',
     })) return;
     try {
@@ -143,26 +145,26 @@ export default function SingleGame() {
   return (
     <Page
       className={`game-page single-game-page${inputFocused ? ' keyboard-active' : ''}`}
-      title={isEasy ? '单人 · 简单版' : '单人 · 完整版'}
+      title={isEasy ? t('game.singleEasy') : t('game.singleNormal')}
       icon={isEasy ? <Gamepad2 size={17} /> : <Flame size={17} />}
       actions={
         <>
-          <button className="btn btn-ghost btn-sm" aria-label="重新开始" onClick={() => void restart()}>
+          <button className="btn btn-ghost btn-sm" aria-label={t('game.restart')} onClick={() => void restart()}>
             <RotateCcw size={15} />
-            <span className="btn-text">重新开始</span>
+            <span className="btn-text">{t('game.restart')}</span>
           </button>
-          <button className="btn btn-ghost btn-sm" aria-label="返回主菜单" onClick={() => void leave()}>
+          <button className="btn btn-ghost btn-sm" aria-label={t('common.home')} onClick={() => void leave()}>
             <Home size={15} />
-            <span className="btn-text">主菜单</span>
+            <span className="btn-text">{t('common.home')}</span>
           </button>
           <button
             className="btn btn-warning btn-sm"
-            aria-label="查看答案"
+            aria-label={t('game.reveal')}
             onClick={() => void reveal()}
             disabled={finished}
           >
             <Lightbulb size={15} />
-            <span className="btn-text">查看答案</span>
+            <span className="btn-text">{t('game.reveal')}</span>
           </button>
         </>
       }
@@ -170,13 +172,13 @@ export default function SingleGame() {
       statusBar={
         <>
           <Target size={14} />
-          猜测次数 {guesses.length} / {maxGuesses}
+          {t('game.guesses', { current: guesses.length, max: maxGuesses })}
           <span style={{ color: 'var(--border)' }}>|</span>
           {finished
             ? status === 'won'
-              ? '恭喜,猜对了'
-              : '本局结束'
-            : '绿色正确 · 黄色接近 · 箭头指示目标数值方向'}
+              ? t('game.congratulations')
+              : t('game.ended')
+            : t('game.hint')}
         </>
       }
       dock={
@@ -184,11 +186,11 @@ export default function SingleGame() {
           <div className="input-bar" style={{ justifyContent: 'center' }}>
             <button className="btn" onClick={() => void restart()}>
               <RotateCcw size={15} />
-              再来一把
+              {t('game.again')}
             </button>
             <button className="btn btn-danger" onClick={() => void leave()}>
               <X size={15} />
-              返回菜单
+              {t('game.back')}
             </button>
           </div>
         ) : (
@@ -207,31 +209,31 @@ export default function SingleGame() {
       ) : (
         <div style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--text-light)' }}>
           <Target size={32} strokeWidth={1.5} />
-          <p>在下方输入选手昵称开始猜测</p>
+          <p>{t('game.startHint')}</p>
           {isEasy ? (
-            <p style={{ fontSize: '0.8rem' }}>简单版:目标限定为知名度较高的选手</p>
+            <p style={{ fontSize: '0.8rem' }}>{t('game.easyHint')}</p>
           ) : (
-            <p style={{ fontSize: '0.8rem' }}>完整版:目标可能是选手库中的任何人</p>
+            <p style={{ fontSize: '0.8rem' }}>{t('game.normalHint')}</p>
           )}
         </div>
       )}
       {showOverlay && (
         <AnswerOverlay
-          title={status === 'won' ? '恭喜,猜对了' : '正确答案'}
+          title={status === 'won' ? t('game.congratulations') : t('game.correctAnswer')}
           answer={answer}
           extra={
             <p className="muted">
-              {status === 'won' ? `共用了 ${guesses.length} 次猜测` : '很遗憾,本局未能猜中'}
+              {status === 'won' ? t('game.usedGuesses', { count: guesses.length }) : t('game.missed')}
             </p>
           }
           actions={
             <>
               <button className="btn" onClick={() => void restart()}>
                 <RotateCcw size={15} />
-                再来一把
+                {t('game.again')}
               </button>
               <button className="btn btn-ghost" onClick={() => setShowOverlay(false)}>
-                查看对局
+                {t('game.viewGame')}
               </button>
             </>
           }

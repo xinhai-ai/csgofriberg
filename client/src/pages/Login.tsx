@@ -7,8 +7,10 @@ import { useAuth } from '../store/auth';
 import { closeSocket, getSocket } from '../api/socket';
 import { markAuthenticated } from '../api/session';
 import { toast } from '../components/Toast';
+import { useTranslation } from 'react-i18next';
 
 export default function Login() {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -20,7 +22,7 @@ export default function Login() {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (mode === 'register' && password !== confirmPassword) {
-      toast.error('两次输入的密码不一致');
+      toast.error(t('auth.mismatch'));
       return;
     }
     setLoading(true);
@@ -34,7 +36,7 @@ export default function Login() {
       try {
         await api.post('/auth/claim');
       } catch (err) {
-        toast.error(`登录成功，但匿名战绩同步失败：${errMsg(err)}`);
+        toast.error(t('auth.claimFailed', { message: errMsg(err) }));
       }
       navigate('/');
     } catch (err) {
@@ -45,15 +47,15 @@ export default function Login() {
   };
 
   return (
-    <Page title={mode === 'login' ? '登录' : '注册'} icon={<KeyRound size={17} />}>
+    <Page title={mode === 'login' ? t('auth.login') : t('auth.register')} icon={<KeyRound size={17} />}>
       <div className="card auth-card">
         <p className="muted" style={{ textAlign: 'center' }}>
-          登录仅用于跨设备保存战绩与进度,所有模式无需登录即可游玩
+          {t('auth.description')}
         </p>
         <form className="form" onSubmit={submit}>
           <input
             className="input"
-            placeholder="用户名"
+            placeholder={t('auth.username')}
             value={username}
             autoComplete="username"
             onChange={(e) => setUsername(e.target.value)}
@@ -61,7 +63,7 @@ export default function Login() {
           <input
             className="input"
             type="password"
-            placeholder="密码(至少 10 位)"
+            placeholder={t('auth.password')}
             autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -70,14 +72,14 @@ export default function Login() {
             <input
               className="input"
               type="password"
-              placeholder="确认密码"
+              placeholder={t('auth.confirmPassword')}
               autoComplete="new-password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
             />
           )}
           <button className="btn" disabled={loading}>
-            {mode === 'login' ? '登录' : '注册'}
+            {mode === 'login' ? t('auth.login') : t('auth.register')}
           </button>
           <button
             type="button"
@@ -87,7 +89,7 @@ export default function Login() {
               setMode(mode === 'login' ? 'register' : 'login');
             }}
           >
-            {mode === 'login' ? '没有账号?去注册' : '已有账号?去登录'}
+            {mode === 'login' ? t('auth.toRegister') : t('auth.toLogin')}
           </button>
         </form>
       </div>

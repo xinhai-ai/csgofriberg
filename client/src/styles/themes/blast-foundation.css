@@ -25,6 +25,8 @@
   --radius-sm: 3px;
 }
 
+.language-select { --language-accent: var(--primary); }
+
 html { background: var(--bg); }
 
 body {
@@ -372,4 +374,3 @@ select.input { color-scheme: dark; }
 .admin-player-flags { border-color: rgba(255, 255, 255, 0.11); background: #1b0d17; }
 .player-info-table td { border-bottom-color: rgba(255, 255, 255, 0.09); }
 .player-info-table td.label { color: var(--text-light); }
-

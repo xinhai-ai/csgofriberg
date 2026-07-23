@@ -1,11 +1,13 @@
 import { Moon, Sun } from 'lucide-react';
 import { useSyncExternalStore } from 'react';
 import { getTheme, setTheme, subscribeTheme } from '../store/theme';
+import { useTranslation } from 'react-i18next';
 
 export default function ThemeToggle() {
+  const { t } = useTranslation();
   const theme = useSyncExternalStore(subscribeTheme, getTheme, () => 'blast');
   const nextTheme = theme === 'blast' ? 'light' : 'blast';
-  const label = nextTheme === 'light' ? '切换到浅色主题' : '切换到深色主题';
+  const label = nextTheme === 'light' ? t('common.switchLight') : t('common.switchDark');
 
   return (
     <button
@@ -16,7 +18,7 @@ export default function ThemeToggle() {
       onClick={() => setTheme(nextTheme)}
     >
       {nextTheme === 'light' ? <Sun size={15} /> : <Moon size={15} />}
-      <span className="btn-text">{nextTheme === 'light' ? '浅色' : '深色'}</span>
+      <span className="btn-text">{nextTheme === 'light' ? t('common.lightTheme') : t('common.darkTheme')}</span>
     </button>
   );
 }

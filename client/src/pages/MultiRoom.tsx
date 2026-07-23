@@ -33,6 +33,8 @@ import {
 import { useConfirm } from '../components/ConfirmDialog';
 import { toast } from '../components/Toast';
 import ModalPortal from '../components/ModalPortal';
+import { Trans, useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 
 interface RoundOver {
   winnerKey: string | null;
@@ -95,26 +97,27 @@ function applyRoomPatchState(current: RoomState, patch: RoomPatch): RoomState {
 function matchOverReason(
   result: MatchOver,
   viewerKey: string,
-  isSpectator: boolean
+  isSpectator: boolean,
+  t: TFunction
 ): string {
-  if (result.reason === 'score') return '率先拿下赛点';
+  if (result.reason === 'score') return t('multi.matchReasons.score');
   if (result.reason === 'opponent_left') {
-    if (isSpectator) return '一方退出了房间';
-    return result.winnerKey === viewerKey ? '对手退出了房间' : '你退出了房间，判负';
+    if (isSpectator) return t('multi.matchReasons.sideLeft');
+    return result.winnerKey === viewerKey ? t('multi.matchReasons.opponentLeft') : t('multi.matchReasons.selfLeft');
   }
   if (result.reason === 'disconnect_timeout') {
-    if (result.winnerKey == null) return '双方断线，比赛判为平局';
-    if (isSpectator) return '一方断线超时';
-    return result.winnerKey === viewerKey ? '对手断线超时' : '你断线超时，判负';
+    if (result.winnerKey == null) return t('multi.matchReasons.bothDisconnected');
+    if (isSpectator) return t('multi.matchReasons.sideTimeout');
+    return result.winnerKey === viewerKey ? t('multi.matchReasons.opponentTimeout') : t('multi.matchReasons.selfTimeout');
   }
   return result.reason;
 }
 
 const ROUND_OVER_REASON: Record<string, string> = {
-  guessed: '猜中目标',
-  exhausted: '双方次数用尽',
-  timeout: '本局时间到',
-  surrender: '一方选择本轮投降',
+  guessed: 'multi.roundReasons.guessed',
+  exhausted: 'multi.roundReasons.exhausted',
+  timeout: 'multi.roundReasons.timeout',
+  surrender: 'multi.roundReasons.surrender',
 };
 
 interface PlayerStatsView {
@@ -128,6 +131,7 @@ function formatWinRate(value: number): string {
 }
 
 function PlayerStatsDialog({ view, onClose }: { view: PlayerStatsView; onClose: () => void }) {
+  const { t } = useTranslation();
   const titleId = `player-stats-${view.playerKey.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
   useEffect(() => {
     const oldOverflow = document.body.style.overflow;
@@ -151,30 +155,30 @@ function PlayerStatsDialog({ view, onClose }: { view: PlayerStatsView; onClose: 
         <div className="replay-dialog player-stats-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId}>
           <div className="replay-heading">
             <div>
-              <h2 id={titleId}>玩家战绩</h2>
+              <h2 id={titleId}>{t('multi.playerStats')}</h2>
               <p>{view.displayId}</p>
             </div>
-            <button className="confirm-close" type="button" aria-label="关闭战绩" onClick={onClose}>
+            <button className="confirm-close" type="button" aria-label={t('multi.closeStats')} onClick={onClose}>
               <X size={18} />
             </button>
           </div>
           <div className="replay-dialog-body player-stats-body">
             <section>
-              <h3>单人战绩</h3>
+              <h3>{t('multi.singleStats')}</h3>
               <dl className="player-stats-list">
-                <div><dt>总场次</dt><dd>{single.games}</dd></div>
-                <div><dt>胜 / 负</dt><dd>{single.wins} / {single.losses}</dd></div>
-                <div><dt>胜率</dt><dd>{formatWinRate(single.winRate)}</dd></div>
-                <div><dt>胜场平均猜测</dt><dd>{single.avgGuesses?.toFixed(1) ?? '-'}</dd></div>
-                <div><dt>最快猜中</dt><dd>{single.bestGuesses ?? '-'}</dd></div>
+                <div><dt>{t('multi.games')}</dt><dd>{single.games}</dd></div>
+                <div><dt>{t('multi.winsLosses')}</dt><dd>{single.wins} / {single.losses}</dd></div>
+                <div><dt>{t('multi.winRate')}</dt><dd>{formatWinRate(single.winRate)}</dd></div>
+                <div><dt>{t('multi.avgWinningGuesses')}</dt><dd>{single.avgGuesses?.toFixed(1) ?? '-'}</dd></div>
+                <div><dt>{t('multi.fastest')}</dt><dd>{single.bestGuesses ?? '-'}</dd></div>
               </dl>
             </section>
             <section>
-              <h3>多人战绩</h3>
+              <h3>{t('multi.multiStats')}</h3>
               <dl className="player-stats-list">
-                <div><dt>总场次</dt><dd>{multi.games}</dd></div>
-                <div><dt>胜 / 负</dt><dd>{multi.wins} / {multi.losses}</dd></div>
-                <div><dt>胜率</dt><dd>{formatWinRate(multi.winRate)}</dd></div>
+                <div><dt>{t('multi.games')}</dt><dd>{multi.games}</dd></div>
+                <div><dt>{t('multi.winsLosses')}</dt><dd>{multi.wins} / {multi.losses}</dd></div>
+                <div><dt>{t('multi.winRate')}</dt><dd>{formatWinRate(multi.winRate)}</dd></div>
               </dl>
             </section>
           </div>
@@ -230,6 +234,7 @@ function PlayerBoard({
   isSelf?: boolean;
   boardRef?: Ref<HTMLDivElement>;
 }) {
+  const { t } = useTranslation();
   return (
     <div
       ref={boardRef}
@@ -244,20 +249,21 @@ function PlayerBoard({
         {!player.connected && (
           <span className="badge red">
             <WifiOff size={12} />
-            已离线
+            {t('multi.offline')}
           </span>
         )}
       </h3>
       {player.guesses.length ? (
         <GuessBoard guesses={player.guesses} />
       ) : (
-        <p className="muted">尚未猜测</p>
+        <p className="muted">{t('multi.noGuesses')}</p>
       )}
     </div>
   );
 }
 
 export default function MultiRoom() {
+  const { t } = useTranslation();
   const [room, setRoom] = useState<RoomState | null>(null);
   const [roundOver, setRoundOver] = useState<RoundOver | null>(null);
   const [matchOver, setMatchOver] = useState<MatchOver | null>(null);
@@ -417,23 +423,23 @@ export default function MultiRoom() {
       }
       const actorIsMe = p.actorKey === myKeyRef.current;
       if (p.outcome === 'invited') {
-        setRematchNotice(actorIsMe ? '已邀请对方再来一局' : '对方邀请你再来一局');
+        setRematchNotice(actorIsMe ? t('multi.rematchInvitedSelf') : t('multi.rematchInvitedOther'));
       } else if (p.outcome === 'cancelled') {
-        setRematchNotice(actorIsMe ? '已取消邀请' : '对方取消了邀请');
+        setRematchNotice(actorIsMe ? t('multi.rematchCancelledSelf') : t('multi.rematchCancelledOther'));
       } else if (p.outcome === 'declined') {
-        setRematchNotice(actorIsMe ? '已拒绝邀请' : '对方拒绝了邀请');
+        setRematchNotice(actorIsMe ? t('multi.rematchDeclinedSelf') : t('multi.rematchDeclinedOther'));
       } else {
         setRematchNotice(
           roomRef.current?.hostKey === myKeyRef.current
-            ? '双方已同意，等待对方准备'
-            : '双方已同意，请准备后等待房主开始'
+            ? t('multi.rematchAcceptedHost')
+            : t('multi.rematchAcceptedGuest')
         );
       }
     };
     const onOffline = (p: { key: string; graceMs: number }) => {
       if (p.key !== myKeyRef.current) {
-        const name = roomRef.current?.players.find((player) => player.key === p.key)?.name ?? '对手';
-        setOfflineNote(`${name} 已离线,${Math.round(p.graceMs / 1000)} 秒内未重连将判负`);
+        const name = roomRef.current?.players.find((player) => player.key === p.key)?.name ?? t('multi.opponent');
+        setOfflineNote(t('multi.offlineGrace', { player: name, seconds: Math.round(p.graceMs / 1000) }));
       }
     };
     const onRoomError = (p: { code: string }) => toast.error(translate(p.code));
@@ -521,7 +527,7 @@ export default function MultiRoom() {
       document.removeEventListener('visibilitychange', onVisible);
       socket.off('connect', resync);
     };
-  }, [applyRoomSnapshot, navigate, syncRoom]);
+  }, [applyRoomSnapshot, navigate, syncRoom, t]);
 
   useEffect(() => {
     if (!guessCooldownUntil) return;
@@ -607,9 +613,9 @@ export default function MultiRoom() {
       !isCurrentSpectator &&
       (currentRoom.status === 'playing' || currentRoom.status === 'round_over');
     if (matchOngoing && !await confirm({
-      title: '离开当前比赛?',
-      message: '比赛尚未结束，现在离开会被判负。',
-      confirmLabel: '离开并判负',
+      title: t('multi.leaveTitle'),
+      message: t('multi.leaveMessage'),
+      confirmLabel: t('multi.leaveConfirm'),
       tone: 'danger',
     })) return;
     setLeaving(true);
@@ -641,9 +647,9 @@ export default function MultiRoom() {
     const current = roomRef.current;
     if (!current || current.status !== 'playing' || surrendering) return;
     if (!await confirm({
-      title: '投降本轮?',
-      message: '投降后对手将立即获得本轮分数；如果对手达到赛点，整场比赛会直接结束。',
-      confirmLabel: '确认投降本轮',
+      title: t('multi.surrenderTitle'),
+      message: t('multi.surrenderMessage'),
+      confirmLabel: t('multi.surrenderConfirm'),
       tone: 'danger',
     })) return;
     setSurrendering(true);
@@ -733,8 +739,8 @@ export default function MultiRoom() {
       <button
         type="button"
         className="player-stats-trigger"
-        aria-label={`查看 ${player.name} 的战绩`}
-        title="查看战绩"
+        aria-label={t('multi.viewPlayerStats', { player: player.name })}
+        title={t('multi.viewStats')}
         disabled={Boolean(statsLoadingKey)}
         onClick={() => viewPlayerStats(player)}
       >
@@ -762,10 +768,10 @@ export default function MultiRoom() {
 
   if (!room) {
     return (
-      <Page title="多人房间" icon={<Globe size={17} />}>
+      <Page title={t('multi.roomLoadingTitle')} icon={<Globe size={17} />}>
         <div style={{ textAlign: 'center', padding: 48 }}>
           <div className="spinner" />
-          <p className="muted">正在获取房间状态...</p>
+          <p className="muted">{t('multi.loadingRoom')}</p>
         </div>
       </Page>
     );
@@ -777,7 +783,7 @@ export default function MultiRoom() {
   return (
     <Page
       className={`game-page multi-game-page${inputFocused ? ' keyboard-active' : ''}`}
-      title={`多人房间 · BO${room.boType}`}
+      title={t('multi.roomTitle', { bo: room.boType })}
       icon={<Globe size={17} />}
       actions={
         <div className="room-actions">
@@ -785,8 +791,8 @@ export default function MultiRoom() {
             type="button"
             className="room-code-toggle"
             onClick={() => setShowRoomCode((visible) => !visible)}
-            title={showRoomCode ? '隐藏房间码' : '显示房间码'}
-            aria-label={showRoomCode ? '隐藏房间码' : '显示房间码'}
+            title={showRoomCode ? t('multi.hideRoomCode') : t('multi.showRoomCode')}
+            aria-label={showRoomCode ? t('multi.hideRoomCode') : t('multi.showRoomCode')}
             aria-pressed={showRoomCode}
           >
             {showRoomCode ? <EyeOff size={15} /> : <Eye size={15} />}
@@ -794,13 +800,13 @@ export default function MultiRoom() {
           </button>
           <button
             className="btn btn-danger btn-sm"
-            aria-label={isSpectator ? '退出观战' : '离开房间'}
+            aria-label={isSpectator ? t('multi.exitSpectating') : t('multi.leaveRoom')}
             disabled={leaving}
             onClick={() => void leaveRoom()}
           >
             <DoorOpen size={15} />
             <span className="btn-text">
-              {leaving ? '退出中' : isSpectator ? '退出观战' : '离开房间'}
+              {leaving ? t('multi.leaving') : isSpectator ? t('multi.exitSpectating') : t('multi.leaveRoom')}
             </span>
           </button>
           {playing && me && (
@@ -810,7 +816,7 @@ export default function MultiRoom() {
               onClick={() => void surrenderRound()}
             >
               <Flag size={15} />
-              <span className="btn-text">{surrendering ? '处理中' : '投降本轮'}</span>
+              <span className="btn-text">{surrendering ? t('multi.processing') : t('multi.surrenderRound')}</span>
             </button>
           )}
         </div>
@@ -819,18 +825,18 @@ export default function MultiRoom() {
         <>
           <Swords size={15} />
           {room.status === 'waiting'
-            ? `等待开始 · ${room.dbType === 'normal' ? '完整版' : '简单版'}数据库 · ${room.winsNeeded} 胜制`
-            : `第 ${room.round} 局 · 先胜 ${room.winsNeeded} 局`}
+            ? t('multi.waitingStatus', { database: room.dbType === 'normal' ? t('common.normal') : t('common.easy'), wins: room.winsNeeded })
+            : t('multi.playingStatus', { round: room.round, wins: room.winsNeeded })}
           {playing && <Countdown deadline={roundDeadline} onExpire={() => setRoundExpired(true)} />}
           {isSpectator && (
             <span className="badge">
               <Eye size={12} />
-              观战中
+              {t('multi.spectating')}
             </span>
           )}
           {room.spectatorCount > 0 && (
             <span className="muted">
-              <Eye size={12} style={{ verticalAlign: -2 }} /> {room.spectatorCount} 人观战
+              <Eye size={12} style={{ verticalAlign: -2 }} /> {t('multi.spectatorCount', { count: room.spectatorCount })}
             </span>
           )}
           {offlineNote && <span className="error">{offlineNote}</span>}
@@ -843,7 +849,7 @@ export default function MultiRoom() {
             onPick={(p) => submitGuess(p.id)}
             onFocusChange={setInputFocused}
             statusText={guessCooldownRemaining > 0
-              ? `猜测间隔：还需等待 ${(guessCooldownRemaining / 1000).toFixed(1)} 秒`
+              ? t('multi.cooldown', { seconds: (guessCooldownRemaining / 1000).toFixed(1) })
               : ''}
             disabled={roundExpired || me.guessCount >= room.maxGuesses}
           />
@@ -862,7 +868,7 @@ export default function MultiRoom() {
         </span>
         <span className="player-name score-bar-player-right">
           {rightPlayer?.key === room.hostKey && <Crown size={16} color="var(--warning)" />}
-          <span className="player-id-text">{rightPlayer?.name ?? '等待加入'}</span>
+          <span className="player-id-text">{rightPlayer?.name ?? t('multi.waitingForJoin')}</span>
           {statsButton(rightPlayer)}
         </span>
       </div>
@@ -880,24 +886,24 @@ export default function MultiRoom() {
               {!p.connected && (
                 <span className="badge red">
                   <WifiOff size={12} />
-                  离线
+                  {t('multi.disconnected')}
                 </span>
               )}
               {p.ready ? (
                 <span className="badge green">
                   <Check size={12} />
-                  已准备
+                  {t('multi.ready')}
                 </span>
               ) : (
                 <span className="badge amber">
                   <Hourglass size={12} />
-                  未准备
+                  {t('multi.notReady')}
                 </span>
               )}
             </div>
           ))}
           {room.players.length < 2 && (
-            <p className="muted">等待对手加入</p>
+            <p className="muted">{t('multi.waitingOpponent')}</p>
           )}
           {!isSpectator && (
             <div className="room-ready-actions">
@@ -908,7 +914,7 @@ export default function MultiRoom() {
                   disabled={room.players.length < 2 || !room.players.every((p) => p.ready)}
                 >
                   <Play size={16} />
-                  开始对局
+                  {t('multi.startGame')}
                 </button>
               ) : (
                 <button
@@ -916,7 +922,7 @@ export default function MultiRoom() {
                   onClick={() => emit('room:ready', { ready: !me?.ready })}
                 >
                   <Check size={16} />
-                  {me?.ready ? '取消准备' : '准备'}
+                  {me?.ready ? t('multi.cancelReady') : t('multi.readyAction')}
                 </button>
               )}
             </div>
@@ -931,7 +937,7 @@ export default function MultiRoom() {
             <PlayerBoard
               player={leftPlayer}
               room={room}
-              title={me ? '我的猜测' : leftPlayer.name}
+              title={me ? t('multi.myGuesses') : leftPlayer.name}
               isSelf={leftPlayer.key === myKey}
               boardRef={leftPlayer.key === myKey ? ownBoardRef : undefined}
             />
@@ -953,25 +959,26 @@ export default function MultiRoom() {
         <AnswerOverlay
           title={
             roundOver.winnerKey == null
-              ? '本局平局'
+              ? t('multi.roundDraw')
               : roundOver.winnerKey === myKey
-                ? '本局获胜'
+                ? t('multi.roundWon')
                 : isSpectator
-                  ? `${room.players.find((p) => p.key === roundOver.winnerKey)?.name ?? ''} 拿下本局`
-                  : '本局失利'
+                  ? t('multi.playerWonRound', { player: room.players.find((p) => p.key === roundOver.winnerKey)?.name ?? '' })
+                  : t('multi.roundLost')
           }
           answer={roundOver.answer}
           extra={
             <p className="muted">
-              {ROUND_OVER_REASON[roundOver.reason] ?? ''} · 下一局{' '}
-              {nextRoundDeadline
-                ? <><Countdown deadline={nextRoundDeadline} /> 后</>
-                : '即将'}自动开始
+              <Trans
+                i18nKey={nextRoundDeadline ? 'multi.nextRoundCountdown' : 'multi.nextRoundSoon'}
+                values={{ reason: ROUND_OVER_REASON[roundOver.reason] ? t(ROUND_OVER_REASON[roundOver.reason]) : '' }}
+                components={{ countdown: <Countdown deadline={nextRoundDeadline} /> }}
+              />
             </p>
           }
           actions={
             <button className="btn btn-ghost" onClick={() => setRoundOver(null)}>
-              查看对局
+              {t('multi.viewGame')}
             </button>
           }
         />
@@ -982,19 +989,21 @@ export default function MultiRoom() {
         <AnswerOverlay
           title={
             matchOver.winnerKey == null
-              ? '比赛结束'
+              ? t('multi.matchEnded')
               : isSpectator
-                ? `${room.players.find((p) => p.key === matchOver.winnerKey)?.name ?? ''} 获胜`
+                ? t('multi.playerWonMatch', { player: room.players.find((p) => p.key === matchOver.winnerKey)?.name ?? '' })
                 : matchOver.winnerKey === myKey
-                  ? '你赢下了整场比赛'
-                  : '你输掉了比赛'
+                  ? t('multi.matchWon')
+                  : t('multi.matchLost')
           }
           answer={matchOver.answer}
           extra={
             <div className="match-over-extra">
               <p className="muted">
-                {matchOverReason(matchOver, myKey, isSpectator)} · 最终比分{' '}
-                {leftPlayer?.score ?? 0} : {rightPlayer?.score ?? 0}
+                {t('multi.finalScore', {
+                  reason: matchOverReason(matchOver, myKey, isSpectator, t),
+                  score: `${leftPlayer?.score ?? 0} : ${rightPlayer?.score ?? 0}`,
+                })}
               </p>
               {rematchNotice && <p className="muted">{rematchNotice}</p>}
             </div>
@@ -1008,7 +1017,7 @@ export default function MultiRoom() {
                   onClick={() => updateRematch('match:rematch-invite')}
                 >
                   <RotateCcw size={16} />
-                  邀请再来一局
+                  {t('multi.inviteRematch')}
                 </button>
               )}
               {canRematch && rematchInviterKey === myKey && (
@@ -1018,7 +1027,7 @@ export default function MultiRoom() {
                   onClick={() => updateRematch('match:rematch-cancel')}
                 >
                   <X size={16} />
-                  取消邀请
+                  {t('multi.cancelInvite')}
                 </button>
               )}
               {canRematch && rematchInviterKey && rematchInviterKey !== myKey && (
@@ -1029,7 +1038,7 @@ export default function MultiRoom() {
                     onClick={() => updateRematch('match:rematch-respond', { accept: true })}
                   >
                     <Check size={16} />
-                    同意再来一局
+                    {t('multi.acceptRematch')}
                   </button>
                   <button
                     className="btn btn-ghost"
@@ -1037,13 +1046,13 @@ export default function MultiRoom() {
                     onClick={() => updateRematch('match:rematch-respond', { accept: false })}
                   >
                     <X size={16} />
-                    拒绝
+                    {t('multi.decline')}
                   </button>
                 </>
               )}
               <button className="btn btn-ghost" disabled={leaving} onClick={() => void leaveRoom()}>
                 <DoorOpen size={16} />
-                {leaving ? '退出中' : '返回大厅'}
+                {leaving ? t('multi.leaving') : t('multi.returnLobby')}
               </button>
             </>
           }

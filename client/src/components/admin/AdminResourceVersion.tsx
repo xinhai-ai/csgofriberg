@@ -4,23 +4,26 @@ import { api, errMsg } from '../../api/client';
 import { RESOURCE_VERSION } from '../../resourceVersion';
 import { useConfirm } from '../ConfirmDialog';
 import { toast } from '../Toast';
+import { useTranslation } from 'react-i18next';
+import { currentLocale } from '../../i18n';
 
 export default function AdminResourceVersion() {
+  const { t } = useTranslation();
   const confirm = useConfirm();
   const [submitting, setSubmitting] = useState(false);
 
   const broadcast = async () => {
     const accepted = await confirm({
-      title: '广播资源更新?',
-      message: '版本不同的在线用户将立即收到刷新提示，之后连接的用户也会收到该提示。',
-      confirmLabel: '确认广播',
+      title: t('admin.broadcastTitle'),
+      message: t('admin.broadcastMessage'),
+      confirmLabel: t('admin.broadcastConfirm'),
     });
     if (!accepted) return;
 
     setSubmitting(true);
     try {
       await api.post('/admin/resource-version/broadcast', { version: RESOURCE_VERSION });
-      toast.success('当前资源版本已广播');
+      toast.success(t('admin.broadcastSuccess'));
     } catch (err) {
       toast.error(errMsg(err));
     } finally {
@@ -32,16 +35,16 @@ export default function AdminResourceVersion() {
     <div className="card admin-resource-card admin-centered-card">
       <div className="admin-resource-heading">
         <div>
-          <h3>资源版本</h3>
-          <p className="muted">当前页面版本</p>
+          <h3>{t('admin.resourcesTitle')}</h3>
+          <p className="muted">{t('admin.currentVersion')}</p>
         </div>
         <code className="resource-version-value">
-          {new Date(Number(RESOURCE_VERSION)).toLocaleString('zh-CN')}
+          {new Date(Number(RESOURCE_VERSION)).toLocaleString(currentLocale())}
         </code>
       </div>
       <button className="btn btn-green" type="button" disabled={submitting} onClick={() => void broadcast()}>
         <RadioTower size={17} />
-        {submitting ? '正在广播...' : '广播当前版本'}
+        {submitting ? t('admin.broadcasting') : t('admin.broadcast')}
       </button>
     </div>
   );

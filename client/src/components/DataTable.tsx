@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import styles from './DataTable.module.css';
+import { useTranslation } from 'react-i18next';
 
 export interface Column<T> {
   key: string;
@@ -16,7 +17,8 @@ interface Props<T> {
 
 /** 通用数据表格 */
 export default function DataTable<T>({ columns, rows, rowKey, empty }: Props<T>) {
-  if (!rows.length) return <p className="muted">{empty ?? '暂无数据'}</p>;
+  const { t } = useTranslation();
+  if (!rows.length) return <p className="muted">{empty ?? t('common.noData')}</p>;
   return (
     <div className={styles.scroll}>
       <table className={styles.table}>

@@ -19,6 +19,7 @@ import { RoomState } from '../types';
 import { useConfirm } from '../components/ConfirmDialog';
 import { toast } from '../components/Toast';
 import ModalPortal from '../components/ModalPortal';
+import { useTranslation } from 'react-i18next';
 
 type DbType = 'easy' | 'normal';
 const BO_OPTIONS = [1, 3, 5, 7];
@@ -76,6 +77,7 @@ function OptionGroup<T extends string | number>({
 }
 
 function MatchFoundDialog({ countdown }: { countdown: number }) {
+  const { t } = useTranslation();
   useEffect(() => {
     const oldOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -89,9 +91,9 @@ function MatchFoundDialog({ countdown }: { countdown: number }) {
       <div className="overlay" role="presentation">
         <div className="overlay-card match-found-dialog" role="dialog" aria-modal="true" aria-labelledby="match-found-title">
           <Check size={34} color="var(--success)" aria-hidden="true" />
-          <h2 id="match-found-title">已找到对手</h2>
+          <h2 id="match-found-title">{t('multi.found')}</h2>
           <p className="match-found-countdown" aria-live="polite">{countdown}</p>
-          <p className="muted">秒后进入比赛</p>
+          <p className="muted">{t('multi.enterAfter')}</p>
         </div>
       </div>
     </ModalPortal>
@@ -99,6 +101,7 @@ function MatchFoundDialog({ countdown }: { countdown: number }) {
 }
 
 export default function MultiLobby() {
+  const { t } = useTranslation();
   const [dbType, setDbType] = useState<DbType>('normal');
   const [boType, setBoType] = useState(3);
   const [allowSpectators, setAllowSpectators] = useState(false);
@@ -211,9 +214,9 @@ export default function MultiLobby() {
       currentRole === 'player' &&
       (currentRoom?.status === 'playing' || currentRoom?.status === 'round_over');
     if (matchOngoing && !await confirm({
-      title: '结束当前比赛?',
-      message: '比赛尚未结束，现在退出会被判负。',
-      confirmLabel: '结束并判负',
+      title: t('multi.endMatchTitle'),
+      message: t('multi.endMatchMessage'),
+      confirmLabel: t('multi.endMatchConfirm'),
       tone: 'danger',
     })) return;
     getSocket().emit('room:leave', {}, (res: any) => {
@@ -236,11 +239,11 @@ export default function MultiLobby() {
       role === 'player' &&
       (room.status === 'playing' || room.status === 'round_over');
     const accepted = await confirm({
-      title: `退出当前房间并${actionLabel}?`,
+      title: t('multi.replaceTitle', { action: actionLabel }),
       message: matchOngoing
-        ? `当前比赛尚未结束，退出会被判负。确认后将自动${actionLabel}。`
-        : `你当前仍在房间 ${room.id} 中，确认后将先退出再${actionLabel}。`,
-      confirmLabel: matchOngoing ? `退出并判负后${actionLabel}` : `退出并${actionLabel}`,
+        ? t('multi.replaceOngoing', { action: actionLabel })
+        : t('multi.replaceWaiting', { room: room.id, action: actionLabel }),
+      confirmLabel: matchOngoing ? t('multi.replaceLossConfirm', { action: actionLabel }) : t('multi.replaceConfirm', { action: actionLabel }),
       tone: matchOngoing ? 'danger' : 'warning',
     });
     if (!accepted) {
@@ -263,13 +266,13 @@ export default function MultiLobby() {
 
   const create = async (replaceExisting = false) => {
     if (!replaceExisting && currentRoom) {
-      if (!await leaveCurrentFor(currentRoom, currentRole, '创建新房间')) return;
+      if (!await leaveCurrentFor(currentRoom, currentRole, t('multi.createNewRoom'))) return;
     }
     getSocket().emit('room:create', { dbType, boType, allowSpectators, anonymous }, (res: any) => {
       if (res?.code === 'ALREADY_IN_ROOM' && res.room) {
         setCurrentRoom(res.room);
         setCurrentRole(res.role ?? 'player');
-        void leaveCurrentFor(res.room, res.role ?? 'player', '创建新房间').then((left) => {
+        void leaveCurrentFor(res.room, res.role ?? 'player', t('multi.createNewRoom')).then((left) => {
           if (left) void create(true);
         });
         return;
@@ -279,24 +282,24 @@ export default function MultiLobby() {
         return;
       }
       setCreatedRoom(res.room);
-      toast.success('房间已创建');
+      toast.success(t('multi.roomCreated'));
     });
   };
 
   const join = async (code: string, spectate = false, replaceExisting = false) => {
     if (!code.trim()) {
-      toast.error('请输入房间码');
+      toast.error(t('multi.enterRoomCode'));
       return;
     }
     if (!replaceExisting && currentRoom && currentRoom.id !== code.trim().toUpperCase()) {
-      const action = spectate ? '加入观战' : '加入新房间';
+      const action = spectate ? t('multi.joinSpectate') : t('multi.joinNewRoom');
       if (!await leaveCurrentFor(currentRoom, currentRole, action)) return;
     }
     getSocket().emit('room:join', { roomId: code.trim(), spectate }, (res: any) => {
       if (res?.code === 'ALREADY_IN_ROOM' && res.room) {
         setCurrentRoom(res.room);
         setCurrentRole(res.role ?? 'player');
-        const action = spectate ? '加入观战' : '加入新房间';
+        const action = spectate ? t('multi.joinSpectate') : t('multi.joinNewRoom');
         void leaveCurrentFor(res.room, res.role ?? 'player', action).then((left) => {
           if (left) void join(code, spectate, true);
         });
@@ -357,39 +360,42 @@ export default function MultiLobby() {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      toast.error('复制失败，请手动选择房间码');
+      toast.error(t('multi.copyFailed'));
     }
   };
 
   return (
-    <Page title="多人联机" icon={<Globe size={17} />}>
+    <Page title={t('multi.title')} icon={<Globe size={17} />}>
       {currentRoom && (
         <div className="card multi-lobby-message-card" style={{ borderColor: 'var(--warning)' }}>
           <h3>
             <Rocket size={16} color="var(--warning)" />
-            你有一场未结束的对局
+            {t('multi.unfinished')}
           </h3>
           <p className="muted">
-            房间 {currentRoom.id} · BO{currentRoom.boType} ·{' '}
-            {currentRoom.status === 'waiting'
-              ? '等待开始'
+            {t('multi.roomSummary', {
+              room: currentRoom.id,
+              bo: currentRoom.boType,
+              status: currentRoom.status === 'waiting'
+              ? t('multi.waiting')
               : currentRoom.status === 'finished'
-                ? '已结束'
-                : `第 ${currentRoom.round} 局进行中`}
-            {currentRole === 'spectator' && ' · 观战身份'}
+                ? t('multi.finished')
+                : t('multi.roundPlaying', { round: currentRoom.round }),
+            })}
+            {currentRole === 'spectator' && ` · ${t('multi.spectatorRole')}`}
           </p>
           <div className="multi-lobby-message-actions">
             <button className="btn btn-success" onClick={() => navigate('/multi/room')}>
               <Rocket size={15} />
-              重连进入
+              {t('multi.reconnect')}
             </button>
             <button className="btn btn-danger" onClick={() => void endCurrent()}>
               <XCircle size={15} />
               {currentRole === 'spectator'
-                ? '退出观战'
+                ? t('multi.exitSpectating')
                 : currentRoom.status === 'waiting'
-                  ? '退出房间'
-                  : '结束比赛(判负)'}
+                  ? t('multi.exitRoom')
+                  : t('multi.endWithLoss')}
             </button>
           </div>
         </div>
@@ -399,22 +405,21 @@ export default function MultiLobby() {
         <div className="card multi-lobby-created-card">
           <h3>
             <Check size={16} color="var(--success)" />
-            房间已创建
+            {t('multi.roomCreated')}
           </h3>
-          <p className="muted">将以下房间码分享给对手:</p>
+          <p className="muted">{t('multi.shareCode')}</p>
           <div className="room-code-display">{createdRoom.id}</div>
           <button className="btn btn-accent" onClick={() => void copyCode()}>
             {copied ? <Check size={15} /> : <Copy size={15} />}
-            {copied ? '已复制' : '复制房间码'}
+            {copied ? t('multi.copied') : t('multi.copyCode')}
           </button>
           <p className="muted multi-lobby-created-meta">
-            数据库:{createdRoom.dbType === 'normal' ? '完整版' : '简单版'} · 赛制:BO
-            {createdRoom.boType} · {createdRoom.allowSpectators ? '允许观战' : '禁止观战'}
-            {' · '}{createdRoom.anonymous ? '匿名房间' : '显示玩家名'}
+            {t('multi.database', { type: createdRoom.dbType === 'normal' ? t('common.normal') : t('common.easy') })} · {t('multi.format', { bo: createdRoom.boType })} · {createdRoom.allowSpectators ? t('multi.allowSpectating') : t('multi.denySpectating')}
+            {' · '}{createdRoom.anonymous ? t('multi.anonymousRoom') : t('multi.showNames')}
           </p>
           <button className="btn btn-lg" onClick={() => navigate('/multi/room')}>
             <Rocket size={16} />
-            进入房间
+            {t('multi.enterRoom')}
           </button>
         </div>
       ) : (
@@ -422,17 +427,17 @@ export default function MultiLobby() {
           <div className="card" style={{ margin: 0 }}>
             <h3>
               <House size={16} />
-              创建房间
+              {t('multi.createRoom')}
             </h3>
             <OptionGroup
-              label="选手数据库"
+              label={t('multi.playerDatabase')}
               options={['normal', 'easy'] as DbType[]}
               value={dbType}
               onChange={setDbType}
-              format={(v) => (v === 'normal' ? '完整版' : '简单版')}
+              format={(v) => (v === 'normal' ? t('common.normal') : t('common.easy'))}
             />
             <OptionGroup
-              label="赛制"
+              label={t('multi.formatLabel')}
               options={BO_OPTIONS}
               value={boType}
               onChange={setBoType}
@@ -444,12 +449,12 @@ export default function MultiLobby() {
                 checked={allowSpectators}
                 onChange={(event) => setAllowSpectators(event.target.checked)}
               />
-              <span>允许观战</span>
+              <span>{t('multi.allowSpectating')}</span>
             </label>
             <div style={{ textAlign: 'center', marginTop: 14 }}>
               <button className="btn btn-lg" onClick={() => void create()}>
                 <Zap size={16} />
-                创建房间
+                {t('multi.createRoom')}
               </button>
             </div>
           </div>
@@ -457,30 +462,30 @@ export default function MultiLobby() {
           <div className="card" style={{ margin: 0 }}>
             <h3>
               <Dices size={16} />
-              随机匹配
+              {t('multi.randomMatch')}
             </h3>
-            <p className="muted">自动寻找对手,赛制固定为 BO3</p>
+            <p className="muted">{t('multi.fixedBo3')}</p>
             <OptionGroup
-              label="选手数据库"
+              label={t('multi.playerDatabase')}
               options={['normal', 'easy'] as DbType[]}
               value={mmDbType}
               onChange={setMmDbType}
-              format={(v) => (v === 'normal' ? '完整版' : '简单版')}
+              format={(v) => (v === 'normal' ? t('common.normal') : t('common.easy'))}
             />
             {searching ? (
               <div style={{ textAlign: 'center', marginTop: 14 }}>
                 <div className="spinner" />
-                <p style={{ margin: '12px 0', fontWeight: 600 }}>正在寻找对手...</p>
+                <p style={{ margin: '12px 0', fontWeight: 600 }}>{t('multi.searching')}</p>
                 <button className="btn btn-ghost btn-sm" onClick={cancelMatch}>
                   <XCircle size={15} />
-                  取消匹配
+                  {t('multi.cancelMatch')}
                 </button>
               </div>
             ) : (
               <div style={{ textAlign: 'center', marginTop: 14 }}>
                 <button className="btn btn-accent btn-lg" onClick={startMatch}>
                   <Dices size={16} />
-                  开始匹配
+                  {t('multi.startMatch')}
                 </button>
               </div>
             )}
@@ -489,13 +494,13 @@ export default function MultiLobby() {
           <div className="card" style={{ margin: 0 }}>
             <h3>
               <DoorOpen size={16} />
-              加入已有房间
+              {t('multi.joinExisting')}
             </h3>
-            <p className="muted">输入房间码后按回车加入</p>
+            <p className="muted">{t('multi.joinHint')}</p>
             <div className="join-room-form">
               <input
                 className="input"
-                placeholder="5 位房间码"
+                placeholder={t('multi.roomCodePlaceholder')}
                 value={joinCode}
                 maxLength={5}
                 autoComplete="off"
@@ -513,11 +518,11 @@ export default function MultiLobby() {
               />
               <button className="btn btn-success" onClick={() => join(joinCode)}>
                 <DoorOpen size={15} />
-                加入
+                {t('multi.join')}
               </button>
               <button className="btn btn-ghost" onClick={() => join(joinCode, true)}>
                 <Eye size={15} />
-                观战
+                {t('multi.spectate')}
               </button>
             </div>
           </div>

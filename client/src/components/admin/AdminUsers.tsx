@@ -11,6 +11,8 @@ import ReplayDialog, {
   type Replay,
   type SingleReplay,
 } from '../ReplayDialog';
+import { useTranslation } from 'react-i18next';
+import { currentLocale } from '../../i18n';
 
 interface AdminUser {
   id: number;
@@ -66,18 +68,15 @@ interface UserGamePage {
 
 function formatDate(value: string): string {
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString('zh-CN');
+  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString(currentLocale());
 }
 
 function formatWinRate(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
 }
 
-function formatMode(mode: 'easy' | 'normal'): string {
-  return mode === 'normal' ? '完整版' : '简单版';
-}
-
 function UserStatsDialog({ view, onClose }: { view: UserStatsView; onClose: () => void }) {
+  const { t } = useTranslation();
   useEffect(() => {
     const oldOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -100,30 +99,30 @@ function UserStatsDialog({ view, onClose }: { view: UserStatsView; onClose: () =
         <div className="admin-player-dialog admin-user-stats-dialog" role="dialog" aria-modal="true" aria-labelledby="admin-user-stats-title">
           <div className="admin-player-dialog-heading">
             <div>
-              <h2 id="admin-user-stats-title">用户战绩</h2>
+              <h2 id="admin-user-stats-title">{t('admin.userStats')}</h2>
               <p>{view.user.username} · {view.user.displayId}</p>
             </div>
-            <button className="confirm-close" type="button" aria-label="关闭用户战绩" onClick={onClose}>
+            <button className="confirm-close" type="button" aria-label={t('admin.closeUserStats')} onClick={onClose}>
               <X size={18} />
             </button>
           </div>
           <div className="admin-user-stats-grid">
             <section>
-              <h3>单人战绩</h3>
+              <h3>{t('multi.singleStats')}</h3>
               <dl className="player-stats-list">
-                <div><dt>总场次</dt><dd>{single.games}</dd></div>
-                <div><dt>胜 / 负</dt><dd>{single.wins} / {single.losses}</dd></div>
-                <div><dt>胜率</dt><dd>{formatWinRate(single.winRate)}</dd></div>
-                <div><dt>胜场平均猜测</dt><dd>{single.avgGuesses?.toFixed(1) ?? '-'}</dd></div>
-                <div><dt>最快猜中</dt><dd>{single.bestGuesses ?? '-'}</dd></div>
+                <div><dt>{t('multi.games')}</dt><dd>{single.games}</dd></div>
+                <div><dt>{t('multi.winsLosses')}</dt><dd>{single.wins} / {single.losses}</dd></div>
+                <div><dt>{t('multi.winRate')}</dt><dd>{formatWinRate(single.winRate)}</dd></div>
+                <div><dt>{t('multi.avgWinningGuesses')}</dt><dd>{single.avgGuesses?.toFixed(1) ?? '-'}</dd></div>
+                <div><dt>{t('multi.fastest')}</dt><dd>{single.bestGuesses ?? '-'}</dd></div>
               </dl>
             </section>
             <section>
-              <h3>多人战绩</h3>
+              <h3>{t('multi.multiStats')}</h3>
               <dl className="player-stats-list">
-                <div><dt>总场次</dt><dd>{multi.games}</dd></div>
-                <div><dt>胜 / 负</dt><dd>{multi.wins} / {multi.losses}</dd></div>
-                <div><dt>胜率</dt><dd>{formatWinRate(multi.winRate)}</dd></div>
+                <div><dt>{t('multi.games')}</dt><dd>{multi.games}</dd></div>
+                <div><dt>{t('multi.winsLosses')}</dt><dd>{multi.wins} / {multi.losses}</dd></div>
+                <div><dt>{t('multi.winRate')}</dt><dd>{formatWinRate(multi.winRate)}</dd></div>
               </dl>
             </section>
           </div>
@@ -134,6 +133,7 @@ function UserStatsDialog({ view, onClose }: { view: UserStatsView; onClose: () =
 }
 
 function UserGamesDialog({ user, onClose }: { user: AdminUser; onClose: () => void }) {
+  const { t } = useTranslation();
   const [type, setType] = useState<'single' | 'multi'>('single');
   const [page, setPage] = useState(1);
   const [items, setItems] = useState<UserGame[]>([]);
@@ -208,43 +208,43 @@ function UserGamesDialog({ user, onClose }: { user: AdminUser; onClose: () => vo
           <div className="admin-player-dialog admin-user-games-dialog" role="dialog" aria-modal="true" aria-labelledby="admin-user-games-title">
           <div className="admin-player-dialog-heading">
             <div>
-              <h2 id="admin-user-games-title">具体对局</h2>
+              <h2 id="admin-user-games-title">{t('admin.gamesTitle')}</h2>
               <p>{user.username} · {user.displayId}</p>
             </div>
-            <button className="confirm-close" type="button" aria-label="关闭具体对局" onClick={onClose}>
+            <button className="confirm-close" type="button" aria-label={t('admin.closeGames')} onClick={onClose}>
               <X size={18} />
             </button>
           </div>
-          <div className="stats-replay-segments admin-user-game-tabs" role="tablist" aria-label="对局类型">
+          <div className="stats-replay-segments admin-user-game-tabs" role="tablist" aria-label={t('admin.gameType')}>
             <button type="button" role="tab" aria-selected={type === 'single'} className={type === 'single' ? 'active' : ''} onClick={() => chooseType('single')}>
-              <User size={15} />单人
+              <User size={15} />{t('admin.single')}
             </button>
             <button type="button" role="tab" aria-selected={type === 'multi'} className={type === 'multi' ? 'active' : ''} onClick={() => chooseType('multi')}>
-              <Swords size={15} />多人
+              <Swords size={15} />{t('admin.multi')}
             </button>
           </div>
           <div className="admin-user-game-list">
             {items.length ? items.map((game) => {
               const result = game.type === 'single' ? game.status : game.result;
-              const label = result === 'won' ? '胜利' : result === 'draw' ? '平局' : '失败';
+              const label = result === 'won' ? t('common.win') : result === 'draw' ? t('common.draw') : t('common.loss');
               return (
                 <article className="admin-user-game-item" key={`${game.type}:${game.id}`}>
                   <div className="admin-user-game-heading">
                     <strong>{game.type === 'single'
-                      ? formatMode(game.mode)
-                      : `${formatMode(game.mode)} · BO${game.boType}`}</strong>
+                      ? (game.mode === 'normal' ? t('common.normal') : t('common.easy'))
+                      : `${game.mode === 'normal' ? t('common.normal') : t('common.easy')} · BO${game.boType}`}</strong>
                     <Badge text={label} color={result === 'won' ? 'green' : 'gray'} />
                   </div>
                   <div className="admin-user-game-details">
                     {game.type === 'single' ? (
                       <>
-                        <span>答案 <strong>{game.answer}</strong></span>
-                        <span>猜测 <strong>{game.guessCount}</strong></span>
+                        <span>{t('stats.answer')} <strong>{game.answer}</strong></span>
+                        <span>{t('stats.guesses')} <strong>{game.guessCount}</strong></span>
                       </>
                     ) : (
                       <>
-                        <span>对手 <strong>{game.opponent?.displayId ?? '未知对手'}</strong></span>
-                        <span>比分 <strong>{game.me.score}:{game.opponent?.score ?? 0}</strong></span>
+                        <span>{t('admin.opponent')} <strong>{game.opponent?.displayId ?? t('stats.unknownOpponent')}</strong></span>
+                        <span>{t('stats.score')} <strong>{game.me.score}:{game.opponent?.score ?? 0}</strong></span>
                       </>
                     )}
                   </div>
@@ -257,21 +257,21 @@ function UserGamesDialog({ user, onClose }: { user: AdminUser; onClose: () => vo
                       onClick={() => void openReplay(game)}
                     >
                       <Play size={14} />
-                      {replayLoadingId === game.id ? '加载中' : '回放'}
+                      {replayLoadingId === game.id ? t('stats.loading') : t('stats.replay')}
                     </button>
                   </div>
                 </article>
               );
             }) : <p className="muted admin-user-game-empty">{loading
-              ? '正在加载...'
-              : type === 'single' ? '没有单人对局记录' : '没有多人对局记录'}</p>}
+              ? t('common.loading')
+              : type === 'single' ? t('admin.noSingleGames') : t('admin.noMultiGames')}</p>}
           </div>
           <div className="admin-pagination admin-user-game-pagination">
-            <button className="btn btn-ghost" type="button" aria-label="上一页" title="上一页" disabled={page === 1 || loading} onClick={() => setPage((current) => Math.max(1, current - 1))}>
+            <button className="btn btn-ghost" type="button" aria-label={t('common.previousPage')} title={t('common.previousPage')} disabled={page === 1 || loading} onClick={() => setPage((current) => Math.max(1, current - 1))}>
               <ChevronLeft size={17} />
             </button>
-            <span>第 {page} 页</span>
-            <button className="btn btn-ghost" type="button" aria-label="下一页" title="下一页" disabled={!hasNext || loading} onClick={() => setPage((current) => current + 1)}>
+            <span>{t('common.page', { page })}</span>
+            <button className="btn btn-ghost" type="button" aria-label={t('common.nextPage')} title={t('common.nextPage')} disabled={!hasNext || loading} onClick={() => setPage((current) => current + 1)}>
               <ChevronRight size={17} />
             </button>
           </div>
@@ -284,6 +284,7 @@ function UserGamesDialog({ user, onClose }: { user: AdminUser; onClose: () => vo
 }
 
 export default function AdminUsers() {
+  const { t } = useTranslation();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -340,13 +341,13 @@ export default function AdminUsers() {
   };
 
   const columns: Column<AdminUser>[] = [
-    { key: 'username', title: '用户名' },
-    { key: 'displayId', title: '匿名 ID' },
-    { key: 'role', title: '权限', render: (user) => user.role === 'admin' ? '管理员' : '用户' },
-    { key: 'createdAt', title: '注册时间', render: (user) => formatDate(user.createdAt) },
+    { key: 'username', title: t('admin.username') },
+    { key: 'displayId', title: t('admin.anonymousId') },
+    { key: 'role', title: t('admin.permission'), render: (user) => user.role === 'admin' ? t('admin.adminRole') : t('admin.userRole') },
+    { key: 'createdAt', title: t('admin.createdAt'), render: (user) => formatDate(user.createdAt) },
     {
       key: 'actions',
-      title: '操作',
+      title: t('admin.actions'),
       render: (user) => (
         <span className="admin-user-actions">
           <button
@@ -356,11 +357,11 @@ export default function AdminUsers() {
             onClick={() => void viewStats(user)}
           >
             <Eye size={15} />
-            {statsLoadingId === user.id ? '查询中' : '查看战绩'}
+            {statsLoadingId === user.id ? t('admin.querying') : t('admin.viewStats')}
           </button>
           <button type="button" className="btn btn-ghost" onClick={() => setGamesUser(user)}>
             <History size={15} />
-            对局记录
+            {t('admin.gameRecords')}
           </button>
         </span>
       ),
@@ -373,8 +374,8 @@ export default function AdminUsers() {
       <div className="card admin-users-card">
         <div className="admin-players-header">
           <div className="admin-players-title">
-            <h3>用户管理</h3>
-            <p className="muted">共 {total} 名注册用户</p>
+            <h3>{t('admin.usersTitle')}</h3>
+            <p className="muted">{t('admin.totalUsers', { count: total })}</p>
           </div>
         </div>
         <div className="admin-list-toolbar">
@@ -384,11 +385,11 @@ export default function AdminUsers() {
               className="input"
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="搜索用户名或匿名 ID"
+              placeholder={t('admin.searchUsers')}
             />
           </label>
           <label className="admin-page-size">
-            <span>每页显示</span>
+            <span>{t('admin.pageSize')}</span>
             <select
               className="input"
               value={pageSize}
@@ -406,28 +407,28 @@ export default function AdminUsers() {
             columns={columns}
             rows={users}
             rowKey={(user) => user.id}
-            empty={loading ? '正在加载...' : search ? '没有匹配的用户' : '暂无注册用户'}
+            empty={loading ? t('common.loading') : search ? t('admin.noMatchUsers') : t('admin.noUsers')}
           />
         </div>
         <div className="admin-pagination">
           <span className="muted">
-            {total ? `${(page - 1) * pageSize + 1}-${Math.min(page * pageSize, total)} / ${total}` : '0 条'}
+            {total ? `${(page - 1) * pageSize + 1}-${Math.min(page * pageSize, total)} / ${total}` : t('admin.zeroItems')}
           </span>
           <div className="admin-pagination-actions">
             <button
               className="btn btn-ghost"
-              aria-label="上一页"
-              title="上一页"
+              aria-label={t('common.previousPage')}
+              title={t('common.previousPage')}
               disabled={loading || page <= 1}
               onClick={() => setPage((current) => Math.max(1, current - 1))}
             >
               <ChevronLeft size={17} />
             </button>
-            <span>第 {page} / {totalPages} 页</span>
+            <span>{t('admin.pageOf', { page, total: totalPages })}</span>
             <button
               className="btn btn-ghost"
-              aria-label="下一页"
-              title="下一页"
+              aria-label={t('common.nextPage')}
+              title={t('common.nextPage')}
               disabled={loading || page >= totalPages}
               onClick={() => setPage((current) => current + 1)}
             >
