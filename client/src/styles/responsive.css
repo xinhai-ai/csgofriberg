@@ -130,6 +130,32 @@
   .menu-card .menu-label { font-size: 0.98rem; }
   .bottom-bar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .bottom-bar .btn { min-width: 0; padding-inline: 10px; font-size: 0.88rem; }
+  .game-rules-backdrop { padding: 10px; }
+  .game-rules-dialog { max-height: calc(100dvh - 20px); }
+  .game-rules-dialog-heading {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 18px 14px 14px;
+  }
+  .game-rules-heading-icon { display: none; }
+  .game-rules-heading-copy p { font-size: 0.8rem; }
+  .game-rules-dialog-heading .guess-limit {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: start;
+    padding: 6px 10px;
+    font-size: 0.92rem;
+  }
+  .game-rules-dialog-heading .confirm-close { grid-column: 2; grid-row: 1; align-self: start; }
+  .game-rules-dialog-body { gap: 14px; padding: 14px; }
+  .rule-quick-guide { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rule-feedback + .rule-feedback { border-left: 0; }
+  .rule-feedback:nth-child(even) { border-left: 1px solid var(--border); }
+  .rule-feedback:nth-child(n + 3) { border-top: 1px solid var(--border); }
+  .rule-sections { grid-template-columns: 1fr; }
+  .rule-panel-main { grid-column: auto; }
+  .rule-field-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rule-result-notes { grid-template-columns: 1fr; }
 
   .game-table-wrap { overflow-x: hidden; border-radius: 10px; }
   .game-table {
@@ -277,6 +303,11 @@
   .menu-copy { min-width: 0; text-align: left; }
   .menu-description { display: block; }
   .bottom-bar { grid-template-columns: 1fr; }
+  .rule-quick-guide { grid-template-columns: 1fr; }
+  .rule-feedback:nth-child(even) { border-left: 0; }
+  .rule-feedback:nth-child(n + 2) { border-top: 1px solid var(--border); }
+  .rule-field-grid { grid-template-columns: 1fr; }
+  .region-item { grid-template-columns: 1fr; gap: 3px; }
   .room-code-toggle { width: 40px; padding-inline: 0; }
   .room-code-toggle span { display: none; }
   .score-bar { gap: 7px; }

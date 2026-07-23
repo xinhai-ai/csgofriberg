@@ -13,6 +13,7 @@ import {
   Wrench,
 } from 'lucide-react';
 import MenuCard from '../components/MenuCard';
+import GameRules from '../components/GameRules';
 import { useAuth } from '../store/auth';
 import { getGuestName, subscribeGuestName } from '../store/guest';
 import { api, errMsg } from '../api/client';
@@ -132,6 +133,7 @@ export default function Home() {
           <span className="hero-kicker">CS MAJOR // PLAYER GUESSING</span>
           <h1>弗一把</h1>
           <p className="hero-subtitle">CS:GO / CS2 Major 选手猜测游戏</p>
+          <GameRules />
           {initialized && !user && (
             <p className="muted" style={{ marginTop: 6 }}>
               无需登录即可游玩,战绩保存在本机;登录后自动同步到账号

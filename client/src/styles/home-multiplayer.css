@@ -90,6 +90,261 @@
 .btn-bilibili { background: #00aeec; }
 .btn-bilibili:hover { background: #0096cc; }
 
+/* ===== 首页游戏规则 ===== */
+.game-rules-trigger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 2px 0;
+  border: 0;
+  border-bottom: 1px solid currentColor;
+  background: transparent;
+  color: var(--primary-strong);
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.5;
+  cursor: pointer;
+  transition: color 0.16s ease, opacity 0.16s ease;
+}
+.game-rules-trigger:hover { color: var(--accent); }
+.game-rules-trigger:focus-visible { outline: 2px solid var(--primary); outline-offset: 4px; }
+.game-rules-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 220;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  padding: 20px;
+  background: rgba(17, 12, 20, 0.68);
+  backdrop-filter: blur(7px);
+}
+.game-rules-dialog {
+  --rule-accent: var(--primary-strong);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(1000px, 100%);
+  max-height: calc(100dvh - 40px);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: var(--shadow-lg);
+}
+.game-rules-dialog::before {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  width: 100%;
+  height: 3px;
+  content: '';
+  background: linear-gradient(90deg, var(--primary), var(--accent), var(--warning));
+}
+.game-rules-dialog-heading {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 16px;
+  padding: 22px 26px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.game-rules-heading-icon {
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  border: 1px solid color-mix(in srgb, var(--primary) 48%, var(--border));
+  border-radius: var(--radius-sm);
+  background: var(--primary-soft);
+  color: var(--rule-accent);
+}
+.game-rules-heading-copy { min-width: 0; }
+.game-rules-kicker {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--rule-accent);
+  font-family: Bahnschrift, 'Arial Narrow', sans-serif;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+.game-rules-heading-copy h2 { margin: 0; font-size: 1.4rem; line-height: 1.2; }
+.game-rules-heading-copy p { margin: 5px 0 0; color: var(--text-sec); font-size: 0.88rem; line-height: 1.55; }
+.game-rules-dialog-body {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+  min-height: 0;
+  padding: 22px 26px 26px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.guess-limit {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 9px 13px;
+  border: 1px solid color-mix(in srgb, var(--danger) 30%, var(--border));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--danger) 9%, var(--card));
+  color: var(--danger);
+  font-size: 1.05rem;
+  white-space: nowrap;
+}
+.guess-limit span { color: var(--text-sec); font-size: 0.72rem; font-weight: 600; }
+.rule-quick-guide {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--border);
+  background: var(--card-soft);
+}
+.rule-feedback {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 13px 14px;
+}
+.rule-feedback + .rule-feedback { border-left: 1px solid var(--border); }
+.rule-feedback div { display: grid; gap: 2px; min-width: 0; }
+.rule-feedback strong { font-size: 0.85rem; line-height: 1.35; }
+.rule-feedback div span { color: var(--text-light); font-size: 0.73rem; line-height: 1.35; }
+.rule-color-swatch {
+  width: 12px;
+  height: 30px;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+}
+.rule-feedback-correct .rule-color-swatch { background: var(--correct); }
+.rule-feedback-close .rule-color-swatch { background: var(--close); }
+.rule-feedback-wrong .rule-color-swatch { background: var(--wrong); }
+.rule-arrow-pair { display: grid; color: var(--rule-accent); }
+.rule-sections {
+  display: grid;
+  grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.12fr);
+  gap: 14px;
+}
+.rule-panel {
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--border);
+  background: var(--card-soft);
+}
+.rule-panel-main { grid-column: 1 / -1; }
+.rule-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.rule-panel-title > span {
+  display: grid;
+  place-items: center;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  background: var(--primary-soft);
+  color: var(--rule-accent);
+}
+.rule-panel-title > div { display: grid; }
+.rule-panel-title small { color: var(--text-light); font-family: Consolas, monospace; font-size: 0.65rem; }
+.rule-panel-title h3 { margin: 0; font-size: 1rem; }
+.rule-panel > p { margin: 0 0 14px; color: var(--text-sec); line-height: 1.65; }
+.rule-field-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.rule-field-grid > div {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  min-width: 0;
+  padding: 12px;
+  border-left: 3px solid var(--wrong);
+  background: var(--card);
+}
+.rule-field-grid > div:nth-child(n + 2) { border-left-color: var(--close); }
+.rule-field-grid strong { font-size: 0.82rem; }
+.rule-field-grid span { color: var(--text-light); font-size: 0.76rem; line-height: 1.5; }
+.rule-result-notes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+.rule-result-notes p {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  margin: 0;
+  padding: 10px 12px;
+  background: var(--card);
+  color: var(--text-sec);
+  font-size: 0.82rem;
+}
+.rule-result-notes strong { color: var(--text); }
+.rule-result-icon {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 26px;
+  width: 26px;
+  height: 26px;
+  margin-right: 8px;
+  border-radius: 50%;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+.rule-result-win { background: color-mix(in srgb, var(--success) 14%, transparent); color: var(--success); }
+.rule-result-loss { background: color-mix(in srgb, var(--danger) 13%, transparent); color: var(--danger); }
+.rule-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.rule-list li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  color: var(--text-sec);
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+.rule-list li > svg { margin-top: 4px; color: var(--accent); }
+.rule-list strong { color: var(--text); }
+.rule-list-number {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--warning) 14%, transparent);
+  color: var(--warning);
+  font-family: Consolas, monospace;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+.region-list { display: grid; gap: 1px; background: var(--border); }
+.region-item {
+  display: grid;
+  grid-template-columns: minmax(104px, 0.42fr) minmax(0, 1.58fr);
+  gap: 12px;
+  padding: 9px 11px;
+  background: var(--card);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+.region-item strong { color: var(--rule-accent); }
+.region-item span { color: var(--text-light); }
+
 /* ===== 大厅 ===== */
 /* 大厅三个功能区上下排布,房间内对局棋盘才左右分栏 */
 .lobby-grid {

@@ -12,3 +12,4 @@ data/imports/players-origin.json
 data/pgdata/
 .docker-runtime-test/
 .pnpm-store/
+rule.txt

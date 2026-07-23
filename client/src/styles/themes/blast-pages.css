@@ -1,5 +1,8 @@
 .home-page .page-scroll { padding-top: clamp(22px, 4vw, 44px); }
 
+.game-rules-dialog { --rule-accent: var(--primary); }
+.game-rules-trigger { color: var(--primary); }
+
 .home-hero {
   min-height: clamp(320px, 47vh, 470px);
   display: flex;
@@ -241,4 +244,3 @@
   .menu-card:hover { border-color: var(--menu-color, var(--primary)); }
   .menu-card .menu-icon { border-color: var(--menu-color, var(--primary)); background: transparent; }
 }
-
