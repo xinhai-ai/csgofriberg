@@ -2,7 +2,6 @@ import { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Home } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
-import LanguageSelect from './LanguageSelect';
 import { useTranslation } from 'react-i18next';
 
 interface Props {
@@ -43,7 +42,6 @@ export default function Page({
         </span>
         <span className="btns">
           {actions}
-          <LanguageSelect />
           <ThemeToggle />
           {showHome && (
             <Link to="/" className="btn btn-ghost btn-sm" aria-label={t('common.home')}>
