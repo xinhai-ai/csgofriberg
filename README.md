@@ -77,17 +77,6 @@ ADMIN_USERNAME=admin ADMIN_PASSWORD='至少12位强密码' pnpm create-admin
 Docker Compose 部署、自动数据库迁移、管理员创建、更新和回滚方法位于
 [`deploy/README.md`](deploy/README.md)。
 
-### Umami 访问统计
-
-部署环境中设置 `UMAMI_WEBSITE_ID` 后，前端会在运行时加载 Umami 统计脚本；留空则完全关闭统计。默认使用 Umami Cloud：
-
-```env
-UMAMI_WEBSITE_ID=your-website-id
-UMAMI_SCRIPT_URL=https://cloud.umami.is/script.js
-```
-
-自托管 Umami 时，将 `UMAMI_SCRIPT_URL` 改为实例提供的脚本完整地址。配置由服务端在运行时提供，因此更改统计站点不需要重新构建前端镜像，只需重启应用服务。
-
 ## Redis 用途
 
 - HTTP 与 Socket.IO 分布式限流
