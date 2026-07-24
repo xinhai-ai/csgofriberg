@@ -32,12 +32,15 @@ describe('resolveUmamiConfig', () => {
   it('injects the configured script without changing disabled pages', () => {
     const html = '<html><head><title>Game</title></head><body></body></html>';
     expect(injectUmamiScript(html, null)).toBe(html);
-    expect(injectUmamiScript(html, {
+    const rendered = injectUmamiScript(html, {
       websiteId: 'site-123',
       scriptUrl: 'https://analytics.example.com/script.js?key=a&mode=b',
       origin: 'https://analytics.example.com',
-    })).toContain(
-      '<script defer src="https://analytics.example.com/script.js?key=a&amp;mode=b" data-website-id="site-123"></script>'
+    });
+    expect(rendered).toContain(
+      'src="https://analytics.example.com/script.js?key=a&amp;mode=b"'
     );
+    expect(rendered).toContain('data-website-id="site-123"');
+    expect(rendered).toContain('data-performance="true"');
   });
 });
