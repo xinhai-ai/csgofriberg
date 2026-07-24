@@ -875,7 +875,7 @@ export default function MultiRoom() {
 
       {/* 等待区 */}
       {room.status === 'waiting' && (
-        <div className="card">
+        <div className="card room-waiting-card">
           {room.players.map((p) => (
             <div
               key={p.key}

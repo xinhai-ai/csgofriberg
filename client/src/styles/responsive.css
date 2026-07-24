@@ -292,6 +292,14 @@
   .room-player-row { flex-wrap: wrap; }
   .room-player-row > b { flex: 1 1 140px; }
   .room-ready-actions .btn { flex: 1; }
+  .room-waiting-card .room-player-row > b { flex: 0 1 auto; }
+  .room-waiting-card .room-ready-actions .btn {
+    flex: 0 0 auto;
+    min-width: 0;
+    min-height: 36px;
+    padding: 8px 14px;
+    font-size: 0.88rem;
+  }
   .multi-lobby-message-actions { width: 100%; }
   .multi-lobby-message-actions .btn { flex: 1 1 180px; }
 }
@@ -334,6 +342,11 @@
   .overlay-card .btns,
   .confirm-actions { grid-template-columns: 1fr; }
   .room-ready-actions { flex-direction: column; }
+  .room-waiting-card .room-ready-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

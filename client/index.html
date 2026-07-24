@@ -7,7 +7,13 @@
       content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content"
     />
     <meta name="theme-color" content="#160a13" />
+    <style>
+      html[data-theme='blast']:not([data-theme-ready]) body { visibility: hidden; }
+    </style>
     <link rel="stylesheet" href="/src/styles/index.css" />
+    <link rel="stylesheet" href="/src/styles/themes/blast-foundation.css" media="not all" data-blast-theme />
+    <link rel="stylesheet" href="/src/styles/themes/blast-pages.css" media="not all" data-blast-theme />
+    <link rel="stylesheet" href="/src/styles/themes/blast-responsive.css" media="not all" data-blast-theme />
     <script src="/theme-init.js"></script>
     <title>弗一把 - CS Major 选手猜测游戏</title>
   </head>

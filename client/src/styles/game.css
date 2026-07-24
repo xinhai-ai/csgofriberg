@@ -74,6 +74,24 @@
   min-width: 0;
   padding: 8px 0;
 }
+.room-waiting-card {
+  width: min(920px, 100%);
+  margin-inline: auto;
+  text-align: center;
+}
+.room-waiting-card .room-player-row {
+  justify-content: center;
+}
+.room-waiting-card .room-player-row > b {
+  flex: 0 1 auto;
+  max-width: min(320px, 52vw);
+}
+.room-waiting-card .room-ready-actions {
+  justify-content: center;
+}
+.room-waiting-card .room-ready-actions .btn {
+  min-width: min(160px, 100%);
+}
 .room-player-row > b {
   min-width: 0;
   overflow: hidden;
