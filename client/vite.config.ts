@@ -17,4 +17,11 @@ export default defineConfig({
       '/socket.io': { target: 'http://localhost:3000', ws: true },
     },
   },
+  build: {
+    // CSP style-src is 'self' (+ unsafe-inline); data: stylesheet URLs are blocked.
+    assetsInlineLimit(filePath, content) {
+      if (filePath.endsWith('.css')) return false;
+      return content.length < 4096;
+    },
+  },
 });
